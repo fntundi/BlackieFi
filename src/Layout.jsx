@@ -89,7 +89,7 @@ export default function Layout({ children, currentPageName }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive(item.href)
-                      ? 'bg-blue-50 text-blue-600'
+                      ? 'bg-gradient-to-r from-red-600 to-blue-700 text-white shadow-md'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
@@ -133,7 +133,7 @@ export default function Layout({ children, currentPageName }) {
                   to={item.href}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive(item.href)
-                      ? 'bg-blue-50 text-blue-600'
+                      ? 'bg-gradient-to-r from-red-600 to-blue-700 text-white shadow-md'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
