@@ -20,8 +20,15 @@ Deno.serve(async (req) => {
 
     // Fetch all categories for this entity
     const categories = await base44.entities.Category.filter({ 
-      entity_id: entity_id 
+      entity_id: [entity_id, null]
     });
+
+    // Fetch learning data from user corrections
+    const learningData = await base44.asServiceRole.entities.CategorizationLearning.filter(
+      { entity_id: entity_id },
+      '-correction_count',
+      50
+    );
 
     // Fetch recent transactions from the same entity to learn patterns
     const recentTransactions = await base44.entities.Transaction.filter(
@@ -33,11 +40,21 @@ Deno.serve(async (req) => {
     // Filter transactions that have categories assigned
     const categorizedTransactions = recentTransactions.filter(t => t.category_id);
 
-    // Build learning examples from existing categorized transactions
-    const learningExamples = categorizedTransactions.slice(0, 20).map(t => {
+    // Build learning examples prioritizing user corrections
+    const correctionExamples = learningData
+      .filter(l => l.was_correction)
+      .slice(0, 10)
+      .map(l => {
+        const cat = categories.find(c => c.id === l.actual_category_id);
+        return `Description: "${l.transaction_description}", Amount: $${l.transaction_amount}, User CORRECTED to: ${cat?.name || 'Unknown'} (corrected ${l.correction_count} times)`;
+      });
+
+    const transactionExamples = categorizedTransactions.slice(0, 15).map(t => {
       const cat = categories.find(c => c.id === t.category_id);
       return `Description: "${t.description}", Amount: $${t.amount}, Category: ${cat?.name || 'Unknown'}`;
-    }).join('\n');
+    });
+
+    const learningExamples = [...correctionExamples, ...transactionExamples].join('\n');
 
     // Build category options
     const categoryOptions = categories.map(c => ({
@@ -47,8 +64,8 @@ Deno.serve(async (req) => {
       keywords: c.auto_categorization_rules || []
     }));
 
-    // Use AI to suggest a category
-    const prompt = `You are a financial categorization assistant. Analyze the following transaction and suggest the most appropriate category.
+    // Use AI to suggest a category with learning context
+    const prompt = `You are an intelligent financial categorization assistant that learns from user behavior. Analyze the transaction and suggest the most appropriate category.
 
 Transaction to categorize:
 - Description: "${transaction.description}"
@@ -58,11 +75,13 @@ Transaction to categorize:
 Available categories:
 ${categoryOptions.map(c => `- ${c.name} (${c.type}${c.keywords.length > 0 ? ', keywords: ' + c.keywords.join(', ') : ''})`).join('\n')}
 
-${learningExamples.length > 0 ? `\nPrevious categorization examples from this user:\n${learningExamples}` : ''}
+${learningExamples.length > 0 ? `\nLearning from user's past categorizations (PRIORITIZE corrections with high counts):\n${learningExamples}` : ''}
 
-Based on the transaction description, amount, and type, which category is most appropriate? Consider common spending patterns and the keywords if provided.
+IMPORTANT: Pay close attention to transactions marked as "User CORRECTED" - these show the user's preferred categorization for similar descriptions. If the current transaction is similar to a corrected pattern, strongly favor that category.
 
-Return the category ID and a brief explanation of why this category was chosen.`;
+Analyze transaction description patterns, keywords, and user correction history to make the most accurate suggestion.
+
+Return the category ID and explain your reasoning, especially if using a learned pattern.`;
 
     const aiResponse = await base44.integrations.Core.InvokeLLM({
       prompt,

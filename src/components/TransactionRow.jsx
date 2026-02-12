@@ -39,11 +39,46 @@ export default function TransactionRow({ transaction, categories, onUpdate }) {
     }
   };
 
+  const recordLearning = async (categoryId, wasCorrection = false) => {
+    try {
+      // Check if similar learning exists
+      const existing = await base44.entities.CategorizationLearning.filter({
+        entity_id: transaction.entity_id,
+        transaction_description: transaction.description
+      });
+
+      if (existing.length > 0 && wasCorrection) {
+        // Update existing learning
+        const record = existing[0];
+        await base44.entities.CategorizationLearning.update(record.id, {
+          actual_category_id: categoryId,
+          was_correction: true,
+          correction_count: (record.correction_count || 0) + 1
+        });
+      } else {
+        // Create new learning record
+        await base44.entities.CategorizationLearning.create({
+          entity_id: transaction.entity_id,
+          transaction_description: transaction.description,
+          suggested_category_id: suggestion?.category_id || null,
+          actual_category_id: categoryId,
+          transaction_amount: transaction.amount,
+          transaction_type: transaction.type,
+          was_correction: wasCorrection,
+          correction_count: wasCorrection ? 1 : 0
+        });
+      }
+    } catch (error) {
+      console.error('Failed to record learning:', error);
+    }
+  };
+
   const acceptSuggestion = async () => {
     try {
       await base44.entities.Transaction.update(transaction.id, {
         category_id: suggestion.category_id
       });
+      await recordLearning(suggestion.category_id, false);
       setShowSuggestion(false);
       setSuggestion(null);
       setSelectedCategory(suggestion.category_id);
@@ -64,9 +99,16 @@ export default function TransactionRow({ transaction, categories, onUpdate }) {
       await base44.entities.Transaction.update(transaction.id, {
         category_id: categoryId
       });
+      
+      // Record as correction if rejecting a suggestion
+      const wasCorrection = showSuggestion && suggestion && categoryId !== suggestion.category_id;
+      await recordLearning(categoryId, wasCorrection);
+      
       setSelectedCategory(categoryId);
+      setShowSuggestion(false);
+      setSuggestion(null);
       onUpdate();
-      toast.success('Category updated');
+      toast.success(wasCorrection ? 'Category updated - AI will learn from this' : 'Category updated');
     } catch (error) {
       toast.error('Failed to update category');
     }
