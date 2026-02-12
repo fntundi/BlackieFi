@@ -49,11 +49,19 @@ export default function Layout({ children, currentPageName }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <style>{`
+        :root {
+          --color-primary: #DC2626;
+          --color-secondary: #1E40AF;
+          --color-dark: #0F172A;
+          --color-accent: #EF4444;
+        }
+      `}</style>
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 bg-white border-b border-gray-200 z-50">
         <div className="flex items-center justify-between p-4">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-gradient-to-br from-red-600 to-blue-700 rounded-lg flex items-center justify-center shadow-md">
               <span className="text-white font-bold text-sm">BF</span>
             </div>
             <h1 className="text-xl font-bold text-gray-900">BlackieFi</h1>
@@ -107,13 +115,13 @@ export default function Layout({ children, currentPageName }) {
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-64 lg:flex-col">
         <div className="flex flex-col flex-grow bg-white border-r border-gray-200 overflow-y-auto">
-          <div className="flex items-center gap-3 p-6 border-b border-gray-200">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl flex items-center justify-center">
+          <div className="flex items-center gap-3 p-6 border-b border-gray-200 bg-slate-900">
+            <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
               <span className="text-white font-bold">BF</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-900">BlackieFi</h1>
-              <p className="text-xs text-gray-500">Financial Tracker</p>
+              <h1 className="text-xl font-bold text-white">BlackieFi</h1>
+              <p className="text-xs text-gray-400">Financial Tracker</p>
             </div>
           </div>
           <nav className="flex-1 p-4 space-y-1">

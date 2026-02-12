@@ -267,7 +267,7 @@ export default function Investments() {
             <Card key={vehicle.id}>
               <CardHeader>
                 <div className="flex items-center gap-3">
-                  <Briefcase className="w-6 h-6 text-blue-600" />
+                  <Briefcase className="w-6 h-6 text-blue-700" />
                   <div className="flex-1">
                     <CardTitle>{vehicle.name}</CardTitle>
                     <p className="text-sm text-gray-500 capitalize">{vehicle.type?.replace(/_/g, ' ')} {vehicle.provider && `• ${vehicle.provider}`}</p>

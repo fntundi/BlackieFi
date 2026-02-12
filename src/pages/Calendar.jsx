@@ -105,11 +105,11 @@ export default function Calendar() {
                   <div
                     key={date.toISOString()}
                     className={`bg-white min-h-24 p-2 cursor-pointer hover:bg-gray-50 transition-colors ${
-                      isToday ? 'ring-2 ring-blue-500' : ''
-                    } ${isSelected ? 'bg-blue-50' : ''}`}
+                      isToday ? 'ring-2 ring-red-600' : ''
+                    } ${isSelected ? 'bg-red-50' : ''}`}
                     onClick={() => setSelectedDate(date)}
                   >
-                    <div className={`text-sm font-medium mb-1 ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
+                    <div className={`text-sm font-medium mb-1 ${isToday ? 'text-red-600 font-bold' : 'text-gray-900'}`}>
                       {format(date, 'd')}
                     </div>
                     <div className="space-y-1">
