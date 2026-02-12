@@ -8,6 +8,7 @@ import { ArrowUpCircle, ArrowDownCircle, CreditCard, TrendingUp, Calendar, Plus 
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import BillReminders from '../components/BillReminders';
+import MarketNewsFeed from '../components/MarketNewsFeed';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -174,6 +175,11 @@ export default function Dashboard() {
             </Link>
           </CardContent>
         </Card>
+
+        {/* Market News Feed */}
+        {selectedEntity && selectedEntity !== 'all' && (
+          <MarketNewsFeed entityId={selectedEntity} />
+        )}
 
         {/* Bill Reminders */}
         {selectedEntity && selectedEntity !== 'all' && (
