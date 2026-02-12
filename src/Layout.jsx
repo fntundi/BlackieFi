@@ -133,8 +133,8 @@ export default function Layout({ children, currentPageName }) {
                   to={item.href}
                   className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive(item.href)
-                      ? 'bg-gradient-to-r from-red-600 to-blue-700 text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      ? 'bg-gradient-to-r from-amber-500 to-blue-600 text-slate-900 shadow-lg font-semibold'
+                      : 'text-gray-300 hover:bg-slate-800 hover:text-amber-400'
                   }`}
                 >
                   <Icon className="w-5 h-5" />
