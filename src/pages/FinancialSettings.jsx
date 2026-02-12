@@ -10,6 +10,7 @@ import { Plus, Trash2, Target, Save } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function FinancialSettings() {
+  const [user, setUser] = useState(null);
   const [selectedEntity, setSelectedEntity] = useState('');
   const [formData, setFormData] = useState({
     risk_tolerance: 'moderate',
@@ -21,6 +22,10 @@ export default function FinancialSettings() {
     financial_goals: []
   });
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {});
+  }, []);
 
   const { data: entities = [] } = useQuery({
     queryKey: ['entities'],
@@ -92,6 +97,28 @@ export default function FinancialSettings() {
     const newGoals = formData.financial_goals.filter((_, i) => i !== index);
     setFormData({ ...formData, financial_goals: newGoals });
   };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </div>
+    );
+  }
+
+  if (user.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
+            <p className="text-gray-600">Only administrators can access application settings.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">

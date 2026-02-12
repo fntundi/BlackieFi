@@ -47,8 +47,10 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Calendar', href: createPageUrl('Calendar'), icon: Calendar },
     { name: 'Import', href: createPageUrl('Import'), icon: Upload },
     { name: 'Reports', href: createPageUrl('Reports'), icon: BarChart3 },
-    { name: 'Settings', href: createPageUrl('FinancialSettings'), icon: Settings },
-    ...(user?.role === 'admin' ? [{ name: 'Groups', href: createPageUrl('Groups'), icon: Users }] : []),
+    ...(user?.role === 'admin' ? [
+      { name: 'Settings', href: createPageUrl('FinancialSettings'), icon: Settings },
+      { name: 'Groups', href: createPageUrl('Groups'), icon: Users }
+    ] : []),
   ];
 
   const isActive = (href) => {
