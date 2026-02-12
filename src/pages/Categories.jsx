@@ -132,7 +132,7 @@ export default function Categories() {
               <Card key={category.id}>
                 <CardHeader>
                   <div className="flex items-center gap-3">
-                    <Tag className="w-5 h-5 text-red-600" />
+                    <Tag className="w-5 h-5 text-amber-500" />
                     <div className="flex-1">
                       <CardTitle className="text-lg">{category.name}</CardTitle>
                       <div className="flex gap-2 mt-1">

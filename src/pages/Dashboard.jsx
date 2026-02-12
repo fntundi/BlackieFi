@@ -145,25 +145,25 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <Link to={createPageUrl('Transactions')}>
-              <Button variant="outline" className="w-full hover:bg-red-50 hover:text-red-600 hover:border-red-300">
+              <Button variant="outline" className="w-full bg-slate-900 text-amber-400 border-slate-700 hover:bg-slate-800 hover:border-amber-500">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Transaction
               </Button>
             </Link>
             <Link to={createPageUrl('RecurringTransactions')}>
-              <Button variant="outline" className="w-full hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+              <Button variant="outline" className="w-full bg-blue-600 text-white border-blue-500 hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Recurring
               </Button>
             </Link>
             <Link to={createPageUrl('Debts')}>
-              <Button variant="outline" className="w-full hover:bg-red-50 hover:text-red-600 hover:border-red-300">
+              <Button variant="outline" className="w-full bg-slate-900 text-amber-400 border-slate-700 hover:bg-slate-800 hover:border-amber-500">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Debt
               </Button>
             </Link>
             <Link to={createPageUrl('Calendar')}>
-              <Button variant="outline" className="w-full hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300">
+              <Button variant="outline" className="w-full bg-blue-600 text-white border-blue-500 hover:bg-blue-700">
                 <Calendar className="w-4 h-4 mr-2" />
                 View Calendar
               </Button>
