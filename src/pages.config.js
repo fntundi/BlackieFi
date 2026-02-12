@@ -47,8 +47,20 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import Dashboard from './pages/Dashboard';
+import Entities from './pages/Entities';
+import Transactions from './pages/Transactions';
+import RecurringTransactions from './pages/RecurringTransactions';
 
-export const pagesConfig = {
-	Pages: {}
+
+export const PAGES = {
+    "Dashboard": Dashboard,
+    "Entities": Entities,
+    "Transactions": Transactions,
+    "RecurringTransactions": RecurringTransactions,
 }
 
+export const pagesConfig = {
+    mainPage: "Dashboard",
+    Pages: PAGES,
+};
