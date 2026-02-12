@@ -47,30 +47,30 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import Dashboard from './pages/Dashboard';
-import Entities from './pages/Entities';
-import Transactions from './pages/Transactions';
-import RecurringTransactions from './pages/RecurringTransactions';
-import Debts from './pages/Debts';
-import Investments from './pages/Investments';
-import Categories from './pages/Categories';
 import Calendar from './pages/Calendar';
+import Categories from './pages/Categories';
+import Dashboard from './pages/Dashboard';
+import Debts from './pages/Debts';
+import Entities from './pages/Entities';
 import Import from './pages/Import';
+import Investments from './pages/Investments';
+import RecurringTransactions from './pages/RecurringTransactions';
 import Reports from './pages/Reports';
+import Transactions from './pages/Transactions';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "Dashboard": Dashboard,
-    "Entities": Entities,
-    "Transactions": Transactions,
-    "RecurringTransactions": RecurringTransactions,
-    "Debts": Debts,
-    "Investments": Investments,
-    "Categories": Categories,
     "Calendar": Calendar,
+    "Categories": Categories,
+    "Dashboard": Dashboard,
+    "Debts": Debts,
+    "Entities": Entities,
     "Import": Import,
+    "Investments": Investments,
+    "RecurringTransactions": RecurringTransactions,
     "Reports": Reports,
+    "Transactions": Transactions,
 }
 
 export const pagesConfig = {

@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { TrendingUp, Plus, Briefcase } from 'lucide-react';
+import { toast } from 'sonner';
+import PortfolioAnalysis from '../components/PortfolioAnalysis';
 
 export default function Investments() {
   const [showVehicleDialog, setShowVehicleDialog] = useState(false);
@@ -21,10 +23,12 @@ export default function Investments() {
   const [holdingForm, setHoldingForm] = useState({
     vehicle_id: '',
     asset_name: '',
+    asset_class: 'stocks',
     quantity: '',
     cost_basis: '',
     current_price: '',
   });
+  const [selectedEntity, setSelectedEntity] = useState('');
 
   const queryClient = useQueryClient();
 
@@ -49,6 +53,7 @@ export default function Investments() {
       queryClient.invalidateQueries(['investment-vehicles']);
       setShowVehicleDialog(false);
       setVehicleForm({ name: '', type: '401k', provider: '', entity_id: '' });
+      toast.success('Investment vehicle added');
     },
   });
 
@@ -57,7 +62,8 @@ export default function Investments() {
     onSuccess: () => {
       queryClient.invalidateQueries(['investment-holdings']);
       setShowHoldingDialog(false);
-      setHoldingForm({ vehicle_id: '', asset_name: '', quantity: '', cost_basis: '', current_price: '' });
+      setHoldingForm({ vehicle_id: '', asset_name: '', asset_class: 'stocks', quantity: '', cost_basis: '', current_price: '' });
+      toast.success('Holding added');
     },
   });
 
@@ -195,6 +201,22 @@ export default function Investments() {
                     />
                   </div>
                   <div>
+                    <Label>Asset Class</Label>
+                    <Select value={holdingForm.asset_class} onValueChange={(value) => setHoldingForm({ ...holdingForm, asset_class: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="stocks">Stocks</SelectItem>
+                        <SelectItem value="bonds">Bonds</SelectItem>
+                        <SelectItem value="real_estate">Real Estate</SelectItem>
+                        <SelectItem value="crypto">Crypto</SelectItem>
+                        <SelectItem value="commodities">Commodities</SelectItem>
+                        <SelectItem value="cash">Cash</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label>Quantity</Label>
                     <Input
                       type="number"
@@ -231,33 +253,41 @@ export default function Investments() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card>
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Value</CardTitle>
+              <CardTitle className="text-sm font-medium text-blue-900">Total Value</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">${getTotalValue().toFixed(2)}</div>
+              <div className="text-2xl font-bold text-blue-900">${getTotalValue().toFixed(2)}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Cost Basis</CardTitle>
+              <CardTitle className="text-sm font-medium text-slate-700">Cost Basis</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-gray-900">${getTotalCostBasis().toFixed(2)}</div>
+              <div className="text-2xl font-bold text-slate-900">${getTotalCostBasis().toFixed(2)}</div>
             </CardContent>
           </Card>
-          <Card>
+          <Card className={`bg-gradient-to-br ${getGainLoss() >= 0 ? 'from-green-50 to-green-100 border-green-200' : 'from-red-50 to-red-100 border-red-200'}`}>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Gain/Loss</CardTitle>
+              <CardTitle className={`text-sm font-medium ${getGainLoss() >= 0 ? 'text-green-900' : 'text-red-900'}`}>Gain/Loss</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className={`text-2xl font-bold ${getGainLoss() >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <div className={`text-2xl font-bold ${getGainLoss() >= 0 ? 'text-green-700' : 'text-red-700'}`}>
                 {getGainLoss() >= 0 ? '+' : ''}${getGainLoss().toFixed(2)}
               </div>
             </CardContent>
           </Card>
         </div>
+
+        {entities.length > 0 && holdings.length > 0 && (
+          <PortfolioAnalysis
+            entityId={selectedEntity || entities[0]?.id}
+            holdings={holdings}
+            vehicles={vehicles}
+          />
+        )}
 
         {vehicles.map(vehicle => {
           const vehicleHoldings = holdings.filter(h => h.vehicle_id === vehicle.id);
@@ -288,7 +318,10 @@ export default function Investments() {
                       <div key={holding.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                         <div>
                           <p className="font-medium text-gray-900">{holding.asset_name}</p>
-                          <p className="text-sm text-gray-500">{holding.quantity} shares @ ${holding.current_price?.toFixed(2)}</p>
+                          <p className="text-sm text-gray-500">
+                            {holding.quantity} shares @ ${holding.current_price?.toFixed(2)}
+                            {holding.asset_class && <span className="ml-2 text-xs capitalize">• {holding.asset_class}</span>}
+                          </p>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-gray-900">${currentValue.toFixed(2)}</p>
