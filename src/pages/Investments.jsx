@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { TrendingUp, Plus, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import PortfolioAnalysis from '../components/PortfolioAnalysis';
+import InvestmentStrategyAdvisor from '../components/InvestmentStrategyAdvisor';
 
 export default function Investments() {
   const [showVehicleDialog, setShowVehicleDialog] = useState(false);
@@ -280,6 +281,12 @@ export default function Investments() {
             </CardContent>
           </Card>
         </div>
+
+        {entities.length > 0 && (
+          <InvestmentStrategyAdvisor
+            entityId={selectedEntity || entities[0]?.id}
+          />
+        )}
 
         {entities.length > 0 && holdings.length > 0 && (
           <PortfolioAnalysis
