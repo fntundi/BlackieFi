@@ -25,7 +25,10 @@ export default function Entities() {
 
   const { data: entities = [] } = useQuery({
     queryKey: ['entities'],
-    queryFn: () => base44.entities.Entity.list(),
+    queryFn: async () => {
+      const response = await base44.functions.invoke('getAccessibleEntities');
+      return response.data.entities || [];
+    },
   });
 
   const createMutation = useMutation({
