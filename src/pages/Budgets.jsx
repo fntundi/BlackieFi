@@ -10,6 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, AlertTriangle, CheckCircle, TrendingDown, Loader2, Save, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
+import BudgetForecast from '../components/BudgetForecast';
 
 export default function BudgetsPage() {
   const [selectedEntity, setSelectedEntity] = useState('');
@@ -220,6 +221,11 @@ export default function BudgetsPage() {
             </Button>
           </div>
         </div>
+
+        {/* AI Forecast */}
+        {selectedEntity && (
+          <BudgetForecast entityId={selectedEntity} />
+        )}
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
