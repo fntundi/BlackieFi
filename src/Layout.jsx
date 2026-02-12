@@ -17,7 +17,8 @@ import {
   X,
   LogOut,
   BarChart3,
-  PiggyBank
+  PiggyBank,
+  Settings
 } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
@@ -45,6 +46,7 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Calendar', href: createPageUrl('Calendar'), icon: Calendar },
     { name: 'Import', href: createPageUrl('Import'), icon: Upload },
     { name: 'Reports', href: createPageUrl('Reports'), icon: BarChart3 },
+    { name: 'Settings', href: createPageUrl('FinancialSettings'), icon: Settings },
   ];
 
   const isActive = (href) => {
