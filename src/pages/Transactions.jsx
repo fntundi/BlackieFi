@@ -7,7 +7,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Upload, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Plus, Upload, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+import TransactionRow from '../components/TransactionRow';
 
 export default function Transactions() {
   const [user, setUser] = useState(null);
@@ -63,8 +65,41 @@ export default function Transactions() {
         account_id: '',
         category_id: '',
       });
+      toast.success('Transaction added');
     },
   });
+
+  const categorizeBatch = async () => {
+    const uncategorized = transactions.filter(t => !t.category_id);
+    if (uncategorized.length === 0) {
+      toast.info('All transactions are already categorized');
+      return;
+    }
+
+    toast.info(`Categorizing ${uncategorized.length} transactions...`);
+    let successCount = 0;
+
+    for (const transaction of uncategorized.slice(0, 10)) {
+      try {
+        const response = await base44.functions.invoke('categorizeTransaction', {
+          transaction_id: transaction.id,
+          entity_id: transaction.entity_id
+        });
+
+        if (response.data.success && response.data.suggestion.confidence !== 'low') {
+          await base44.entities.Transaction.update(transaction.id, {
+            category_id: response.data.suggestion.category_id
+          });
+          successCount++;
+        }
+      } catch (error) {
+        console.error('Failed to categorize:', error);
+      }
+    }
+
+    queryClient.invalidateQueries(['transactions']);
+    toast.success(`Auto-categorized ${successCount} transactions`);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -83,13 +118,21 @@ export default function Transactions() {
             <p className="text-gray-500 mt-1">Track all your financial transactions</p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={categorizeBatch}
+              className="border-amber-600 text-amber-700 hover:bg-amber-50"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Auto-Categorize
+            </Button>
             <Button variant="outline" onClick={() => setShowImportDialog(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Import
             </Button>
             <Dialog open={showDialog} onOpenChange={setShowDialog}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="bg-blue-800 hover:bg-blue-900 text-white">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Transaction
                 </Button>
@@ -186,36 +229,23 @@ export default function Transactions() {
           </div>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>All Transactions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {transactions.map(t => (
-                <div key={t.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                  <div className="flex items-center gap-3">
-                    {t.type === 'income' ? (
-                      <ArrowUpCircle className="w-5 h-5 text-green-600" />
-                    ) : (
-                      <ArrowDownCircle className="w-5 h-5 text-red-600" />
-                    )}
-                    <div>
-                      <p className="font-medium text-gray-900">{t.description}</p>
-                      <p className="text-sm text-gray-500">{t.date}</p>
-                    </div>
-                  </div>
-                  <div className={`font-semibold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}`}>
-                    {t.type === 'income' ? '+' : '-'}${t.amount?.toFixed(2)}
-                  </div>
-                </div>
-              ))}
-              {transactions.length === 0 && (
-                <p className="text-center text-gray-500 py-8">No transactions yet. Add your first transaction to get started.</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          {transactions.map(transaction => (
+            <TransactionRow
+              key={transaction.id}
+              transaction={transaction}
+              categories={categories}
+              onUpdate={() => queryClient.invalidateQueries(['transactions'])}
+            />
+          ))}
+          {transactions.length === 0 && (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-gray-500">No transactions yet. Add your first transaction to get started.</p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     </div>
   );
