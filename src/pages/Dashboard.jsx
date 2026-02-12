@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowUpCircle, ArrowDownCircle, CreditCard, TrendingUp, Calendar, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { createPageUrl } from '../utils';
+import { createPageUrl } from '@/utils';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
