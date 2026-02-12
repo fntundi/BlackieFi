@@ -122,7 +122,7 @@ export default function RecurringTransactions() {
                   Add Recurring
                 </Button>
               </DialogTrigger>
-            <DialogContent className="max-w-md">
+              <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add Recurring Transaction</DialogTitle>
               </DialogHeader>
@@ -211,8 +211,9 @@ export default function RecurringTransactions() {
                 </div>
                 <Button type="submit" className="w-full">Add Recurring Transaction</Button>
               </form>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4">
