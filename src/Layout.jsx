@@ -18,7 +18,8 @@ import {
   LogOut,
   BarChart3,
   PiggyBank,
-  Settings
+  Settings,
+  Users
 } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
@@ -47,6 +48,7 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Import', href: createPageUrl('Import'), icon: Upload },
     { name: 'Reports', href: createPageUrl('Reports'), icon: BarChart3 },
     { name: 'Settings', href: createPageUrl('FinancialSettings'), icon: Settings },
+    ...(user?.role === 'admin' ? [{ name: 'Groups', href: createPageUrl('Groups'), icon: Users }] : []),
   ];
 
   const isActive = (href) => {

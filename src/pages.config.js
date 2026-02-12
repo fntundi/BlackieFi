@@ -59,6 +59,7 @@ import Reports from './pages/Reports';
 import Transactions from './pages/Transactions';
 import Budgets from './pages/Budgets';
 import FinancialSettings from './pages/FinancialSettings';
+import Groups from './pages/Groups';
 import __Layout from './Layout.jsx';
 
 
@@ -75,6 +76,7 @@ export const PAGES = {
     "Transactions": Transactions,
     "Budgets": Budgets,
     "FinancialSettings": FinancialSettings,
+    "Groups": Groups,
 }
 
 export const pagesConfig = {
