@@ -183,6 +183,98 @@ export default function PortfolioAnalysis({ entityId, holdings, vehicles }) {
               </Card>
             )}
 
+            {/* Market Data & Performance */}
+            {analysis.market_data && (
+              <Card className="bg-gradient-to-br from-blue-50 to-indigo-50">
+                <CardHeader>
+                  <CardTitle className="text-lg">Market Conditions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Market Sentiment</p>
+                      <Badge className={
+                        analysis.market_data.market_conditions?.overall_sentiment === 'bullish' ? 'bg-green-100 text-green-800' :
+                        analysis.market_data.market_conditions?.overall_sentiment === 'bearish' ? 'bg-red-100 text-red-800' :
+                        'bg-gray-100 text-gray-800'
+                      }>
+                        {analysis.market_data.market_conditions?.overall_sentiment?.toUpperCase() || 'NEUTRAL'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Market Volatility</p>
+                      <Badge className={
+                        analysis.market_data.market_conditions?.volatility_level === 'high' ? 'bg-red-100 text-red-800' :
+                        analysis.market_data.market_conditions?.volatility_level === 'low' ? 'bg-green-100 text-green-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }>
+                        {analysis.market_data.market_conditions?.volatility_level?.toUpperCase() || 'MEDIUM'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600 mb-1">Total Return</p>
+                      <p className={`text-xl font-bold ${analysis.portfolio.total_return_pct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {analysis.portfolio.total_return_pct >= 0 ? '+' : ''}{analysis.portfolio.total_return_pct.toFixed(2)}%
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Holdings Performance Detail */}
+            {analysis.holdings_detail && analysis.holdings_detail.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Holdings Performance</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {analysis.holdings_detail.slice(0, 10).map((holding, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-gray-900">{holding.name}</p>
+                            <Badge variant="outline" className="text-xs capitalize">{holding.asset_class}</Badge>
+                            {holding.volatility && (
+                              <Badge className={
+                                holding.volatility === 'high' ? 'bg-red-100 text-red-800 text-xs' :
+                                holding.volatility === 'low' ? 'bg-green-100 text-green-800 text-xs' :
+                                'bg-yellow-100 text-yellow-800 text-xs'
+                              }>
+                                {holding.volatility} vol
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex gap-4 text-sm text-gray-600">
+                            <span>Value: ${holding.value.toFixed(2)}</span>
+                            {holding.current_price > 0 && (
+                              <span>Price: ${holding.current_price.toFixed(2)}</span>
+                            )}
+                            {holding.day_change_pct !== 0 && (
+                              <span className={holding.day_change_pct >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                Today: {holding.day_change_pct >= 0 ? '+' : ''}{holding.day_change_pct.toFixed(2)}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-lg font-bold ${holding.gain_loss >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {holding.gain_loss >= 0 ? '+' : ''}{holding.gain_loss_pct.toFixed(1)}%
+                          </p>
+                          {holding.outperforming_benchmark !== null && (
+                            <p className="text-xs text-gray-500">
+                              {holding.outperforming_benchmark ? '✓' : '✗'} vs benchmark
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Key Insights */}
             <div className="grid md:grid-cols-2 gap-4">
               <Card>
