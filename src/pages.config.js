@@ -56,6 +56,7 @@ import Investments from './pages/Investments';
 import Categories from './pages/Categories';
 import Calendar from './pages/Calendar';
 import Import from './pages/Import';
+import Reports from './pages/Reports';
 import __Layout from './Layout.jsx';
 
 
@@ -69,6 +70,7 @@ export const PAGES = {
     "Categories": Categories,
     "Calendar": Calendar,
     "Import": Import,
+    "Reports": Reports,
 }
 
 export const pagesConfig = {

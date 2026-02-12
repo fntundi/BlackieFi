@@ -15,7 +15,8 @@ import {
   Upload,
   Menu,
   X,
-  LogOut
+  LogOut,
+  BarChart3
 } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
@@ -41,6 +42,7 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Categories', href: createPageUrl('Categories'), icon: Tag },
     { name: 'Calendar', href: createPageUrl('Calendar'), icon: Calendar },
     { name: 'Import', href: createPageUrl('Import'), icon: Upload },
+    { name: 'Reports', href: createPageUrl('Reports'), icon: BarChart3 },
   ];
 
   const isActive = (href) => {
