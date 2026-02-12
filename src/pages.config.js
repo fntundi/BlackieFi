@@ -51,6 +51,9 @@ import Dashboard from './pages/Dashboard';
 import Entities from './pages/Entities';
 import Transactions from './pages/Transactions';
 import RecurringTransactions from './pages/RecurringTransactions';
+import Debts from './pages/Debts';
+import Investments from './pages/Investments';
+import Categories from './pages/Categories';
 
 
 export const PAGES = {
@@ -58,6 +61,9 @@ export const PAGES = {
     "Entities": Entities,
     "Transactions": Transactions,
     "RecurringTransactions": RecurringTransactions,
+    "Debts": Debts,
+    "Investments": Investments,
+    "Categories": Categories,
 }
 
 export const pagesConfig = {
