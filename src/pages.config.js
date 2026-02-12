@@ -54,6 +54,9 @@ import RecurringTransactions from './pages/RecurringTransactions';
 import Debts from './pages/Debts';
 import Investments from './pages/Investments';
 import Categories from './pages/Categories';
+import Calendar from './pages/Calendar';
+import Import from './pages/Import';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -64,9 +67,12 @@ export const PAGES = {
     "Debts": Debts,
     "Investments": Investments,
     "Categories": Categories,
+    "Calendar": Calendar,
+    "Import": Import,
 }
 
 export const pagesConfig = {
     mainPage: "Dashboard",
     Pages: PAGES,
+    Layout: __Layout,
 };
