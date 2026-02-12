@@ -8,7 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Calendar, DollarSign, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
+import RecurringTransactionCard from '../components/RecurringTransactionCard';
 
 export default function RecurringTransactions() {
   const [showDialog, setShowDialog] = useState(false);
@@ -55,8 +57,28 @@ export default function RecurringTransactions() {
         account_id: '',
         is_variable: false,
       });
+      toast.success('Recurring transaction added');
     },
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => base44.entities.RecurringTransaction.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['recurring']);
+      toast.success('Recurring transaction deleted');
+    },
+  });
+
+  const handleProcessNow = async () => {
+    try {
+      const response = await base44.functions.invoke('processRecurringTransactions', {});
+      queryClient.invalidateQueries(['recurring']);
+      queryClient.invalidateQueries(['transactions']);
+      toast.success(`Processed ${response.data.results.created} recurring transactions`);
+    } catch (error) {
+      toast.error('Failed to process recurring transactions');
+    }
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -84,13 +106,22 @@ export default function RecurringTransactions() {
             <h1 className="text-3xl font-bold text-gray-900">Recurring Transactions</h1>
             <p className="text-gray-500 mt-1">Manage your recurring income and expenses</p>
           </div>
-          <Dialog open={showDialog} onOpenChange={setShowDialog}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Recurring
-              </Button>
-            </DialogTrigger>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={handleProcessNow}
+              className="border-blue-800 text-blue-800 hover:bg-blue-50"
+            >
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Process Now
+            </Button>
+            <Dialog open={showDialog} onOpenChange={setShowDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-blue-800 hover:bg-blue-900 text-white">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Recurring
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
                 <DialogTitle>Add Recurring Transaction</DialogTitle>
@@ -184,38 +215,17 @@ export default function RecurringTransactions() {
           </Dialog>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           {recurring.map(rt => (
-            <Card key={rt.id}>
-              <CardContent className="pt-6">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-lg text-gray-900">{rt.name}</h3>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant={rt.type === 'income' ? 'default' : 'secondary'}>
-                        {rt.type}
-                      </Badge>
-                      <Badge variant="outline">{frequencyLabels[rt.frequency]}</Badge>
-                    </div>
-                    <div className="flex items-center gap-4 mt-3 text-sm text-gray-600">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        <span>{rt.next_date}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-4 h-4" />
-                        <span className={rt.type === 'income' ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-                          {rt.type === 'income' ? '+' : '-'}${rt.amount?.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <RecurringTransactionCard
+              key={rt.id}
+              recurring={rt}
+              onDelete={(id) => deleteMutation.mutate(id)}
+              onRefresh={() => queryClient.invalidateQueries(['transactions'])}
+            />
           ))}
           {recurring.length === 0 && (
-            <Card className="md:col-span-2">
+            <Card>
               <CardContent className="py-12">
                 <p className="text-center text-gray-500">No recurring transactions yet. Add your first recurring income or expense to get started.</p>
               </CardContent>
