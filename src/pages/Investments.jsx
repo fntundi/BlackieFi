@@ -11,6 +11,7 @@ import { TrendingUp, Plus, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import PortfolioAnalysis from '../components/PortfolioAnalysis';
 import InvestmentStrategyAdvisor from '../components/InvestmentStrategyAdvisor';
+import AdvancedPortfolioAnalytics from '../components/AdvancedPortfolioAnalytics';
 
 export default function Investments() {
   const [showVehicleDialog, setShowVehicleDialog] = useState(false);
