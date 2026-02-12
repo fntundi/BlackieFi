@@ -297,6 +297,10 @@ export default function Investments() {
           />
         )}
 
+        {entities.length > 0 && holdings.length > 0 && (
+          <AdvancedPortfolioAnalytics entityId={selectedEntity || entities[0]?.id} />
+        )}
+
         {vehicles.map(vehicle => {
           const vehicleHoldings = holdings.filter(h => h.vehicle_id === vehicle.id);
           const vehicleValue = vehicleHoldings.reduce((sum, h) => sum + ((h.quantity || 0) * (h.current_price || 0)), 0);
