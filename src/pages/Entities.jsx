@@ -100,7 +100,7 @@ export default function Entities() {
               <CardHeader>
                 <div className="flex items-center gap-3">
                   {entity.type === 'personal' ? (
-                    <Home className="w-8 h-8 text-blue-600" />
+                    <Home className="w-8 h-8 text-blue-800" />
                   ) : (
                     <Building2 className="w-8 h-8 text-amber-500" />
                   )}
