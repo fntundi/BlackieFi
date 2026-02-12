@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowUpCircle, ArrowDownCircle, CreditCard, TrendingUp, Calendar, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
+import BillReminders from '../components/BillReminders';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -170,6 +171,14 @@ export default function Dashboard() {
             </Link>
           </CardContent>
         </Card>
+
+        {/* Bill Reminders */}
+        {selectedEntity && selectedEntity !== 'all' && (
+          <BillReminders 
+            entityId={selectedEntity} 
+            onUpdate={() => {}} 
+          />
+        )}
 
         {/* Upcoming Payments */}
         <Card>
