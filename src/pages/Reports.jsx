@@ -1,25 +1,35 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PieChart, Pie, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Calendar } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfYear, endOfYear, subMonths, subYears, parseISO } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  FileText, 
+  Download, 
+  Loader2,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  BarChart3
+} from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Reports() {
+  const [reportType, setReportType] = useState('profit_loss');
   const [selectedEntity, setSelectedEntity] = useState('');
-  const [reportPeriod, setReportPeriod] = useState('month'); // month, year, custom
-  const [timeRange, setTimeRange] = useState('current'); // current, last3, last6, last12
+  const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
+  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+  const [reportData, setReportData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { data: entities = [] } = useQuery({
     queryKey: ['entities'],
     queryFn: () => base44.entities.Entity.list(),
-  });
-
-  const { data: transactions = [] } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: () => base44.entities.Transaction.list(),
   });
 
   const { data: categories = [] } = useQuery({
@@ -27,348 +37,457 @@ export default function Reports() {
     queryFn: () => base44.entities.Category.list(),
   });
 
-  const { data: debts = [] } = useQuery({
-    queryKey: ['debts'],
-    queryFn: () => base44.entities.Debt.list(),
-  });
-
-  const { data: investmentVehicles = [] } = useQuery({
-    queryKey: ['investment-vehicles'],
-    queryFn: () => base44.entities.InvestmentVehicle.list(),
-  });
-
-  const { data: investmentHoldings = [] } = useQuery({
-    queryKey: ['investment-holdings'],
-    queryFn: () => base44.entities.InvestmentHolding.list(),
-  });
-
-  const financialData = useMemo(() => {
-    let filteredTransactions = transactions;
-    if (selectedEntity) {
-      filteredTransactions = transactions.filter(t => t.entity_id === selectedEntity);
+  const generateReport = async () => {
+    if (!selectedEntity) {
+      toast.error('Please select an entity');
+      return;
     }
 
-    const now = new Date();
-    let startDate, endDate;
-
-    if (reportPeriod === 'month') {
-      if (timeRange === 'current') {
-        startDate = startOfMonth(now);
-        endDate = endOfMonth(now);
-      }
-    } else if (reportPeriod === 'year') {
-      if (timeRange === 'current') {
-        startDate = startOfYear(now);
-        endDate = endOfYear(now);
-      }
+    setLoading(true);
+    try {
+      const { data } = await base44.functions.invoke('generateFinancialReport', {
+        report_type: reportType,
+        entity_id: selectedEntity,
+        start_date: startDate,
+        end_date: endDate
+      });
+      setReportData(data);
+      toast.success('Report generated');
+    } catch (error) {
+      toast.error('Failed to generate report');
+      console.error(error);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // Filter by date range
-    const periodTransactions = filteredTransactions.filter(t => {
-      const txDate = parseISO(t.date);
-      return (!startDate || txDate >= startDate) && (!endDate || txDate <= endDate);
-    });
+  const exportToPDF = async () => {
+    if (!reportData) return;
 
-    // Calculate totals
-    const income = periodTransactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const expenses = periodTransactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const net = income - expenses;
-
-    // Category breakdown
-    const categoryMap = new Map();
-    categories.forEach(cat => categoryMap.set(cat.id, cat.name));
-
-    const categoryData = periodTransactions
-      .filter(t => t.type === 'expense' && t.category_id)
-      .reduce((acc, t) => {
-        const catName = categoryMap.get(t.category_id) || 'Uncategorized';
-        acc[catName] = (acc[catName] || 0) + Number(t.amount);
-        return acc;
-      }, {});
-
-    const categoryChartData = Object.entries(categoryData)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
-
-    // Monthly trends (last 12 months)
-    const monthlyData = [];
-    for (let i = 11; i >= 0; i--) {
-      const monthDate = subMonths(now, i);
-      const monthStart = startOfMonth(monthDate);
-      const monthEnd = endOfMonth(monthDate);
-      
-      const monthTx = filteredTransactions.filter(t => {
-        const txDate = parseISO(t.date);
-        return txDate >= monthStart && txDate <= monthEnd;
+    setExporting(true);
+    try {
+      const entityName = entities.find(e => e.id === selectedEntity)?.name || 'All';
+      const { data } = await base44.functions.invoke('exportReportPDF', {
+        report_type: reportType,
+        report_data: reportData.report_data,
+        period: reportData.period,
+        entity_name: entityName
       });
 
-      const monthIncome = monthTx.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
-      const monthExpenses = monthTx.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+      const blob = new Blob([data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${reportType}_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      a.remove();
       
-      monthlyData.push({
-        month: format(monthDate, 'MMM yyyy'),
-        income: monthIncome,
-        expenses: monthExpenses,
-        net: monthIncome - monthExpenses
+      toast.success('Report exported to PDF');
+    } catch (error) {
+      toast.error('Failed to export PDF');
+      console.error(error);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportToCSV = () => {
+    if (!reportData) return;
+
+    let csvContent = '';
+    const rd = reportData.report_data;
+
+    if (reportType === 'profit_loss') {
+      csvContent = 'Category,Amount\n';
+      csvContent += 'INCOME\n';
+      Object.entries(rd.income || {}).forEach(([cat, amt]) => {
+        csvContent += `${cat},${amt}\n`;
       });
+      csvContent += `Total Income,${rd.total_income}\n\n`;
+      csvContent += 'EXPENSES\n';
+      Object.entries(rd.expenses || {}).forEach(([cat, amt]) => {
+        csvContent += `${cat},${amt}\n`;
+      });
+      csvContent += `Total Expenses,${rd.total_expenses}\n\n`;
+      csvContent += `Net Income,${rd.net_income}\n`;
+    } else if (reportType === 'balance_sheet') {
+      csvContent = 'Type,Item,Amount\n';
+      csvContent += 'ASSETS\n';
+      Object.entries(rd.assets || {}).forEach(([type, amt]) => {
+        csvContent += `Asset,${type},${amt}\n`;
+      });
+      csvContent += `,,${rd.total_assets}\n\n`;
+      csvContent += 'LIABILITIES\n';
+      Object.entries(rd.liabilities || {}).forEach(([type, amt]) => {
+        csvContent += `Liability,${type},${amt}\n`;
+      });
+      csvContent += `,,${rd.total_liabilities}\n\n`;
+      csvContent += `Equity,,${rd.equity}\n`;
+    } else if (reportType === 'cash_flow') {
+      csvContent = 'Month,Cash In,Cash Out,Net Cash Flow\n';
+      Object.entries(rd.monthly_cash_flow || {}).forEach(([month, data]) => {
+        csvContent += `${month},${data.income},${data.expenses},${data.net}\n`;
+      });
+      csvContent += `\nTotal,${rd.total_cash_in},${rd.total_cash_out},${rd.net_cash_flow}\n`;
+    } else if (reportType === 'budget_vs_actual') {
+      csvContent = 'Category,Budgeted,Actual,Variance,Variance %\n';
+      (rd.categories || []).forEach(cat => {
+        csvContent += `${cat.category_name},${cat.budgeted},${cat.actual},${cat.variance},${cat.variance_percent.toFixed(2)}\n`;
+      });
+      csvContent += `\nTotal,${rd.total_budgeted},${rd.total_actual},${rd.total_variance}\n`;
     }
 
-    // Net worth calculation
-    const totalDebt = debts
-      .filter(d => !selectedEntity || d.entity_id === selectedEntity)
-      .filter(d => d.is_active)
-      .reduce((sum, d) => sum + Number(d.current_balance), 0);
-
-    const totalInvestments = investmentHoldings
-      .filter(h => {
-        const vehicle = investmentVehicles.find(v => v.id === h.vehicle_id);
-        return !selectedEntity || vehicle?.entity_id === selectedEntity;
-      })
-      .reduce((sum, h) => {
-        const currentValue = Number(h.quantity) * (Number(h.current_price) || 0);
-        return sum + currentValue;
-      }, 0);
-
-    const netWorth = totalInvestments - totalDebt;
-
-    return {
-      income,
-      expenses,
-      net,
-      categoryChartData,
-      monthlyData,
-      totalDebt,
-      totalInvestments,
-      netWorth,
-      transactionCount: periodTransactions.length
-    };
-  }, [transactions, categories, debts, investmentVehicles, investmentHoldings, selectedEntity, reportPeriod, timeRange]);
-
-  const COLORS = ['#1e40af', '#f59e0b', '#0f172a', '#3b82f6', '#fbbf24', '#475569', '#60a5fa', '#fcd34d'];
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${reportType}_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    a.remove();
+    
+    toast.success('Report exported to CSV');
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Financial Reports</h1>
-            <p className="text-gray-600 mt-1">Insights into your financial habits</p>
-          </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Financial Reports</h1>
+          <p className="text-gray-500 mt-1">Generate comprehensive financial statements and analysis</p>
         </div>
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Entity</label>
-            <Select value={selectedEntity} onValueChange={setSelectedEntity}>
-              <SelectTrigger>
-                <SelectValue placeholder="All Entities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>All Entities</SelectItem>
-                {entities.map(entity => (
-                  <SelectItem key={entity.id} value={entity.id}>{entity.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Period</label>
-            <Select value={reportPeriod} onValueChange={setReportPeriod}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="month">Monthly</SelectItem>
-                <SelectItem value="year">Yearly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Time Range</label>
-            <Select value={timeRange} onValueChange={setTimeRange}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="current">Current {reportPeriod === 'month' ? 'Month' : 'Year'}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Income</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold text-green-600">
-                  ${financialData.income.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <TrendingUp className="w-8 h-8 text-green-600" />
+        <Card>
+          <CardHeader>
+            <CardTitle>Report Configuration</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <Label>Report Type</Label>
+                <Select value={reportType} onValueChange={setReportType}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="profit_loss">Profit & Loss Statement</SelectItem>
+                    <SelectItem value="balance_sheet">Balance Sheet</SelectItem>
+                    <SelectItem value="cash_flow">Cash Flow Statement</SelectItem>
+                    <SelectItem value="budget_vs_actual">Budget vs Actual</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-white">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Expenses</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold text-red-600">
-                  ${financialData.expenses.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <TrendingDown className="w-8 h-8 text-red-600" />
+              <div>
+                <Label>Entity</Label>
+                <Select value={selectedEntity} onValueChange={setSelectedEntity}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select entity" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {entities.map(e => (
+                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-white">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Net Income</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className={`text-2xl font-bold ${financialData.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                  ${financialData.net.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <DollarSign className="w-8 h-8 text-blue-800" />
+              <div>
+                <Label>Start Date</Label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                />
               </div>
-            </CardContent>
-          </Card>
 
-          <Card className="bg-white">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600">Transactions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div className="text-2xl font-bold text-blue-800">
-                  {financialData.transactionCount}
-                </div>
-                <Calendar className="w-8 h-8 text-blue-800" />
+              <div>
+                <Label>End Date</Label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                />
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Category Breakdown */}
-          <Card className="bg-white">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Expense Breakdown by Category</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {financialData.categoryChartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={financialData.categoryChartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {financialData.categoryChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip formatter={(value) => `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-64 flex items-center justify-center text-gray-500">
-                  No expense data available
-                </div>
+            <div className="flex gap-3">
+              <Button onClick={generateReport} disabled={loading} className="bg-blue-800 hover:bg-blue-900">
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-4 h-4 mr-2" />
+                    Generate Report
+                  </>
+                )}
+              </Button>
+
+              {reportData && (
+                <>
+                  <Button onClick={exportToCSV} variant="outline">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <Button onClick={exportToPDF} disabled={exporting} variant="outline">
+                    {exporting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Exporting...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 mr-2" />
+                        Export PDF
+                      </>
+                    )}
+                  </Button>
+                </>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </CardContent>
+        </Card>
 
-          {/* Net Worth */}
-          <Card className="bg-white">
-            <CardHeader>
-              <CardTitle className="text-lg font-semibold">Net Worth Overview</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-4 bg-blue-50 rounded-lg">
-                  <span className="text-gray-700 font-medium">Investments</span>
-                  <span className="text-xl font-bold text-blue-800">
-                    ${financialData.totalInvestments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+        {reportData && (
+          <>
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <span>Report Generated</span>
+                  <span className="text-sm font-normal text-gray-600">
+                    {reportData.period.start_date} to {reportData.period.end_date}
                   </span>
+                </CardTitle>
+              </CardHeader>
+            </Card>
+
+            {reportData.report_type === 'profit_loss' && (
+              <div className="grid md:grid-cols-2 gap-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-green-900">
+                      <TrendingUp className="w-5 h-5 text-green-600" />
+                      Income
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {Object.entries(reportData.report_data.income || {}).map(([cat, amt]) => (
+                      <div key={cat} className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                        <span className="font-medium">{cat}</span>
+                        <span className="font-semibold text-green-600">${amt.toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center p-4 bg-green-600 text-white rounded-lg font-bold">
+                      <span>Total Income</span>
+                      <span>${reportData.report_data.total_income.toFixed(2)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-red-900">
+                      <TrendingDown className="w-5 h-5 text-red-600" />
+                      Expenses
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {Object.entries(reportData.report_data.expenses || {}).map(([cat, amt]) => (
+                      <div key={cat} className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                        <span className="font-medium">{cat}</span>
+                        <span className="font-semibold text-red-600">${amt.toFixed(2)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center p-4 bg-red-600 text-white rounded-lg font-bold">
+                      <span>Total Expenses</span>
+                      <span>${reportData.report_data.total_expenses.toFixed(2)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="md:col-span-2 border-2 border-blue-800">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between p-6 bg-gradient-to-r from-amber-500 to-blue-800 rounded-lg">
+                      <div className="text-white">
+                        <p className="text-lg font-medium">Net Income</p>
+                        <p className="text-sm opacity-90">Profit Margin: {reportData.report_data.profit_margin.toFixed(2)}%</p>
+                      </div>
+                      <div className="text-4xl font-bold text-white">
+                        ${reportData.report_data.net_income.toFixed(2)}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {reportData.report_type === 'balance_sheet' && (
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-blue-900">Assets</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {Object.entries(reportData.report_data.assets || {}).map(([type, amt]) => (
+                        <div key={type} className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                          <span className="font-medium capitalize">{type.replace(/_/g, ' ')}</span>
+                          <span className="font-semibold text-blue-600">${amt.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center p-4 bg-blue-600 text-white rounded-lg font-bold">
+                        <span>Total Assets</span>
+                        <span>${reportData.report_data.total_assets.toFixed(2)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-red-900">Liabilities</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {Object.entries(reportData.report_data.liabilities || {}).map(([type, amt]) => (
+                        <div key={type} className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                          <span className="font-medium capitalize">{type.replace(/_/g, ' ')}</span>
+                          <span className="font-semibold text-red-600">${amt.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between items-center p-4 bg-red-600 text-white rounded-lg font-bold">
+                        <span>Total Liabilities</span>
+                        <span>${reportData.report_data.total_liabilities.toFixed(2)}</span>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
-                <div className="flex justify-between items-center p-4 bg-red-50 rounded-lg">
-                  <span className="text-gray-700 font-medium">Debts</span>
-                  <span className="text-xl font-bold text-red-600">
-                    ${financialData.totalDebt.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-4 bg-gradient-to-r from-amber-500 to-blue-800 rounded-lg">
-                  <span className="text-white font-medium">Net Worth</span>
-                  <span className="text-2xl font-bold text-white">
-                    ${financialData.netWorth.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </span>
-                </div>
+
+                <Card className="border-2 border-green-600">
+                  <CardContent className="pt-6">
+                    <div className="flex items-center justify-between p-6 bg-gradient-to-r from-green-500 to-green-700 rounded-lg">
+                      <div className="text-white">
+                        <p className="text-lg font-medium">Owner's Equity</p>
+                        <p className="text-sm opacity-90">Debt-to-Equity: {reportData.report_data.debt_to_equity_ratio.toFixed(2)}</p>
+                      </div>
+                      <div className="text-4xl font-bold text-white">
+                        ${reportData.report_data.equity.toFixed(2)}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {reportData.report_type === 'cash_flow' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Cash Flow</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {Object.entries(reportData.report_data.monthly_cash_flow || {}).map(([month, data]) => (
+                    <div key={month} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-gray-900">{month}</span>
+                        <span className={`font-bold ${data.net >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ${data.net.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Cash In:</span>
+                          <span className="text-green-600">${data.income.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Cash Out:</span>
+                          <span className="text-red-600">${data.expenses.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="p-6 bg-gradient-to-r from-amber-500 to-blue-800 rounded-lg text-white">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-sm opacity-90">Total In</p>
+                        <p className="text-xl font-bold">${reportData.report_data.total_cash_in.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm opacity-90">Total Out</p>
+                        <p className="text-xl font-bold">${reportData.report_data.total_cash_out.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm opacity-90">Net Flow</p>
+                        <p className="text-xl font-bold">${reportData.report_data.net_cash_flow.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {reportData.report_type === 'budget_vs_actual' && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Budget vs Actual Comparison</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {(reportData.report_data.categories || []).map((cat, idx) => (
+                    <div key={idx} className="p-4 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold">{cat.category_name}</span>
+                        <span className={`font-bold ${cat.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          ${cat.variance.toFixed(2)} ({cat.variance_percent.toFixed(1)}%)
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Budgeted:</span>
+                          <span>${cat.budgeted.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Actual:</span>
+                          <span>${cat.actual.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="p-6 bg-gradient-to-r from-amber-500 to-blue-800 rounded-lg text-white">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-sm opacity-90">Total Budget</p>
+                        <p className="text-xl font-bold">${reportData.report_data.total_budgeted.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm opacity-90">Total Actual</p>
+                        <p className="text-xl font-bold">${reportData.report_data.total_actual.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm opacity-90">Variance</p>
+                        <p className="text-xl font-bold">${reportData.report_data.total_variance.toFixed(2)}</p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+
+        {!reportData && (
+          <Card>
+            <CardContent className="py-16">
+              <div className="text-center text-gray-500">
+                <BarChart3 className="w-16 h-16 mx-auto mb-4 text-gray-400" />
+                <p className="text-lg font-medium">No report generated yet</p>
+                <p className="text-sm">Configure your report parameters above and click "Generate Report"</p>
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Income vs Expenses Trend */}
-        <Card className="bg-white mb-8">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">12-Month Income & Expense Trend</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <LineChart data={financialData.monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value) => `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
-                <Legend />
-                <Line type="monotone" dataKey="income" stroke="#10b981" strokeWidth={2} name="Income" />
-                <Line type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={2} name="Expenses" />
-                <Line type="monotone" dataKey="net" stroke="#1e40af" strokeWidth={2} name="Net" />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Monthly Comparison Bar Chart */}
-        <Card className="bg-white">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">Monthly Comparison</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={financialData.monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip formatter={(value) => `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
-                <Legend />
-                <Bar dataKey="income" fill="#10b981" name="Income" />
-                <Bar dataKey="expenses" fill="#ef4444" name="Expenses" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        )}
       </div>
     </div>
   );
