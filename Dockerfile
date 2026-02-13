@@ -1,38 +1,32 @@
 # =============================================================================
-# Stage 1: Build Environment
+# BlackieFi Production Dockerfile
+# Dockerfile - Multi-stage build for production deployment
 # =============================================================================
+
+# Stage 1: Build Environment
 FROM node:20-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files first (layer caching optimization)
-COPY package.json package-lock.json ./
-
-# Install dependencies
+# Copy package files first (layer caching)
+COPY package.json yarn.lock* package-lock.json* ./
 RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
 
-# Build arguments for environment variables
-# These are injected at BUILD TIME
-ARG VITE_BASE44_APP_ID
-ARG VITE_BASE44_APP_BASE_URL
-ARG VITE_BASE44_FUNCTIONS_VERSION
+# Build-time Supabase configuration
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_ANON_KEY
 
-# Set environment variables for build
-ENV VITE_BASE44_APP_ID=$VITE_BASE44_APP_ID
-ENV VITE_BASE44_APP_BASE_URL=$VITE_BASE44_APP_BASE_URL
-ENV VITE_BASE44_FUNCTIONS_VERSION=$VITE_BASE44_FUNCTIONS_VERSION
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_ANON_KEY=$VITE_SUPABASE_ANON_KEY
 ENV NODE_ENV=production
 
 # Build the application
 RUN npm run build
 
-# =============================================================================
 # Stage 2: Production Runtime
-# =============================================================================
 FROM nginx:alpine AS production
 
 # Install envsubst for runtime environment variable substitution

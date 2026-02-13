@@ -10,20 +10,22 @@ set -e
 HTML_DIR="/usr/share/nginx/html"
 
 # If runtime env vars are set, inject them into the app
-if [ -n "$RUNTIME_BASE44_APP_ID" ] || [ -n "$RUNTIME_BASE44_APP_BASE_URL" ]; then
+if [ -n "$RUNTIME_SUPABASE_URL" ] || [ -n "$RUNTIME_SUPABASE_ANON_KEY" ]; then
     echo "Injecting runtime environment variables..."
     
     # Create a config.js file that will be loaded before the app
     cat > "$HTML_DIR/config.js" << EOF
 window.__RUNTIME_CONFIG__ = {
-    VITE_BASE44_APP_ID: "${RUNTIME_BASE44_APP_ID:-}",
-    VITE_BASE44_APP_BASE_URL: "${RUNTIME_BASE44_APP_BASE_URL:-}",
-    VITE_BASE44_FUNCTIONS_VERSION: "${RUNTIME_BASE44_FUNCTIONS_VERSION:-}"
+    VITE_SUPABASE_URL: "${RUNTIME_SUPABASE_URL:-}",
+    VITE_SUPABASE_ANON_KEY: "${RUNTIME_SUPABASE_ANON_KEY:-}",
+    VITE_SUPABASE_SERVICE_ROLE_KEY: "${RUNTIME_SUPABASE_SERVICE_ROLE_KEY:-}"
 };
 EOF
 
     # Inject config.js script tag into index.html (before other scripts)
-    sed -i 's|<head>|<head><script src="/config.js"></script>|' "$HTML_DIR/index.html"
+    if ! grep -q 'config.js' "$HTML_DIR/index.html"; then
+        sed -i 's|<head>|<head><script src="/config.js"></script>|' "$HTML_DIR/index.html"
+    fi
 fi
 
 echo "Starting Nginx..."
