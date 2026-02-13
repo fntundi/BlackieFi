@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  blackiefi:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_BASE44_APP_ID: ${VITE_BASE44_APP_ID}
+        VITE_BASE44_APP_BASE_URL: ${VITE_BASE44_APP_BASE_URL}
+    image: blackiefi:${TAG:-latest}
+    container_name: blackiefi
+    ports:
+      - "8080:8080"
+    environment:
+      # Runtime overrides (optional)
+      - RUNTIME_BASE44_APP_ID=${RUNTIME_BASE44_APP_ID:-}
+      - RUNTIME_BASE44_APP_BASE_URL=${RUNTIME_BASE44_APP_BASE_URL:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
