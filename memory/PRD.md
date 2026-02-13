@@ -82,14 +82,16 @@ docker build -t blackiefi:latest .
 ```
 
 ## Prioritized Backlog
-- P0: ✅ Complete - SDK, Schema, Docker
-- P1: Implement OpenAI integration for AI features
+- P0: ✅ Complete - SDK, Schema, Docker, OpenAI Integration
 - P1: Data migration tool from Base44
 - P2: Add Helm chart for Kubernetes
 - P2: Add Terraform modules for cloud deployments
 - P3: Implement real-time subscriptions
+- P3: Add SendGrid/Resend email integration
 
 ## Notes
-- AI functions (InvokeLLM, etc.) return placeholder responses - need OpenAI key
+- AI features disabled by default (`VITE_OPENAI_ENABLED=false`)
+- When enabled, requires `VITE_OPENAI_API_KEY`
+- Supports models: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
 - Dev user: `dev@localhost.com` / `dev123456`
 - Migrations auto-run on docker-compose up
