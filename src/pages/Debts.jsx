@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Plus, CreditCard, TrendingDown } from 'lucide-react';
+import DebtRepaymentAnalysis from '@/components/DebtRepaymentAnalysis';
 
 export default function Debts() {
   const [showDialog, setShowDialog] = useState(false);
@@ -206,6 +207,8 @@ export default function Debts() {
             </CardTitle>
           </CardHeader>
         </Card>
+
+        {debts.length > 0 && <DebtRepaymentAnalysis debts={debts} />}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {debts.map(debt => {
