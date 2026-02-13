@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,14 +7,28 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Upload, Sparkles } from 'lucide-react';
+import { Plus, Upload, Sparkles, Tag } from 'lucide-react';
 import { toast } from 'sonner';
 import TransactionRow from '../components/TransactionRow';
+import TransactionFilters from '../components/TransactionFilters';
 
 export default function Transactions() {
   const [user, setUser] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [filters, setFilters] = useState({
+    search: '',
+    category: 'all',
+    entity: 'all',
+    type: 'all',
+    minAmount: '',
+    maxAmount: '',
+    startDate: '',
+    endDate: '',
+    linkedAsset: 'all',
+    linkedInventory: 'all',
+    selectedTags: []
+  });
   const [formData, setFormData] = useState({
     type: 'expense',
     amount: '',
@@ -49,6 +63,16 @@ export default function Transactions() {
   const { data: categories = [] } = useQuery({
     queryKey: ['categories'],
     queryFn: () => base44.entities.Category.list(),
+  });
+
+  const { data: assets = [] } = useQuery({
+    queryKey: ['assets'],
+    queryFn: () => base44.entities.Asset.filter({ is_active: true }),
+  });
+
+  const { data: inventory = [] } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => base44.entities.Inventory.filter({ is_active: true }),
   });
 
   const createMutation = useMutation({
@@ -101,6 +125,79 @@ export default function Transactions() {
     toast.success(`Auto-categorized ${successCount} transactions`);
   };
 
+  const generateTagsBatch = async () => {
+    const untagged = transactions.filter(t => !t.ai_tags || t.ai_tags.length === 0);
+    if (untagged.length === 0) {
+      toast.info('All transactions already have AI tags');
+      return;
+    }
+
+    toast.info(`Generating tags for ${Math.min(untagged.length, 10)} transactions...`);
+    let successCount = 0;
+
+    for (const transaction of untagged.slice(0, 10)) {
+      try {
+        await base44.functions.invoke('generateTransactionTags', {
+          transaction_id: transaction.id
+        });
+        successCount++;
+      } catch (error) {
+        console.error('Failed to generate tags:', error);
+      }
+    }
+
+    queryClient.invalidateQueries(['transactions']);
+    toast.success(`Generated tags for ${successCount} transactions`);
+  };
+
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(t => {
+      if (filters.search && !t.description?.toLowerCase().includes(filters.search.toLowerCase())) {
+        return false;
+      }
+      if (filters.category !== 'all' && t.category_id !== filters.category) {
+        return false;
+      }
+      if (filters.entity !== 'all' && t.entity_id !== filters.entity) {
+        return false;
+      }
+      if (filters.type !== 'all' && t.type !== filters.type) {
+        return false;
+      }
+      if (filters.minAmount && t.amount < parseFloat(filters.minAmount)) {
+        return false;
+      }
+      if (filters.maxAmount && t.amount > parseFloat(filters.maxAmount)) {
+        return false;
+      }
+      if (filters.startDate && t.date < filters.startDate) {
+        return false;
+      }
+      if (filters.endDate && t.date > filters.endDate) {
+        return false;
+      }
+      if (filters.linkedAsset !== 'all' && t.linked_asset_id !== filters.linkedAsset) {
+        return false;
+      }
+      if (filters.linkedInventory !== 'all' && t.linked_inventory_id !== filters.linkedInventory) {
+        return false;
+      }
+      if (filters.selectedTags.length > 0) {
+        const hasAllTags = filters.selectedTags.every(tag => t.ai_tags?.includes(tag));
+        if (!hasAllTags) return false;
+      }
+      return true;
+    });
+  }, [transactions, filters]);
+
+  const allTags = useMemo(() => {
+    const tagSet = new Set();
+    transactions.forEach(t => {
+      (t.ai_tags || []).forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [transactions]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     createMutation.mutate({
@@ -125,6 +222,14 @@ export default function Transactions() {
             >
               <Sparkles className="w-4 h-4 mr-2" />
               Auto-Categorize
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={generateTagsBatch}
+              className="border-blue-600 text-blue-700 hover:bg-blue-50"
+            >
+              <Tag className="w-4 h-4 mr-2" />
+              Generate Tags
             </Button>
             <Button variant="outline" onClick={() => setShowImportDialog(true)}>
               <Upload className="w-4 h-4 mr-2" />
@@ -229,8 +334,25 @@ export default function Transactions() {
           </div>
         </div>
 
+        <TransactionFilters
+          filters={filters}
+          setFilters={setFilters}
+          categories={categories}
+          entities={entities}
+          assets={assets}
+          inventory={inventory}
+          allTags={allTags}
+        />
+
+        <div className="bg-white p-4 rounded-lg border">
+          <p className="text-sm text-gray-600">
+            Showing <span className="font-semibold">{filteredTransactions.length}</span> of{' '}
+            <span className="font-semibold">{transactions.length}</span> transactions
+          </p>
+        </div>
+
         <div className="space-y-3">
-          {transactions.map(transaction => (
+          {filteredTransactions.map(transaction => (
             <TransactionRow
               key={transaction.id}
               transaction={transaction}
@@ -238,6 +360,13 @@ export default function Transactions() {
               onUpdate={() => queryClient.invalidateQueries(['transactions'])}
             />
           ))}
+          {filteredTransactions.length === 0 && transactions.length > 0 && (
+            <Card>
+              <CardContent className="py-12">
+                <p className="text-center text-gray-500">No transactions match your filters.</p>
+              </CardContent>
+            </Card>
+          )}
           {transactions.length === 0 && (
             <Card>
               <CardContent className="py-12">
