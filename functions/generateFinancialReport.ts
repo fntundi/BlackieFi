@@ -46,13 +46,40 @@ Deno.serve(async (req) => {
       const totalExpenses = expenses.reduce((sum, t) => sum + t.amount, 0);
       const netIncome = totalIncome - totalExpenses;
 
+      // Calculate EBITDA components
+      const interestExpense = debts.filter(d => d.is_active).reduce((sum, d) => {
+        const annualInterest = (d.current_balance * (d.interest_rate || 0)) / 100;
+        const daysInPeriod = (new Date(end_date) - new Date(start_date)) / (1000 * 60 * 60 * 24);
+        return sum + (annualInterest * daysInPeriod / 365);
+      }, 0);
+
+      // Tax expenses from transactions (if categorized)
+      const taxCategory = categories.find(c => c.name?.toLowerCase().includes('tax'));
+      const taxExpense = taxCategory ? 
+        expenses.filter(t => t.category_id === taxCategory.id).reduce((sum, t) => sum + t.amount, 0) : 0;
+
+      // Depreciation from assets
+      const depreciation = assets.reduce((sum, a) => {
+        if (a.depreciation_method === 'none' || !a.useful_life_years) return sum;
+        const annualDepreciation = (a.purchase_price - (a.salvage_value || 0)) / a.useful_life_years;
+        const daysInPeriod = (new Date(end_date) - new Date(start_date)) / (1000 * 60 * 60 * 24);
+        return sum + (annualDepreciation * daysInPeriod / 365);
+      }, 0);
+
+      const ebitda = netIncome + interestExpense + taxExpense + depreciation;
+
       reportData = {
         income: incomeByCategory,
         expenses: expensesByCategory,
         total_income: totalIncome,
         total_expenses: totalExpenses,
         net_income: netIncome,
-        profit_margin: totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0
+        profit_margin: totalIncome > 0 ? (netIncome / totalIncome) * 100 : 0,
+        ebitda: ebitda,
+        ebitda_margin: totalIncome > 0 ? (ebitda / totalIncome) * 100 : 0,
+        interest_expense: interestExpense,
+        tax_expense: taxExpense,
+        depreciation: depreciation
       };
     }
 

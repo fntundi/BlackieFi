@@ -313,14 +313,27 @@ export default function Reports() {
 
                 <Card className="md:col-span-2 border-2 border-blue-800">
                   <CardContent className="pt-6">
-                    <div className="flex items-center justify-between p-6 bg-gradient-to-r from-amber-500 to-blue-800 rounded-lg">
-                      <div className="text-white">
-                        <p className="text-lg font-medium">Net Income</p>
-                        <p className="text-sm opacity-90">Profit Margin: {reportData.report_data.profit_margin.toFixed(2)}%</p>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between p-6 bg-gradient-to-r from-amber-500 to-blue-800 rounded-lg">
+                        <div className="text-white">
+                          <p className="text-lg font-medium">Net Income</p>
+                          <p className="text-sm opacity-90">Profit Margin: {reportData.report_data.profit_margin.toFixed(2)}%</p>
+                        </div>
+                        <div className="text-4xl font-bold text-white">
+                          ${reportData.report_data.net_income.toFixed(2)}
+                        </div>
                       </div>
-                      <div className="text-4xl font-bold text-white">
-                        ${reportData.report_data.net_income.toFixed(2)}
-                      </div>
+                      {reportData.report_data.ebitda !== undefined && (
+                        <div className="flex items-center justify-between p-6 bg-gradient-to-r from-green-500 to-green-700 rounded-lg">
+                          <div className="text-white">
+                            <p className="text-lg font-medium">EBITDA</p>
+                            <p className="text-sm opacity-90">EBITDA Margin: {reportData.report_data.ebitda_margin.toFixed(2)}%</p>
+                          </div>
+                          <div className="text-4xl font-bold text-white">
+                            ${reportData.report_data.ebitda.toFixed(2)}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
