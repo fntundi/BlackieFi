@@ -60,6 +60,8 @@ import Investments from './pages/Investments';
 import RecurringTransactions from './pages/RecurringTransactions';
 import Reports from './pages/Reports';
 import Transactions from './pages/Transactions';
+import Inventory from './pages/Inventory';
+import Assets from './pages/Assets';
 import __Layout from './Layout.jsx';
 
 
@@ -77,6 +79,8 @@ export const PAGES = {
     "RecurringTransactions": RecurringTransactions,
     "Reports": Reports,
     "Transactions": Transactions,
+    "Inventory": Inventory,
+    "Assets": Assets,
 }
 
 export const pagesConfig = {

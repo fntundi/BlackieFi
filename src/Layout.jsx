@@ -19,7 +19,8 @@ import {
   BarChart3,
   PiggyBank,
   Settings,
-  Users
+  Users,
+  Package
 } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
@@ -43,6 +44,8 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Budgets', href: createPageUrl('Budgets'), icon: PiggyBank },
     { name: 'Debts', href: createPageUrl('Debts'), icon: CreditCard },
     { name: 'Investments', href: createPageUrl('Investments'), icon: TrendingUp },
+    { name: 'Inventory', href: createPageUrl('Inventory'), icon: Package },
+    { name: 'Assets', href: createPageUrl('Assets'), icon: Building2 },
     { name: 'Categories', href: createPageUrl('Categories'), icon: Tag },
     { name: 'Calendar', href: createPageUrl('Calendar'), icon: Calendar },
     { name: 'Import', href: createPageUrl('Import'), icon: Upload },
