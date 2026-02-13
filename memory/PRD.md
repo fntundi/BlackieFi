@@ -1,7 +1,8 @@
-# PRD: Base44 Application Containerization
+# PRD: Base44 Application Containerization & Migration
 
 ## Original Problem Statement
-Review the Base44 Financial Application repository and provide guidance on containerizing the entire application as a single, self-contained Docker image deployable on any container-compatible platform.
+1. Review the Base44 Financial Application repository and provide guidance on containerizing the entire application as a single, self-contained Docker image deployable on any container-compatible platform.
+2. Explore using base44-to-supabase-sdk to migrate from Base44 platform to self-hosted Supabase.
 
 ## Application Overview
 - **Name**: BlackieFi (Base44 Financial Tracker)
