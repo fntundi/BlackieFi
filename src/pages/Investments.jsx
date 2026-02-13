@@ -7,11 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { TrendingUp, Plus, Briefcase } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TrendingUp, Plus, Briefcase, RefreshCw, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import PortfolioAnalysis from '../components/PortfolioAnalysis';
 import InvestmentStrategyAdvisor from '../components/InvestmentStrategyAdvisor';
 import AdvancedPortfolioAnalytics from '../components/AdvancedPortfolioAnalytics';
+import InvestmentDiversificationAnalysis from '../components/InvestmentDiversificationAnalysis';
+import InvestmentOpportunities from '../components/InvestmentOpportunities';
+import PerformanceBenchmarking from '../components/PerformanceBenchmarking';
 
 export default function Investments() {
   const [showVehicleDialog, setShowVehicleDialog] = useState(false);
@@ -31,6 +35,7 @@ export default function Investments() {
     current_price: '',
   });
   const [selectedEntity, setSelectedEntity] = useState('');
+  const [updatingPrices, setUpdatingPrices] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -97,6 +102,27 @@ export default function Investments() {
     return getTotalValue() - getTotalCostBasis();
   };
 
+  const updateAllPrices = async () => {
+    if (holdings.length === 0) {
+      toast.error('No holdings to update');
+      return;
+    }
+    
+    setUpdatingPrices(true);
+    try {
+      const { data } = await base44.functions.invoke('updateHoldingPrices', {
+        holding_ids: holdings.map(h => h.id)
+      });
+      queryClient.invalidateQueries(['investment-holdings']);
+      toast.success(`Updated ${data.updated_count} holdings`);
+    } catch (error) {
+      toast.error('Failed to update prices');
+      console.error(error);
+    } finally {
+      setUpdatingPrices(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
@@ -106,6 +132,18 @@ export default function Investments() {
             <p className="text-gray-500 mt-1">Track your investment portfolio</p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              onClick={updateAllPrices} 
+              disabled={updatingPrices}
+              variant="outline"
+              size="sm"
+            >
+              {updatingPrices ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Updating...</>
+              ) : (
+                <><RefreshCw className="w-4 h-4 mr-2" />Update Prices</>
+              )}
+            </Button>
             <Dialog open={showVehicleDialog} onOpenChange={setShowVehicleDialog}>
               <DialogTrigger asChild>
                 <Button variant="outline">
@@ -283,23 +321,79 @@ export default function Investments() {
           </Card>
         </div>
 
-        {entities.length > 0 && (
-          <InvestmentStrategyAdvisor
-            entityId={selectedEntity || entities[0]?.id}
-          />
-        )}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="diversification">Diversification</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+            <TabsTrigger value="opportunities">Opportunities</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          </TabsList>
 
-        {entities.length > 0 && holdings.length > 0 && (
-          <PortfolioAnalysis
-            entityId={selectedEntity || entities[0]?.id}
-            holdings={holdings}
-            vehicles={vehicles}
-          />
-        )}
+          <TabsContent value="overview" className="space-y-6">
+            {entities.length > 0 && (
+              <InvestmentStrategyAdvisor
+                entityId={selectedEntity || entities[0]?.id}
+              />
+            )}
 
-        {entities.length > 0 && holdings.length > 0 && (
-          <AdvancedPortfolioAnalytics entityId={selectedEntity || entities[0]?.id} />
-        )}
+            {entities.length > 0 && holdings.length > 0 && (
+              <PortfolioAnalysis
+                entityId={selectedEntity || entities[0]?.id}
+                holdings={holdings}
+                vehicles={vehicles}
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="diversification">
+            {entities.length > 0 && holdings.length > 0 ? (
+              <InvestmentDiversificationAnalysis entityId={selectedEntity || entities[0]?.id} />
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">
+                  Add holdings to analyze diversification
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="performance">
+            {entities.length > 0 && holdings.length > 0 ? (
+              <PerformanceBenchmarking entityId={selectedEntity || entities[0]?.id} />
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">
+                  Add holdings to view performance
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="opportunities">
+            {entities.length > 0 ? (
+              <InvestmentOpportunities entityId={selectedEntity || entities[0]?.id} />
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">
+                  Create an entity to view opportunities
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            {entities.length > 0 && holdings.length > 0 ? (
+              <AdvancedPortfolioAnalytics entityId={selectedEntity || entities[0]?.id} />
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center text-gray-500">
+                  Add holdings to view analytics
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {vehicles.map(vehicle => {
           const vehicleHoldings = holdings.filter(h => h.vehicle_id === vehicle.id);
