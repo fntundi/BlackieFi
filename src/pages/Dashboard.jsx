@@ -59,6 +59,32 @@ export default function Dashboard() {
     },
   });
 
+  const [ebitda, setEbitda] = useState(null);
+
+  useEffect(() => {
+    const fetchEbitda = async () => {
+      if (selectedEntity !== 'all') {
+        const selectedEntityData = entities.find(e => e.id === selectedEntity);
+        if (selectedEntityData?.type === 'business') {
+          try {
+            const { data } = await base44.functions.invoke('generateFinancialReport', {
+              report_type: 'profit_loss',
+              entity_id: selectedEntity,
+              start_date: currentMonth + '-01',
+              end_date: new Date().toISOString().split('T')[0]
+            });
+            setEbitda(data.report_data);
+          } catch (error) {
+            console.error('Error fetching EBITDA:', error);
+          }
+        }
+      } else {
+        setEbitda(null);
+      }
+    };
+    fetchEbitda();
+  }, [selectedEntity, entities]);
+
   const currentMonth = new Date().toISOString().slice(0, 7);
   const monthTransactions = transactions.filter(t => t.date?.startsWith(currentMonth));
   
@@ -142,6 +168,35 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* EBITDA Card for Business Entities */}
+        {ebitda && (
+          <Card className="bg-gradient-to-r from-green-500 to-green-700 text-white">
+            <CardHeader>
+              <CardTitle className="text-white">Business Performance (Month-to-Date)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm opacity-90">EBITDA</p>
+                  <p className="text-2xl font-bold">${ebitda.ebitda?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div>
+                  <p className="text-sm opacity-90">EBITDA Margin</p>
+                  <p className="text-2xl font-bold">{ebitda.ebitda_margin?.toFixed(1) || '0.0'}%</p>
+                </div>
+                <div>
+                  <p className="text-sm opacity-90">Net Income</p>
+                  <p className="text-2xl font-bold">${ebitda.net_income?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div>
+                  <p className="text-sm opacity-90">Profit Margin</p>
+                  <p className="text-2xl font-bold">{ebitda.profit_margin?.toFixed(1) || '0.0'}%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Quick Actions */}
         <Card>
