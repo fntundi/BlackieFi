@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   FileText, 
   Download, 
@@ -14,7 +16,10 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  BarChart3
+  BarChart3,
+  Save,
+  Star,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -26,6 +31,19 @@ export default function Reports() {
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [showSavePreset, setShowSavePreset] = useState(false);
+  const [presetName, setPresetName] = useState('');
+  const [advancedFilters, setAdvancedFilters] = useState({
+    category_id: '',
+    account_id: '',
+    transaction_tags: [],
+    linked_asset_id: '',
+    linked_inventory_id: '',
+    min_amount: '',
+    max_amount: ''
+  });
+
+  const queryClient = useQueryClient();
 
   const { data: entities = [] } = useQuery({
     queryKey: ['entities'],
@@ -36,6 +54,100 @@ export default function Reports() {
     queryKey: ['categories'],
     queryFn: () => base44.entities.Category.list(),
   });
+
+  const { data: accounts = [] } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => base44.entities.Account.filter({ is_active: true }),
+  });
+
+  const { data: assets = [] } = useQuery({
+    queryKey: ['assets'],
+    queryFn: () => base44.entities.Asset.filter({ is_active: true }),
+  });
+
+  const { data: inventory = [] } = useQuery({
+    queryKey: ['inventory'],
+    queryFn: () => base44.entities.Inventory.filter({ is_active: true }),
+  });
+
+  const { data: transactions = [] } = useQuery({
+    queryKey: ['transactions'],
+    queryFn: () => base44.entities.Transaction.list(),
+  });
+
+  const { data: presets = [] } = useQuery({
+    queryKey: ['report-presets'],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      return base44.entities.ReportFilterPreset.filter({ user_email: user.email });
+    },
+  });
+
+  const allTags = useMemo(() => {
+    const tagSet = new Set();
+    transactions.forEach(t => {
+      (t.ai_tags || []).forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [transactions]);
+
+  const savePresetMutation = useMutation({
+    mutationFn: async (data) => {
+      const user = await base44.auth.me();
+      return base44.entities.ReportFilterPreset.create({
+        user_email: user.email,
+        ...data
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['report-presets']);
+      setShowSavePreset(false);
+      setPresetName('');
+      toast.success('Filter preset saved');
+    },
+  });
+
+  const deletePresetMutation = useMutation({
+    mutationFn: (id) => base44.entities.ReportFilterPreset.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['report-presets']);
+      toast.success('Preset deleted');
+    },
+  });
+
+  const loadPreset = (preset) => {
+    setSelectedEntity(preset.filters.entity_id || '');
+    setStartDate(preset.filters.start_date || startDate);
+    setEndDate(preset.filters.end_date || endDate);
+    setReportType(preset.report_type);
+    setAdvancedFilters({
+      category_id: preset.filters.category_id || '',
+      account_id: preset.filters.account_id || '',
+      transaction_tags: preset.filters.transaction_tags || [],
+      linked_asset_id: preset.filters.linked_asset_id || '',
+      linked_inventory_id: preset.filters.linked_inventory_id || '',
+      min_amount: preset.filters.min_amount || '',
+      max_amount: preset.filters.max_amount || ''
+    });
+    toast.success('Preset loaded');
+  };
+
+  const saveCurrentAsPreset = () => {
+    if (!presetName) {
+      toast.error('Please enter a preset name');
+      return;
+    }
+    savePresetMutation.mutate({
+      name: presetName,
+      report_type: reportType,
+      filters: {
+        entity_id: selectedEntity,
+        start_date: startDate,
+        end_date: endDate,
+        ...advancedFilters
+      }
+    });
+  };
 
   const generateReport = async () => {
     if (!selectedEntity) {
@@ -49,7 +161,8 @@ export default function Reports() {
         report_type: reportType,
         entity_id: selectedEntity,
         start_date: startDate,
-        end_date: endDate
+        end_date: endDate,
+        category_id: advancedFilters.category_id || null
       });
       setReportData(data);
       toast.success('Report generated');
@@ -59,6 +172,15 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const toggleTag = (tag) => {
+    setAdvancedFilters(prev => ({
+      ...prev,
+      transaction_tags: prev.transaction_tags.includes(tag)
+        ? prev.transaction_tags.filter(t => t !== tag)
+        : [...prev.transaction_tags, tag]
+    }));
   };
 
   const exportToPDF = async () => {
@@ -160,6 +282,37 @@ export default function Reports() {
           <p className="text-gray-500 mt-1">Generate comprehensive financial statements and analysis</p>
         </div>
 
+        {presets.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Saved Filter Presets</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {presets.map(preset => (
+                  <div key={preset.id} className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => loadPreset(preset)}
+                      className="text-blue-800 hover:text-blue-900"
+                    >
+                      <Star className="w-4 h-4 mr-1" />
+                      {preset.name}
+                    </Button>
+                    <button
+                      onClick={() => deletePresetMutation.mutate(preset.id)}
+                      className="text-gray-400 hover:text-red-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>Report Configuration</CardTitle>
@@ -214,6 +367,115 @@ export default function Reports() {
               </div>
             </div>
 
+            <div className="border-t pt-4">
+              <h3 className="font-semibold mb-3">Advanced Filters</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label>Category</Label>
+                  <Select value={advancedFilters.category_id} onValueChange={(v) => setAdvancedFilters({...advancedFilters, category_id: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null}>All Categories</SelectItem>
+                      {categories.map(c => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Account</Label>
+                  <Select value={advancedFilters.account_id} onValueChange={(v) => setAdvancedFilters({...advancedFilters, account_id: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All accounts" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null}>All Accounts</SelectItem>
+                      {accounts.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Linked Asset</Label>
+                  <Select value={advancedFilters.linked_asset_id} onValueChange={(v) => setAdvancedFilters({...advancedFilters, linked_asset_id: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All assets" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null}>All Assets</SelectItem>
+                      {assets.map(a => (
+                        <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Linked Inventory</Label>
+                  <Select value={advancedFilters.linked_inventory_id} onValueChange={(v) => setAdvancedFilters({...advancedFilters, linked_inventory_id: v})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All inventory" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={null}>All Inventory</SelectItem>
+                      {inventory.map(i => (
+                        <SelectItem key={i.id} value={i.id}>{i.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Min Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={advancedFilters.min_amount}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, min_amount: e.target.value})}
+                    placeholder="Min amount"
+                  />
+                </div>
+
+                <div>
+                  <Label>Max Amount</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={advancedFilters.max_amount}
+                    onChange={(e) => setAdvancedFilters({...advancedFilters, max_amount: e.target.value})}
+                    placeholder="Max amount"
+                  />
+                </div>
+              </div>
+
+              {allTags.length > 0 && (
+                <div className="mt-4">
+                  <Label className="mb-2 block">Transaction Tags</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {allTags.map(tag => (
+                      <Badge
+                        key={tag}
+                        variant={advancedFilters.transaction_tags.includes(tag) ? "default" : "outline"}
+                        className={`cursor-pointer ${
+                          advancedFilters.transaction_tags.includes(tag)
+                            ? 'bg-blue-800 text-white'
+                            : 'hover:bg-gray-100'
+                        }`}
+                        onClick={() => toggleTag(tag)}
+                      >
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="flex gap-3">
               <Button onClick={generateReport} disabled={loading} className="bg-blue-800 hover:bg-blue-900">
                 {loading ? (
@@ -250,6 +512,33 @@ export default function Reports() {
                   </Button>
                 </>
               )}
+
+              <Dialog open={showSavePreset} onOpenChange={setShowSavePreset}>
+                <DialogTrigger asChild>
+                  <Button variant="outline">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save as Preset
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Save Filter Preset</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Preset Name</Label>
+                      <Input
+                        value={presetName}
+                        onChange={(e) => setPresetName(e.target.value)}
+                        placeholder="e.g., Monthly Expenses Report"
+                      />
+                    </div>
+                    <Button onClick={saveCurrentAsPreset} className="w-full">
+                      Save Preset
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>

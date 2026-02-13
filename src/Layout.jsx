@@ -42,6 +42,7 @@ export default function Layout({ children, currentPageName }) {
     { name: 'Transactions', href: createPageUrl('Transactions'), icon: ArrowLeftRight },
     { name: 'Recurring', href: createPageUrl('RecurringTransactions'), icon: Repeat },
     { name: 'Budgets', href: createPageUrl('Budgets'), icon: PiggyBank },
+    { name: 'Goals', href: createPageUrl('FinancialGoals'), icon: TrendingUp },
     { name: 'Debts', href: createPageUrl('Debts'), icon: CreditCard },
     { name: 'Investments', href: createPageUrl('Investments'), icon: TrendingUp },
     { name: 'Inventory', href: createPageUrl('Inventory'), icon: Package },
