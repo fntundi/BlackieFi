@@ -4,7 +4,7 @@ dist
 .gitignore
 *.md
 !README.md
-!CONTAINERIZATION.md
+.env
 .env.local
 .env.*.local
 .vscode
@@ -14,3 +14,5 @@ coverage
 .nyc_output
 .DS_Store
 Thumbs.db
+supabase/.branches
+supabase/.temp

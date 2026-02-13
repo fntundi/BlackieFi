@@ -1,0 +1,43 @@
+# =============================================================================
+# BlackieFi Simplified Local Development
+# docker-compose.simple.yml - Minimal setup for quick start
+# =============================================================================
+#
+# This is a simplified version that uses Supabase Cloud instead of self-hosted.
+# Much easier to get started - just need Supabase credentials.
+#
+# Usage:
+#   1. Create a free Supabase project at https://supabase.com
+#   2. Copy .env.example to .env.local and fill in your credentials
+#   3. Run: docker compose -f docker-compose.simple.yml up -d
+#
+# =============================================================================
+
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # BlackieFi Frontend Application (Development)
+  # ===========================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: blackiefi-app
+    restart: unless-stopped
+    env_file:
+      - .env.local
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  default:
+    name: blackiefi-network
