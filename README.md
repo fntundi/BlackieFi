@@ -96,6 +96,24 @@ npm run dev
 | `VITE_SUPABASE_URL` | Supabase project URL | Yes |
 | `VITE_SUPABASE_ANON_KEY` | Supabase anonymous key | Yes |
 | `VITE_SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | For admin ops |
+| `VITE_OPENAI_ENABLED` | Enable AI features (`true`/`false`) | No (default: `false`) |
+| `VITE_OPENAI_API_KEY` | OpenAI API key | When AI enabled |
+| `VITE_OPENAI_MODEL` | OpenAI model to use | No (default: `gpt-4o-mini`) |
+
+### OpenAI Integration
+
+AI features (portfolio analysis, budget forecasting, market insights) are **disabled by default**.
+
+To enable:
+
+```bash
+# In .env.local
+VITE_OPENAI_ENABLED=true
+VITE_OPENAI_API_KEY=sk-your-openai-api-key
+VITE_OPENAI_MODEL=gpt-4o-mini  # Optional: gpt-4o, gpt-4-turbo, etc.
+```
+
+When disabled, AI features return sensible placeholder responses.
 
 ### Local Development Defaults
 
