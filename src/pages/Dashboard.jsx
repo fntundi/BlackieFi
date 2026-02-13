@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import BillReminders from '../components/BillReminders';
 import MarketNewsFeed from '../components/MarketNewsFeed';
+import AIFinancialInsights from '../components/AIFinancialInsights';
 
 export default function Dashboard() {
   const [user, setUser] = useState(null);
@@ -230,6 +231,11 @@ export default function Dashboard() {
             </Link>
           </CardContent>
         </Card>
+
+        {/* AI Financial Insights */}
+        {selectedEntity && selectedEntity !== 'all' && (
+          <AIFinancialInsights entityId={selectedEntity} />
+        )}
 
         {/* Market News Feed */}
         {selectedEntity && selectedEntity !== 'all' && (
