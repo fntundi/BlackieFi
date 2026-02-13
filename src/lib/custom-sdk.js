@@ -1,7 +1,9 @@
 import { supabase } from "./supabase-client.js";
 import { createClient } from "@supabase/supabase-js";
 
-// Handle both Vite (import.meta.env) and Node.js (process.env) environments
+// =============================================================================
+// Environment Configuration
+// =============================================================================
 const getEnvVar = (key, defaultValue) => {
   if (typeof import.meta !== "undefined" && import.meta.env) {
     return import.meta.env[key] || defaultValue;
@@ -9,12 +11,44 @@ const getEnvVar = (key, defaultValue) => {
   return process.env[key] || defaultValue;
 };
 
-// Create service role client for admin operations (bypasses RLS)
+// OpenAI Configuration
+const OPENAI_ENABLED = getEnvVar("VITE_OPENAI_ENABLED", "false") === "true";
+const OPENAI_API_KEY = getEnvVar("VITE_OPENAI_API_KEY", "");
+const OPENAI_MODEL = getEnvVar("VITE_OPENAI_MODEL", "gpt-4o-mini");
+
+// Validate OpenAI configuration
+if (OPENAI_ENABLED && !OPENAI_API_KEY) {
+  console.error(
+    "⚠️ OpenAI is enabled (VITE_OPENAI_ENABLED=true) but VITE_OPENAI_API_KEY is not set!"
+  );
+}
+
+// Lazy-load OpenAI client only when needed
+let openaiClient = null;
+const getOpenAIClient = async () => {
+  if (!OPENAI_ENABLED) {
+    throw new Error("OpenAI is not enabled. Set VITE_OPENAI_ENABLED=true");
+  }
+  if (!OPENAI_API_KEY) {
+    throw new Error("OpenAI API key is required. Set VITE_OPENAI_API_KEY");
+  }
+  if (!openaiClient) {
+    const { default: OpenAI } = await import("openai");
+    openaiClient = new OpenAI({
+      apiKey: OPENAI_API_KEY,
+      dangerouslyAllowBrowser: true, // Required for client-side usage
+    });
+  }
+  return openaiClient;
+};
+
+// Supabase Configuration
 const supabaseUrl = getEnvVar("VITE_SUPABASE_URL", "http://127.0.0.1:54321");
 const supabaseServiceKey = getEnvVar(
   "VITE_SUPABASE_SERVICE_ROLE_KEY",
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU"
 );
+
 const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   auth: {
     autoRefreshToken: false,
@@ -25,9 +59,9 @@ const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   },
 });
 
-/**
- * Base Entity class that provides CRUD operations compatible with Base44 SDK
- */
+// =============================================================================
+// CustomEntity Class - Base44 Compatible CRUD Operations
+// =============================================================================
 export class CustomEntity {
   constructor(tableName, useServiceRole = false) {
     this.tableName = tableName;
@@ -35,9 +69,6 @@ export class CustomEntity {
     this.useServiceRole = useServiceRole;
   }
 
-  /**
-   * Map Base44 field names to Supabase field names
-   */
   mapFieldName(field) {
     const fieldMappings = {
       created_date: "created_at",
@@ -46,9 +77,6 @@ export class CustomEntity {
     return fieldMappings[field] || field;
   }
 
-  /**
-   * Map data object fields from Base44 to Supabase format
-   */
   mapDataFields(data) {
     if (!data || typeof data !== "object") return data;
     const mapped = {};
@@ -59,9 +87,6 @@ export class CustomEntity {
     return mapped;
   }
 
-  /**
-   * Map Supabase field names back to Base44 field names in results
-   */
   mapResultFields(data) {
     if (!data) return data;
     const reverseFieldMappings = {
@@ -83,9 +108,6 @@ export class CustomEntity {
     }
   }
 
-  /**
-   * List all records with optional ordering and limit
-   */
   async list(orderBy = "created_at", limit = null) {
     let query = this.supabase.from(this.tableName).select("*");
     if (orderBy) {
@@ -111,9 +133,6 @@ export class CustomEntity {
     return this.mapResultFields(data) || [];
   }
 
-  /**
-   * Filter records based on conditions
-   */
   async filter(conditions = {}, orderBy = "created_at", limit = null) {
     let query = this.supabase.from(this.tableName).select("*");
     Object.entries(conditions).forEach(([key, value]) => {
@@ -148,9 +167,6 @@ export class CustomEntity {
     return this.mapResultFields(data) || [];
   }
 
-  /**
-   * Get a single record by ID
-   */
   async get(id) {
     const { data, error } = await this.supabase
       .from(this.tableName)
@@ -168,9 +184,6 @@ export class CustomEntity {
     return data ? this.mapResultFields(data) : null;
   }
 
-  /**
-   * Create a new record
-   */
   async create(data) {
     const mappedData = this.mapDataFields(data);
     const { data: result, error } = await this.supabase
@@ -189,9 +202,6 @@ export class CustomEntity {
     return this.mapResultFields(result);
   }
 
-  /**
-   * Update a record by ID
-   */
   async update(id, data) {
     const mappedData = this.mapDataFields(data);
     mappedData.updated_at = new Date().toISOString();
@@ -215,9 +225,6 @@ export class CustomEntity {
     return this.mapResultFields(result);
   }
 
-  /**
-   * Delete a record by ID
-   */
   async delete(id) {
     const { error } = await this.supabase
       .from(this.tableName)
@@ -233,9 +240,9 @@ export class CustomEntity {
   }
 }
 
-/**
- * User Entity with authentication methods
- */
+// =============================================================================
+// UserEntity Class - Authentication Methods
+// =============================================================================
 export class UserEntity extends CustomEntity {
   constructor() {
     super("users", true);
@@ -443,9 +450,9 @@ export class UserEntity extends CustomEntity {
   }
 }
 
-/**
- * Convert PascalCase entity name to snake_case table name
- */
+// =============================================================================
+// Entity Name Utilities
+// =============================================================================
 function entityNameToTableName(entityName) {
   return entityName
     .replace(/([A-Z])/g, "_$1")
@@ -454,9 +461,6 @@ function entityNameToTableName(entityName) {
     .replace(/_+/g, "_");
 }
 
-/**
- * Determine if an entity should use service role based on common patterns
- */
 function shouldUseServiceRole(entityName) {
   const serviceRoleEntities = [
     "user",
@@ -474,9 +478,6 @@ function shouldUseServiceRole(entityName) {
   );
 }
 
-/**
- * Create a dynamic entities proxy that creates entities on-demand
- */
 function createEntitiesProxy() {
   const entityCache = new Map();
   return new Proxy(
@@ -504,28 +505,173 @@ function createEntitiesProxy() {
   );
 }
 
+// =============================================================================
+// OpenAI Integration Functions
+// =============================================================================
+
 /**
- * Create custom client that mimics Base44 SDK structure
+ * Invoke LLM with OpenAI (when enabled) or return mock response
  */
+async function invokeLLM({
+  prompt,
+  add_context_from_internet = false,
+  response_json_schema = null,
+  file_urls = null,
+}) {
+  // If OpenAI is not enabled, return mock response
+  if (!OPENAI_ENABLED) {
+    console.warn("OpenAI not enabled. Set VITE_OPENAI_ENABLED=true to enable AI features.");
+    if (response_json_schema) {
+      return createMockJsonResponse(response_json_schema);
+    }
+    return {
+      response: "AI features are disabled. Set VITE_OPENAI_ENABLED=true and provide VITE_OPENAI_API_KEY to enable.",
+    };
+  }
+
+  try {
+    const openai = await getOpenAIClient();
+    
+    // Build messages array
+    const messages = [
+      {
+        role: "system",
+        content: "You are a helpful financial advisor assistant. Provide accurate, actionable advice based on the data provided."
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ];
+
+    // Configure response format for JSON schema
+    const requestOptions = {
+      model: OPENAI_MODEL,
+      messages,
+      temperature: 0.7,
+      max_tokens: 4096,
+    };
+
+    // If JSON schema is provided, use JSON mode
+    if (response_json_schema) {
+      requestOptions.response_format = { type: "json_object" };
+      // Add schema instructions to the prompt
+      messages[0].content += `\n\nYou must respond with valid JSON that matches this schema:\n${JSON.stringify(response_json_schema, null, 2)}`;
+    }
+
+    const completion = await openai.chat.completions.create(requestOptions);
+    const responseContent = completion.choices[0]?.message?.content;
+
+    if (response_json_schema) {
+      try {
+        return JSON.parse(responseContent);
+      } catch (parseError) {
+        console.error("Failed to parse OpenAI JSON response:", parseError);
+        return createMockJsonResponse(response_json_schema);
+      }
+    }
+
+    return { response: responseContent };
+  } catch (error) {
+    console.error("OpenAI API error:", error);
+    
+    // Return mock response on error
+    if (response_json_schema) {
+      return createMockJsonResponse(response_json_schema);
+    }
+    return {
+      response: `AI request failed: ${error.message}. Please check your OpenAI API key and try again.`,
+      error: true
+    };
+  }
+}
+
+/**
+ * Generate image with OpenAI DALL-E (when enabled)
+ */
+async function generateImage({ prompt, size = "1024x1024", quality = "standard" }) {
+  if (!OPENAI_ENABLED) {
+    console.warn("OpenAI not enabled for image generation.");
+    return {
+      url: `https://placehold.co/1024x1024/1a1a2e/ffffff?text=AI+Disabled`,
+      note: "Image generation disabled. Set VITE_OPENAI_ENABLED=true",
+    };
+  }
+
+  try {
+    const openai = await getOpenAIClient();
+    const response = await openai.images.generate({
+      model: "dall-e-3",
+      prompt,
+      n: 1,
+      size,
+      quality,
+    });
+
+    return {
+      url: response.data[0].url,
+      revised_prompt: response.data[0].revised_prompt,
+    };
+  } catch (error) {
+    console.error("OpenAI image generation error:", error);
+    return {
+      url: `https://placehold.co/1024x1024/1a1a2e/ffffff?text=Error`,
+      error: error.message,
+    };
+  }
+}
+
+/**
+ * Create mock JSON response based on schema
+ */
+function createMockJsonResponse(schema) {
+  // Return sensible defaults based on common schema patterns
+  return {
+    risk_level: "medium",
+    risk_explanation: "AI analysis unavailable - using default assessment",
+    diversification_score: 5,
+    diversification_analysis: "Enable OpenAI to get detailed analysis",
+    rebalancing_needed: false,
+    rebalancing_suggestions: [],
+    key_insights: ["Enable VITE_OPENAI_ENABLED=true for AI-powered insights"],
+    recommendations: ["Configure OpenAI API key to unlock AI features"],
+    // For market analysis
+    overall_sentiment: "neutral",
+    market_conditions: {
+      overall_sentiment: "neutral",
+      volatility_level: "medium"
+    },
+    assets: [],
+    benchmarks: [],
+    // For budget/debt analysis
+    suggested_budget: {},
+    payoff_strategies: [],
+    bills: [],
+    categories: []
+  };
+}
+
+// =============================================================================
+// Create Custom Client (Base44 Compatible)
+// =============================================================================
 export function createCustomClient() {
   return {
     entities: createEntitiesProxy(),
     auth: new UserEntity(),
+    
+    // Check if OpenAI is enabled
+    isOpenAIEnabled: () => OPENAI_ENABLED,
+    
     functions: {
       invoke: async (functionName, payload = {}) => {
-        // For now, implement functions as Supabase Edge Functions or local handlers
         console.warn(`Function ${functionName} called with:`, payload);
-        
-        // Map to Supabase Edge Functions
         const { data, error } = await supabase.functions.invoke(functionName, {
           body: payload,
         });
-        
         if (error) {
           console.error(`Function ${functionName} error:`, error);
           throw error;
         }
-        
         return { data };
       },
       verifyHcaptcha: async () => {
@@ -533,64 +679,70 @@ export function createCustomClient() {
         return { success: true };
       },
     },
+    
     integrations: {
       Core: {
-        InvokeLLM: async ({
-          prompt,
-          add_context_from_internet = false,
-          response_json_schema = null,
-          file_urls = null,
-        }) => {
-          console.warn("InvokeLLM called with:", { prompt, add_context_from_internet, response_json_schema, file_urls });
-          // TODO: Replace with actual OpenAI API call
-          if (response_json_schema) {
+        // Main LLM invocation - uses OpenAI when enabled
+        InvokeLLM: invokeLLM,
+        
+        // Image generation - uses DALL-E when enabled
+        GenerateImage: generateImage,
+        
+        // Email sending (placeholder - would need SendGrid/Resend)
+        SendEmail: async ({ to, subject, body, from_name = "BlackieFi" }) => {
+          console.warn("SendEmail called:", { to, subject, from_name });
+          // TODO: Implement with SendGrid, Resend, or Supabase Edge Function
+          return {
+            status: "mock",
+            message_id: `mock_${Date.now()}`,
+            note: "Email integration not configured. Implement with SendGrid or Resend.",
+          };
+        },
+        
+        // File upload - uses Supabase Storage
+        UploadFile: async ({ file }) => {
+          console.warn("UploadFile called:", file?.name);
+          
+          try {
+            const fileName = `${Date.now()}_${file.name}`;
+            const { data, error } = await supabase.storage
+              .from("uploads")
+              .upload(fileName, file);
+            
+            if (error) throw error;
+            
+            const { data: { publicUrl } } = supabase.storage
+              .from("uploads")
+              .getPublicUrl(fileName);
+            
+            return { file_url: publicUrl };
+          } catch (error) {
+            console.error("File upload error:", error);
             return {
-              risk_level: "medium",
-              risk_explanation: "LLM integration not yet implemented - placeholder response",
-              diversification_score: 5,
-              diversification_analysis: "Placeholder analysis",
-              rebalancing_needed: false,
-              rebalancing_suggestions: [],
-              key_insights: ["LLM integration pending implementation"],
-              recommendations: ["Configure OpenAI API key to enable AI features"],
-            };
-          } else {
-            return {
-              response: "LLM integration not yet implemented. Configure OpenAI API key to enable AI features.",
+              file_url: null,
+              error: error.message,
+              note: "Ensure 'uploads' bucket exists in Supabase Storage",
             };
           }
         },
-        SendEmail: async ({ to, subject, body, from_name = "BlackieFi" }) => {
-          console.warn("SendEmail called with:", { to, subject, body, from_name });
-          return {
-            status: "sent",
-            message_id: `mock_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
-            note: "Email integration not yet implemented",
-          };
-        },
-        UploadFile: async ({ file }) => {
-          console.warn("UploadFile called with file:", file?.name, file?.size, file?.type);
-          const mockUrl = `https://mock-storage.supabase.co/uploads/${Date.now()}_${file?.name || "file"}`;
-          return {
-            file_url: mockUrl,
-            note: "File upload integration not yet implemented",
-          };
-        },
-        GenerateImage: async ({ prompt }) => {
-          console.warn("GenerateImage called with prompt:", prompt);
-          const mockUrl = `https://mock-ai-images.com/generated/${Date.now()}.png`;
-          return {
-            url: mockUrl,
-            note: "Image generation integration not yet implemented",
-          };
-        },
+        
+        // Data extraction from files (placeholder)
         ExtractDataFromUploadedFile: async ({ file_url, json_schema }) => {
-          console.warn("ExtractDataFromUploadedFile called with:", { file_url, json_schema });
+          console.warn("ExtractDataFromUploadedFile called:", { file_url });
+          
+          if (!OPENAI_ENABLED) {
+            return {
+              status: "disabled",
+              output: json_schema?.type === "array" ? [] : {},
+              note: "Enable OpenAI for document extraction",
+            };
+          }
+          
+          // TODO: Implement with GPT-4 Vision or dedicated OCR service
           return {
-            status: "success",
-            details: null,
+            status: "not_implemented",
             output: json_schema?.type === "array" ? [] : {},
-            note: "File data extraction integration not yet implemented",
+            note: "Document extraction requires GPT-4 Vision implementation",
           };
         },
       },
