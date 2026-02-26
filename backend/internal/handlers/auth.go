@@ -199,27 +199,27 @@ func (h *AuthHandler) UpdateProfile(c *gin.Context) {
 	argIndex := 1
 
 	if input.FullName != nil {
-		query += ", full_name = $" + string(rune('0'+argIndex))
+		query += ", full_name = $" + strconv.Itoa(argIndex)
 		args = append(args, *input.FullName)
 		argIndex++
 	}
 	if input.Email != nil {
-		query += ", email = $" + string(rune('0'+argIndex))
+		query += ", email = $" + strconv.Itoa(argIndex)
 		args = append(args, *input.Email)
 		argIndex++
 	}
 	if input.AIEnabled != nil {
-		query += ", ai_enabled = $" + string(rune('0'+argIndex))
+		query += ", ai_enabled = $" + strconv.Itoa(argIndex)
 		args = append(args, *input.AIEnabled)
 		argIndex++
 	}
 	if input.PreferredLLMProvider != nil {
-		query += ", preferred_llm_provider = $" + string(rune('0'+argIndex))
+		query += ", preferred_llm_provider = $" + strconv.Itoa(argIndex)
 		args = append(args, *input.PreferredLLMProvider)
 		argIndex++
 	}
 
-	query += " WHERE id = $" + string(rune('0'+argIndex))
+	query += " WHERE id = $" + strconv.Itoa(argIndex)
 	args = append(args, userID)
 
 	_, err := database.DB.Exec(context.Background(), query, args...)
