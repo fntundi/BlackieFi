@@ -1,13 +1,13 @@
-# BlackieFi - Personal Finance Management Platform
+# BlackieFi - Premium Personal Finance Management Platform
 
 ## Original Problem Statement
-Migrate an existing application from the `base44` platform to a new technology stack consisting of a FastAPI backend, React frontend, and MongoDB database.
+Migrate an existing application from the `base44` platform to a new technology stack. Build a premium personal finance management app with a luxury dark theme featuring 18K gold, silver/chrome, and black colors.
 
 ## Product Requirements
 1. **AI Integration:** System-wide and per-account toggles for AI features (default: off). Support for OpenRouter LLM integration.
 2. **Authentication:** Username/password based with mandatory email for password recovery.
 3. **Seed Data:** Default categories for testing.
-4. **Dark Mode:** Not required.
+4. **Dark Mode:** Luxury dark theme with 18K gold (#D4AF37), silver/chrome (#B0B0B0), and obsidian black (#050505).
 
 ---
 
@@ -22,35 +22,26 @@ Migrate an existing application from the `base44` platform to a new technology s
 - ✅ Settings routes with system-wide and user-level AI toggles
 - ✅ Proper MongoDB integration with indexes
 
-### Frontend (React)
-- ✅ Complete React frontend with all pages
-- ✅ Environment variable configuration for API URL
-- ✅ Authentication context and API client
+### Frontend (React) - LUXURY THEME
+- ✅ Complete UI redesign with 18K gold/silver/black luxury theme
+- ✅ Premium fonts: Playfair Display (display), Manrope (body), JetBrains Mono (numbers)
+- ✅ Updated components:
+  - Login page with gold gradient accents
+  - Register page with premium styling
+  - Dashboard with bento-style stat cards
+  - Transactions page with luxury dark theme
+  - Layout/Sidebar with gold navigation highlights
+- ✅ Custom CSS with gold scrollbars, selection, and animations
+- ✅ Noise texture overlay for premium feel
 
-### API Endpoints
-| Endpoint | Methods | Description |
-|----------|---------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/auth/register` | POST | User registration |
-| `/api/auth/login` | POST | User login |
-| `/api/auth/me` | GET | Get current user |
-| `/api/auth/profile` | PUT | Update profile |
-| `/api/auth/password-reset/*` | POST | Password reset flow |
-| `/api/entities` | GET, POST | Entity management |
-| `/api/entities/{id}` | GET, PUT, DELETE | Single entity |
-| `/api/accounts` | GET, POST | Account management |
-| `/api/categories` | GET, POST | Category management |
-| `/api/transactions` | GET, POST | Transaction management |
-| `/api/recurring` | GET, POST | Recurring transactions |
-| `/api/budgets` | GET, POST | Budget management |
-| `/api/debts` | GET, POST | Debt tracking |
-| `/api/investments/vehicles` | GET, POST | Investment vehicles |
-| `/api/investments/holdings` | GET, POST | Investment holdings |
-| `/api/assets` | GET, POST | Asset management |
-| `/api/inventory` | GET, POST | Inventory tracking |
-| `/api/goals` | GET, POST | Financial goals |
-| `/api/settings` | GET, PUT | System settings |
-| `/api/settings/ai-status` | GET | AI status check |
+### Theme Colors
+- **Primary Background:** #050505 (Obsidian Black)
+- **Secondary Background:** #0A0A0A, #0F0F0F
+- **Gold Accent:** #D4AF37 (18K Gold)
+- **Gold Light:** #F9F1D8
+- **Gold Dark:** #997B19
+- **Silver:** #B0B0B0 (Chrome)
+- **Text Primary:** #F5F5F5
 
 ---
 
@@ -63,8 +54,8 @@ Migrate an existing application from the `base44` platform to a new technology s
 
 ## Current Status
 - ✅ Backend API fully functional (verified via curl)
-- ✅ Frontend compiling and running
-- ⚠️ External preview URL having platform routing issues
+- ✅ Frontend with luxury gold theme compiled and running locally
+- ⚠️ External preview URL has platform-level routing issues
 
 ---
 
@@ -75,27 +66,20 @@ Migrate an existing application from the `base44` platform to a new technology s
 ├── database.py        # MongoDB connection & seeding
 ├── models.py          # Pydantic request/response models
 ├── auth.py            # JWT & password utilities
-└── routes/
-    ├── auth.py        # Authentication routes
-    ├── entities.py    # Entity CRUD
-    ├── accounts.py    # Account CRUD
-    ├── categories.py  # Category CRUD
-    ├── transactions.py # Transaction CRUD
-    ├── recurring.py   # Recurring transactions
-    ├── budgets.py     # Budget management
-    ├── debts.py       # Debt tracking
-    ├── investments.py # Investment vehicles & holdings
-    ├── assets.py      # Asset management
-    ├── inventory.py   # Inventory tracking
-    ├── goals.py       # Financial goals
-    └── settings.py    # System & AI settings
+└── routes/            # All API routes
 
 /app/frontend/
 ├── src/
+│   ├── App.css        # Luxury theme CSS
 │   ├── api/client.js  # API client
-│   ├── pages/         # React page components
+│   ├── components/Layout.jsx  # Gold-themed sidebar
+│   ├── pages/
+│   │   ├── Login.jsx       # Gold themed login
+│   │   ├── Register.jsx    # Gold themed registration
+│   │   ├── Dashboard.jsx   # Bento-style dashboard
+│   │   └── Transactions.jsx # Gold themed transactions
 │   └── contexts/      # State management
-└── .env               # Environment configuration
+└── public/index.html  # Updated metadata
 ```
 
 ---
@@ -103,11 +87,12 @@ Migrate an existing application from the `base44` platform to a new technology s
 ## Remaining Tasks
 
 ### P0 - Critical
-- [ ] Verify external preview URL routing (platform infrastructure)
+- [ ] Verify external preview URL routing (platform infrastructure issue)
 
 ### P1 - High Priority
 - [ ] End-to-end testing via testing agent
 - [ ] OpenRouter LLM integration for AI features
+- [ ] Apply gold theme to remaining pages (Accounts, Categories, Budgets, etc.)
 
 ### P2 - Medium Priority
 - [ ] Password recovery email sending
