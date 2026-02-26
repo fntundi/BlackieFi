@@ -231,5 +231,5 @@ func (h *TransactionHandler) BulkCreate(c *gin.Context) {
 }
 
 func itoa(n int) string {
-	return string(rune('0' + n))
+	return strconv.Itoa(n)
 }
