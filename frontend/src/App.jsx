@@ -36,8 +36,17 @@ function PrivateRoute({ children }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#050505' }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center animate-pulse" style={{
+            background: 'linear-gradient(135deg, #D4AF37 0%, #F9F1D8 50%, #997B19 100%)'
+          }}>
+          </div>
+          <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{
+            borderColor: 'rgba(212, 175, 55, 0.2)',
+            borderTopColor: '#D4AF37'
+          }}></div>
+        </div>
       </div>
     );
   }
