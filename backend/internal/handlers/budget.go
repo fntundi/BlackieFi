@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/blackiefi/backend/internal/database"
 	"github.com/blackiefi/backend/internal/models"
@@ -29,12 +30,12 @@ func (h *BudgetHandler) List(c *gin.Context) {
 	argIndex := 1
 
 	if entityID != "" {
-		query += " AND entity_id = $" + itoa(argIndex)
+		query += " AND entity_id = $" + strconv.Itoa(argIndex)
 		args = append(args, entityID)
 		argIndex++
 	}
 	if month != "" {
-		query += " AND month = $" + itoa(argIndex)
+		query += " AND month = $" + strconv.Itoa(argIndex)
 		args = append(args, month)
 	}
 	query += " ORDER BY month DESC"

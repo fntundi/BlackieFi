@@ -3,10 +3,9 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"strconv"
 
-	"        "strconv"
-
-        "github.com/blackiefi/backend/internal/database""
+	"github.com/blackiefi/backend/internal/database"
 	"github.com/blackiefi/backend/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -30,7 +29,7 @@ func (h *AccountHandler) List(c *gin.Context) {
 	argIndex := 1
 
 	if entityID != "" {
-		query += " AND entity_id = $" + itoa(argIndex)
+		query += " AND entity_id = $" + strconv.Itoa(argIndex)
 		args = append(args, entityID)
 		argIndex++
 	}

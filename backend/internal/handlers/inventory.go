@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"strconv"
 
 	"github.com/blackiefi/backend/internal/database"
 	"github.com/blackiefi/backend/internal/models"
@@ -29,7 +30,7 @@ func (h *InventoryHandler) List(c *gin.Context) {
 	argIndex := 1
 
 	if entityID != "" {
-		query += " AND entity_id = $" + itoa(argIndex)
+		query += " AND entity_id = $" + strconv.Itoa(argIndex)
 		args = append(args, entityID)
 		argIndex++
 	}
