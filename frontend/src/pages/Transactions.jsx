@@ -8,8 +8,8 @@ import {
   Search,
   ArrowUpRight,
   ArrowDownRight,
-  Filter,
-  X
+  X,
+  Receipt
 } from 'lucide-react';
 
 export default function Transactions() {
@@ -105,18 +105,38 @@ export default function Transactions() {
     return acc?.name || '-';
   };
 
+  const formatCurrency = (value) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2
+    }).format(value);
+  };
+
+  const inputStyle = {
+    background: 'rgba(10, 10, 10, 0.8)',
+    border: '1px solid rgba(212, 175, 55, 0.15)',
+    color: '#F5F5F5'
+  };
+
   return (
-    <div className="page-container animate-fade-in" data-testid="transactions-page">
+    <div className="p-8 animate-fade-in" style={{ background: '#050505', minHeight: '100vh' }} data-testid="transactions-page">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
           <div>
-            <h1 className="text-3xl font-bold text-white">Transactions</h1>
-            <p className="text-slate-400 mt-1">Track your income and expenses</p>
+            <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: '#D4AF37' }}>Finances</p>
+            <h1 className="text-4xl font-display font-bold" style={{ color: '#F5F5F5' }}>Transactions</h1>
+            <p className="mt-2" style={{ color: '#6E6E6E' }}>Track your income and expenses</p>
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="btn btn-primary"
+            className="px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2"
+            style={{
+              background: 'linear-gradient(135deg, #997B19 0%, #D4AF37 50%, #997B19 100%)',
+              color: '#000000',
+              boxShadow: '0 4px 20px rgba(212, 175, 55, 0.3)'
+            }}
             data-testid="add-transaction-btn"
           >
             <Plus className="w-5 h-5" />
@@ -127,56 +147,68 @@ export default function Transactions() {
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4 mb-6">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: '#6E6E6E' }} />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search transactions..."
-              className="input pl-10"
+              className="w-full py-3 pl-12 pr-4 rounded-lg transition-all duration-300 focus:outline-none"
+              style={inputStyle}
               data-testid="search-transactions"
             />
           </div>
-          <div className="flex gap-2">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="input w-40"
-              data-testid="filter-type"
-            >
-              <option value="">All Types</option>
-              <option value="income">Income</option>
-              <option value="expense">Expense</option>
-              <option value="transfer">Transfer</option>
-            </select>
-          </div>
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="py-3 px-4 rounded-lg transition-all duration-300 focus:outline-none cursor-pointer"
+            style={inputStyle}
+            data-testid="filter-type"
+          >
+            <option value="" style={{ background: '#0A0A0A' }}>All Types</option>
+            <option value="income" style={{ background: '#0A0A0A' }}>Income</option>
+            <option value="expense" style={{ background: '#0A0A0A' }}>Expense</option>
+            <option value="transfer" style={{ background: '#0A0A0A' }}>Transfer</option>
+          </select>
         </div>
 
         {/* Transactions List */}
-        <div className="card" data-testid="transactions-list">
+        <div className="rounded-2xl p-6" style={{
+          background: '#0A0A0A',
+          border: '1px solid rgba(212, 175, 55, 0.1)'
+        }} data-testid="transactions-list">
           {isLoading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-500 mx-auto"></div>
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{
+                borderColor: 'rgba(212, 175, 55, 0.2)',
+                borderTopColor: '#D4AF37'
+              }}></div>
             </div>
           ) : filteredTransactions.length > 0 ? (
-            <div className="divide-y divide-slate-700">
+            <div className="space-y-3">
               {filteredTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex items-center justify-between py-4 px-2 hover:bg-slate-800/50 rounded-lg transition-colors -mx-2"
+                  className="flex items-center justify-between p-4 rounded-xl transition-all duration-300"
+                  style={{
+                    background: '#0F0F0F',
+                    border: '1px solid rgba(255, 255, 255, 0.03)'
+                  }}
                   data-testid={`transaction-${tx.id}`}
                 >
                   <div className="flex items-center gap-4">
-                    <div className={`p-2 rounded-lg ${tx.type === 'income' ? 'bg-emerald-500/10' : 'bg-red-500/10'}`}>
+                    <div className="p-2.5 rounded-xl" style={{
+                      background: tx.type === 'income' ? 'rgba(5, 150, 105, 0.1)' : 'rgba(220, 38, 38, 0.1)'
+                    }}>
                       {tx.type === 'income' ? (
-                        <ArrowUpRight className="w-5 h-5 text-emerald-500" />
+                        <ArrowUpRight className="w-5 h-5" style={{ color: '#059669' }} />
                       ) : (
-                        <ArrowDownRight className="w-5 h-5 text-red-500" />
+                        <ArrowDownRight className="w-5 h-5" style={{ color: '#DC2626' }} />
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-white">{tx.description || 'Transaction'}</p>
-                      <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <p className="font-medium" style={{ color: '#F5F5F5' }}>{tx.description || 'Transaction'}</p>
+                      <div className="flex items-center gap-2 text-sm" style={{ color: '#525252' }}>
                         <span>{getCategoryName(tx.category_id)}</span>
                         <span>·</span>
                         <span>{getAccountName(tx.account_id)}</span>
@@ -185,14 +217,17 @@ export default function Transactions() {
                   </div>
                   <div className="flex items-center gap-6">
                     <div className="text-right">
-                      <p className={`font-mono font-semibold ${tx.type === 'income' ? 'text-emerald-500' : 'text-red-500'}`}>
-                        {tx.type === 'income' ? '+' : '-'}${parseFloat(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      <p className="font-mono font-semibold" style={{
+                        color: tx.type === 'income' ? '#059669' : '#DC2626'
+                      }}>
+                        {tx.type === 'income' ? '+' : '-'}{formatCurrency(parseFloat(tx.amount))}
                       </p>
-                      <p className="text-xs text-slate-500">{tx.date}</p>
+                      <p className="text-xs" style={{ color: '#525252' }}>{tx.date}</p>
                     </div>
                     <button
                       onClick={() => deleteMutation.mutate(tx.id)}
-                      className="p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors"
+                      className="p-2 rounded-lg transition-all duration-300"
+                      style={{ color: '#525252' }}
                       data-testid={`delete-transaction-${tx.id}`}
                     >
                       <X className="w-4 h-4" />
@@ -202,19 +237,24 @@ export default function Transactions() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-12 text-slate-500">
-              No transactions found
+            <div className="text-center py-16">
+              <Receipt className="w-12 h-12 mx-auto mb-4" style={{ color: '#525252' }} />
+              <p style={{ color: '#525252' }}>No transactions found</p>
             </div>
           )}
         </div>
 
         {/* Add Transaction Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="card w-full max-w-md" data-testid="add-transaction-modal">
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0, 0, 0, 0.8)' }}>
+            <div className="w-full max-w-md rounded-2xl p-6" style={{
+              background: 'linear-gradient(180deg, #0F0F0F 0%, #0A0A0A 100%)',
+              border: '1px solid rgba(212, 175, 55, 0.2)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }} data-testid="add-transaction-modal">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white">Add Transaction</h2>
-                <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
+                <h2 className="text-xl font-semibold" style={{ color: '#F5F5F5' }}>Add Transaction</h2>
+                <button onClick={() => setShowForm(false)} style={{ color: '#6E6E6E' }}>
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -224,12 +264,13 @@ export default function Transactions() {
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="input"
+                    className="w-full py-3 px-4 rounded-lg focus:outline-none cursor-pointer"
+                    style={inputStyle}
                     data-testid="transaction-type-select"
                   >
-                    <option value="expense">Expense</option>
-                    <option value="income">Income</option>
-                    <option value="transfer">Transfer</option>
+                    <option value="expense" style={{ background: '#0A0A0A' }}>Expense</option>
+                    <option value="income" style={{ background: '#0A0A0A' }}>Income</option>
+                    <option value="transfer" style={{ background: '#0A0A0A' }}>Transfer</option>
                   </select>
                 </div>
                 <div>
@@ -239,7 +280,8 @@ export default function Transactions() {
                     step="0.01"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="input"
+                    className="w-full py-3 px-4 rounded-lg focus:outline-none"
+                    style={inputStyle}
                     placeholder="0.00"
                     required
                     data-testid="transaction-amount-input"
@@ -251,7 +293,8 @@ export default function Transactions() {
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="input"
+                    className="w-full py-3 px-4 rounded-lg focus:outline-none"
+                    style={inputStyle}
                     required
                     data-testid="transaction-date-input"
                   />
@@ -262,7 +305,8 @@ export default function Transactions() {
                     type="text"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="input"
+                    className="w-full py-3 px-4 rounded-lg focus:outline-none"
+                    style={inputStyle}
                     placeholder="Enter description"
                     data-testid="transaction-description-input"
                   />
@@ -272,14 +316,15 @@ export default function Transactions() {
                   <select
                     value={formData.category_id}
                     onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                    className="input"
+                    className="w-full py-3 px-4 rounded-lg focus:outline-none cursor-pointer"
+                    style={inputStyle}
                     data-testid="transaction-category-select"
                   >
-                    <option value="">Select category</option>
+                    <option value="" style={{ background: '#0A0A0A' }}>Select category</option>
                     {categories
                       .filter(c => c.type === formData.type || c.type === 'both')
                       .map(cat => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                        <option key={cat.id} value={cat.id} style={{ background: '#0A0A0A' }}>{cat.name}</option>
                       ))
                     }
                   </select>
@@ -289,20 +334,38 @@ export default function Transactions() {
                   <select
                     value={formData.account_id}
                     onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
-                    className="input"
+                    className="w-full py-3 px-4 rounded-lg focus:outline-none cursor-pointer"
+                    style={inputStyle}
                     data-testid="transaction-account-select"
                   >
-                    <option value="">Select account</option>
+                    <option value="" style={{ background: '#0A0A0A' }}>Select account</option>
                     {accounts.map(acc => (
-                      <option key={acc.id} value={acc.id}>{acc.name}</option>
+                      <option key={acc.id} value={acc.id} style={{ background: '#0A0A0A' }}>{acc.name}</option>
                     ))}
                   </select>
                 </div>
                 <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary flex-1">
+                  <button 
+                    type="button" 
+                    onClick={() => setShowForm(false)} 
+                    className="flex-1 py-3 rounded-lg font-semibold transition-all duration-300"
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(212, 175, 55, 0.2)',
+                      color: '#D4AF37'
+                    }}
+                  >
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary flex-1" data-testid="submit-transaction-btn">
+                  <button 
+                    type="submit" 
+                    className="flex-1 py-3 rounded-lg font-semibold transition-all duration-300"
+                    style={{
+                      background: 'linear-gradient(135deg, #997B19 0%, #D4AF37 50%, #997B19 100%)',
+                      color: '#000000'
+                    }}
+                    data-testid="submit-transaction-btn"
+                  >
                     {createMutation.isPending ? 'Saving...' : 'Save Transaction'}
                   </button>
                 </div>
