@@ -1,0 +1,71 @@
+"""
+BlackieFi - Personal Finance Management API
+FastAPI backend for the Emergent platform
+"""
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
+
+from routes.auth import router as auth_router
+from routes.entities import router as entities_router
+from routes.accounts import router as accounts_router
+from routes.categories import router as categories_router
+from routes.transactions import router as transactions_router
+from routes.recurring import router as recurring_router
+from routes.budgets import router as budgets_router
+from routes.debts import router as debts_router
+from routes.investments import router as investments_router
+from routes.assets import router as assets_router
+from routes.inventory import router as inventory_router
+from routes.goals import router as goals_router
+from routes.settings import router as settings_router
+from database import init_db, close_db
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    await init_db()
+    yield
+    # Shutdown
+    await close_db()
+
+app = FastAPI(
+    title="BlackieFi API",
+    description="Personal Finance Management System",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Health check
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "service": "blackiefi-api"}
+
+# Include routers with /api prefix
+app.include_router(auth_router, prefix="/api/auth", tags=["Authentication"])
+app.include_router(entities_router, prefix="/api/entities", tags=["Entities"])
+app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
+app.include_router(categories_router, prefix="/api/categories", tags=["Categories"])
+app.include_router(transactions_router, prefix="/api/transactions", tags=["Transactions"])
+app.include_router(recurring_router, prefix="/api/recurring", tags=["Recurring Transactions"])
+app.include_router(budgets_router, prefix="/api/budgets", tags=["Budgets"])
+app.include_router(debts_router, prefix="/api/debts", tags=["Debts"])
+app.include_router(investments_router, prefix="/api/investments", tags=["Investments"])
+app.include_router(assets_router, prefix="/api/assets", tags=["Assets"])
+app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
+app.include_router(goals_router, prefix="/api/goals", tags=["Financial Goals"])
+app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8001)

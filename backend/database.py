@@ -1,0 +1,125 @@
+"""
+MongoDB database connection and utilities
+"""
+import os
+from motor.motor_asyncio import AsyncIOMotorClient
+from typing import Optional
+
+client: Optional[AsyncIOMotorClient] = None
+db = None
+
+async def init_db():
+    """Initialize database connection"""
+    global client, db
+    mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
+    db_name = os.environ.get("DB_NAME", "blackiefi")
+    
+    client = AsyncIOMotorClient(mongo_url)
+    db = client[db_name]
+    
+    # Create indexes
+    await create_indexes()
+    
+    # Seed initial data if needed
+    await seed_initial_data()
+    
+    print(f"Connected to MongoDB database: {db_name}")
+
+async def close_db():
+    """Close database connection"""
+    global client
+    if client:
+        client.close()
+        print("MongoDB connection closed")
+
+async def create_indexes():
+    """Create necessary indexes for performance"""
+    # Users collection
+    await db.users.create_index("username", unique=True)
+    await db.users.create_index("email", unique=True)
+    
+    # Entities collection
+    await db.entities.create_index("owner_id")
+    
+    # Accounts collection
+    await db.accounts.create_index("entity_id")
+    
+    # Transactions collection
+    await db.transactions.create_index([("entity_id", 1), ("date", -1)])
+    await db.transactions.create_index("category_id")
+    
+    # Categories collection
+    await db.categories.create_index("entity_id")
+    
+    # Recurring transactions
+    await db.recurring_transactions.create_index("entity_id")
+    
+    # Budgets
+    await db.budgets.create_index([("entity_id", 1), ("month", 1)])
+    
+    # Debts
+    await db.debts.create_index("entity_id")
+    
+    # Investment vehicles and holdings
+    await db.investment_vehicles.create_index("entity_id")
+    await db.investment_holdings.create_index("vehicle_id")
+    
+    # Assets
+    await db.assets.create_index("entity_id")
+    
+    # Inventory
+    await db.inventory.create_index("entity_id")
+    
+    # Financial goals
+    await db.goals.create_index("entity_id")
+
+async def seed_initial_data():
+    """Seed initial data if database is empty"""
+    # Check if system settings exist
+    settings = await db.system_settings.find_one({"_id": "system"})
+    if not settings:
+        await db.system_settings.insert_one({
+            "_id": "system",
+            "ai_enabled": False,
+            "default_llm_provider": "openrouter"
+        })
+        print("Created initial system settings")
+    
+    # Create default categories if none exist
+    count = await db.categories.count_documents({})
+    if count == 0:
+        default_categories = [
+            {"name": "Salary", "type": "income", "is_default": True},
+            {"name": "Freelance", "type": "income", "is_default": True},
+            {"name": "Investment Income", "type": "income", "is_default": True},
+            {"name": "Food & Dining", "type": "expense", "is_default": True},
+            {"name": "Transportation", "type": "expense", "is_default": True},
+            {"name": "Housing", "type": "expense", "is_default": True},
+            {"name": "Utilities", "type": "expense", "is_default": True},
+            {"name": "Healthcare", "type": "expense", "is_default": True},
+            {"name": "Entertainment", "type": "expense", "is_default": True},
+            {"name": "Shopping", "type": "expense", "is_default": True},
+            {"name": "Education", "type": "expense", "is_default": True},
+            {"name": "Personal Care", "type": "expense", "is_default": True},
+            {"name": "Insurance", "type": "expense", "is_default": True},
+            {"name": "Savings", "type": "both", "is_default": True},
+            {"name": "Transfer", "type": "both", "is_default": True},
+        ]
+        
+        from datetime import datetime, timezone
+        from bson import ObjectId
+        
+        for cat in default_categories:
+            cat["_id"] = str(ObjectId())
+            cat["entity_id"] = None
+            cat["parent_category"] = None
+            cat["auto_categorization_rules"] = []
+            cat["created_at"] = datetime.now(timezone.utc).isoformat()
+            cat["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        await db.categories.insert_many(default_categories)
+        print(f"Created {len(default_categories)} default categories")
+
+def get_db():
+    """Get database instance"""
+    return db
