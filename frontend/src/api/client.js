@@ -1,3 +1,4 @@
+// BlackieFi API Client v2
 const API_URL = process.env.REACT_APP_BACKEND_URL ? `${process.env.REACT_APP_BACKEND_URL}/api` : 'http://localhost:8001/api';
 
 class ApiClient {
