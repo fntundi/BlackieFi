@@ -3,10 +3,9 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"strconv"
 
-	"        "strconv"
-
-        "github.com/blackiefi/backend/internal/database""
+	"github.com/blackiefi/backend/internal/database"
 	"github.com/blackiefi/backend/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -39,42 +38,42 @@ func (h *TransactionHandler) List(c *gin.Context) {
 	argIndex := 1
 
 	if filter.EntityID != nil {
-		query += " AND entity_id = $" + itoa(argIndex)
+		query += " AND entity_id = $" + strconv.Itoa(argIndex)
 		args = append(args, *filter.EntityID)
 		argIndex++
 	}
 	if filter.CategoryID != nil {
-		query += " AND category_id = $" + itoa(argIndex)
+		query += " AND category_id = $" + strconv.Itoa(argIndex)
 		args = append(args, *filter.CategoryID)
 		argIndex++
 	}
 	if filter.Type != nil {
-		query += " AND type = $" + itoa(argIndex)
+		query += " AND type = $" + strconv.Itoa(argIndex)
 		args = append(args, *filter.Type)
 		argIndex++
 	}
 	if filter.StartDate != nil {
-		query += " AND date >= $" + itoa(argIndex)
+		query += " AND date >= $" + strconv.Itoa(argIndex)
 		args = append(args, *filter.StartDate)
 		argIndex++
 	}
 	if filter.EndDate != nil {
-		query += " AND date <= $" + itoa(argIndex)
+		query += " AND date <= $" + strconv.Itoa(argIndex)
 		args = append(args, *filter.EndDate)
 		argIndex++
 	}
 	if filter.MinAmount != nil {
-		query += " AND amount >= $" + itoa(argIndex)
+		query += " AND amount >= $" + strconv.Itoa(argIndex)
 		args = append(args, *filter.MinAmount)
 		argIndex++
 	}
 	if filter.MaxAmount != nil {
-		query += " AND amount <= $" + itoa(argIndex)
+		query += " AND amount <= $" + strconv.Itoa(argIndex)
 		args = append(args, *filter.MaxAmount)
 		argIndex++
 	}
 
-	query += " ORDER BY date DESC LIMIT $" + itoa(argIndex)
+	query += " ORDER BY date DESC LIMIT $" + strconv.Itoa(argIndex)
 	args = append(args, filter.Limit)
 
 	rows, err := database.DB.Query(context.Background(), query, args...)
@@ -230,8 +229,4 @@ func (h *TransactionHandler) BulkCreate(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"created": created})
-}
-
-func itoa(n int) string {
-	return strconv.Itoa(n)
 }
