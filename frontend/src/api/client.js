@@ -703,6 +703,52 @@ class ApiClient {
   async detectBills(entityId) {
     return this.request(`/ai/detect-bills?entity_id=${entityId}`, { method: 'POST' });
   }
+
+  // Notifications endpoints
+  async getNotifications(limit = 20, unreadOnly = false) {
+    return this.request(`/notifications?limit=${limit}&unread_only=${unreadOnly}`);
+  }
+
+  async getUnreadCount() {
+    return this.request('/notifications/unread-count');
+  }
+
+  async markNotificationsRead(notificationIds) {
+    return this.request('/notifications/mark-read', {
+      method: 'POST',
+      body: JSON.stringify({ notification_ids: notificationIds }),
+    });
+  }
+
+  async markAllNotificationsRead() {
+    return this.request('/notifications/mark-all-read', { method: 'POST' });
+  }
+
+  async deleteNotification(id) {
+    return this.request(`/notifications/${id}`, { method: 'DELETE' });
+  }
+
+  async checkAlerts(entityId) {
+    return this.request(`/notifications/check-alerts?entity_id=${entityId}`, { method: 'POST' });
+  }
+
+  async getNotificationPreferences() {
+    return this.request('/notifications/preferences');
+  }
+
+  async updateNotificationPreferences(preferences) {
+    return this.request('/notifications/preferences', {
+      method: 'PUT',
+      body: JSON.stringify(preferences),
+    });
+  }
+
+  async sendTestEmail(email, subject = 'Test Email from BlackieFi') {
+    return this.request('/notifications/send-test-email', {
+      method: 'POST',
+      body: JSON.stringify({ email, subject }),
+    });
+  }
 }
 
 export const api = new ApiClient();
