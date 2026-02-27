@@ -620,7 +620,7 @@ class ApiClient {
     formData.append('account_id', accountId);
     formData.append('file', file);
 
-    const response = await fetch(`${this.baseUrl}/imports/csv`, {
+    const response = await fetch(`${API_URL}/imports/csv`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.token}`,
@@ -642,7 +642,7 @@ class ApiClient {
     formData.append('account_id', accountId);
     formData.append('file', file);
 
-    const response = await fetch(`${this.baseUrl}/imports/pdf`, {
+    const response = await fetch(`${API_URL}/imports/pdf`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${this.token}`,
