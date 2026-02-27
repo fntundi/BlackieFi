@@ -309,8 +309,8 @@ export default function Import() {
                     </div>
                     <button
                       onClick={() => {
-                        if (confirm('Delete this import batch? You can also choose to delete the imported transactions.')) {
-                          const deleteTransactions = confirm('Also delete the imported transactions?');
+                        if (window.confirm('Delete this import batch? You can also choose to delete the imported transactions.')) {
+                          const deleteTransactions = window.confirm('Also delete the imported transactions?');
                           deleteBatchMutation.mutate({ id: batch.id, deleteTransactions });
                         }
                       }}
