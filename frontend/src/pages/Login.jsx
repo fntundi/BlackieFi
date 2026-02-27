@@ -281,21 +281,6 @@ export default function Login() {
               </p>
             </div>
           </div>
-          
-          {/* Demo credentials */}
-          <div style={{
-            marginTop: '1.5rem',
-            padding: '1rem',
-            borderRadius: '12px',
-            textAlign: 'center',
-            background: 'rgba(212, 175, 55, 0.05)',
-            border: '1px solid rgba(212, 175, 55, 0.1)'
-          }}>
-            <p style={{ fontSize: '0.75rem', color: '#525252' }}>
-              Demo: <span style={{ color: '#A3A3A3' }}>demo / user123</span>
-            </p>
-          </div>
-        </div>
       </div>
 
       <style>{`
