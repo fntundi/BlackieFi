@@ -28,6 +28,7 @@ from routes.groups import router as groups_router
 from routes.financial_profiles import router as profiles_router
 from routes.imports import router as imports_router
 from routes.ai_functions import router as ai_functions_router
+from routes.notifications import router as notifications_router
 from database import init_db, close_db
 
 @asynccontextmanager
