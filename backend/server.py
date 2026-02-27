@@ -82,6 +82,7 @@ app.include_router(groups_router, prefix="/api/groups", tags=["Groups"])
 app.include_router(profiles_router, prefix="/api/financial-profiles", tags=["Financial Profiles"])
 app.include_router(imports_router, prefix="/api/imports", tags=["Imports"])
 app.include_router(ai_functions_router, prefix="/api/ai", tags=["AI Functions"])
+app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
 
 if __name__ == "__main__":
     import uvicorn
