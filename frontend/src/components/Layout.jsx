@@ -26,7 +26,8 @@ import {
   Upload,
   Calculator,
   Users,
-  Sliders
+  Sliders,
+  Bell
 } from 'lucide-react';
 
 const navItems = [
@@ -55,6 +56,14 @@ export default function Layout({ children }) {
     queryKey: ['entities'],
     queryFn: () => api.getEntities(),
   });
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['unread-count'],
+    queryFn: () => api.getUnreadCount(),
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const unreadCount = unreadData?.unread_count || 0;
 
   React.useEffect(() => {
     if (entities.length > 0 && !selectedEntityId) {
