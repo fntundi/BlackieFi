@@ -187,12 +187,21 @@ class AlertService:
     async def check_goal_milestones(self, entity_id: str, user_id: str) -> List[Dict[str, Any]]:
         """Check for goal milestones (25%, 50%, 75%, 100%)"""
         alerts_sent = []
+        
+        # Check user preferences
+        user = await self.db.users.find_one({"_id": user_id})
+        prefs = user.get("notification_preferences", {}) if user else {}
+        
+        # Skip if goal milestones are disabled
+        if prefs.get("goal_milestones") is False:
+            return alerts_sent
+        
         milestones = [25, 50, 75, 100]
         
         # Get active goals
         goals = await self.db.goals.find({
             "entity_id": entity_id,
-            "status": "in_progress"
+            "status": "active"
         }).to_list(50)
         
         for goal in goals:
