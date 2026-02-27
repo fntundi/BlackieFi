@@ -90,6 +90,12 @@ function AppRoutes() {
                 <Route path="/entities" element={<Entities />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/admin/settings" element={<AdminSettings />} />
+                <Route path="/calendar" element={<Calendar />} />
+                <Route path="/reports" element={<Reports />} />
+                <Route path="/import" element={<Import />} />
+                <Route path="/tax-planning" element={<TaxPlanning />} />
+                <Route path="/groups" element={<Groups />} />
+                <Route path="/financial-settings" element={<FinancialSettings />} />
               </Routes>
             </Layout>
           </PrivateRoute>
