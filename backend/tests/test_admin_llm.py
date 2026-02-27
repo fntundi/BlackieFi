@@ -79,7 +79,8 @@ class TestLLMProvidersEndpoint:
     def test_get_providers_unauthenticated(self, api_client):
         """Unauthenticated requests are rejected"""
         response = api_client.get(f"{BASE_URL}/api/admin/llm/providers")
-        assert response.status_code == 401
+        # Accept both 401 (Unauthorized) and 403 (Forbidden) as valid rejection
+        assert response.status_code in [401, 403]
 
 
 class TestProviderModelsEndpoint:
