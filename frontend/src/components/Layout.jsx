@@ -19,7 +19,8 @@ import {
   LogOut,
   ChevronDown,
   User,
-  Crown
+  Crown,
+  Cpu
 } from 'lucide-react';
 
 const navItems = [
