@@ -461,6 +461,226 @@ class ApiClient {
       body: JSON.stringify({ message, context, feature }),
     });
   }
+
+  // Bills endpoints
+  async getBills(entityId) {
+    const query = entityId ? `?entity_id=${entityId}` : '';
+    return this.request(`/bills${query}`);
+  }
+
+  async createBill(data) {
+    return this.request('/bills', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateBill(id, data) {
+    return this.request(`/bills/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteBill(id) {
+    return this.request(`/bills/${id}`, { method: 'DELETE' });
+  }
+
+  async markBillPaid(id, amount = null) {
+    const query = amount ? `?amount=${amount}` : '';
+    return this.request(`/bills/${id}/mark-paid${query}`, { method: 'POST' });
+  }
+
+  // Reports endpoints
+  async generateReport(reportType, entityId, startDate, endDate, categoryId = null) {
+    return this.request('/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify({
+        report_type: reportType,
+        entity_id: entityId,
+        start_date: startDate,
+        end_date: endDate,
+        category_id: categoryId,
+      }),
+    });
+  }
+
+  async getReportPresets() {
+    return this.request('/reports/presets');
+  }
+
+  async createReportPreset(data) {
+    return this.request('/reports/presets', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteReportPreset(id) {
+    return this.request(`/reports/presets/${id}`, { method: 'DELETE' });
+  }
+
+  // Tax Planning endpoints
+  async getTaxScenarios(entityId, taxYear = null) {
+    let query = `entity_id=${entityId}`;
+    if (taxYear) query += `&tax_year=${taxYear}`;
+    return this.request(`/tax/scenarios?${query}`);
+  }
+
+  async createTaxScenario(data) {
+    return this.request('/tax/scenarios', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteTaxScenario(id) {
+    return this.request(`/tax/scenarios/${id}`, { method: 'DELETE' });
+  }
+
+  // Groups endpoints
+  async getGroups() {
+    return this.request('/groups');
+  }
+
+  async createGroup(data) {
+    return this.request('/groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateGroup(id, data) {
+    return this.request(`/groups/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async deleteGroup(id) {
+    return this.request(`/groups/${id}`, { method: 'DELETE' });
+  }
+
+  async getGroupMembers(groupId) {
+    return this.request(`/groups/${groupId}/members`);
+  }
+
+  async addGroupMember(groupId, userEmail, role = 'member') {
+    return this.request(`/groups/${groupId}/members`, {
+      method: 'POST',
+      body: JSON.stringify({ group_id: groupId, user_email: userEmail, role }),
+    });
+  }
+
+  async removeGroupMember(groupId, memberId) {
+    return this.request(`/groups/${groupId}/members/${memberId}`, { method: 'DELETE' });
+  }
+
+  async getGroupAccess(groupId) {
+    return this.request(`/groups/${groupId}/access`);
+  }
+
+  async grantGroupAccess(groupId, entityId, accessLevel = 'read') {
+    return this.request(`/groups/${groupId}/access`, {
+      method: 'POST',
+      body: JSON.stringify({ group_id: groupId, entity_id: entityId, access_level: accessLevel }),
+    });
+  }
+
+  async revokeGroupAccess(groupId, accessId) {
+    return this.request(`/groups/${groupId}/access/${accessId}`, { method: 'DELETE' });
+  }
+
+  // Financial Profiles endpoints
+  async getFinancialProfiles(entityId = null) {
+    const query = entityId ? `?entity_id=${entityId}` : '';
+    return this.request(`/financial-profiles${query}`);
+  }
+
+  async getFinancialProfile(entityId) {
+    return this.request(`/financial-profiles/${entityId}`);
+  }
+
+  async saveFinancialProfile(data) {
+    return this.request('/financial-profiles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Import endpoints
+  async getImportBatches(entityId = null) {
+    const query = entityId ? `?entity_id=${entityId}` : '';
+    return this.request(`/imports/batches${query}`);
+  }
+
+  async importCSV(entityId, accountId, file) {
+    const formData = new FormData();
+    formData.append('entity_id', entityId);
+    formData.append('account_id', accountId);
+    formData.append('file', file);
+
+    const response = await fetch(`${this.baseUrl}/imports/csv`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Import failed');
+    }
+
+    return response.json();
+  }
+
+  async deleteImportBatch(id, deleteTransactions = false) {
+    const query = deleteTransactions ? '?delete_transactions=true' : '';
+    return this.request(`/imports/batches/${id}${query}`, { method: 'DELETE' });
+  }
+
+  // AI Functions endpoints
+  async detectAnomalies(entityId) {
+    return this.request(`/ai/detect-anomalies?entity_id=${entityId}`, { method: 'POST' });
+  }
+
+  async forecastCashFlow(entityId, months = 3) {
+    return this.request(`/ai/forecast-cash-flow?entity_id=${entityId}&forecast_months=${months}`, { method: 'POST' });
+  }
+
+  async identifyCostSavings(entityId) {
+    return this.request(`/ai/identify-cost-savings?entity_id=${entityId}`, { method: 'POST' });
+  }
+
+  async generateBudget(entityId, month) {
+    return this.request(`/ai/generate-budget?entity_id=${entityId}&month=${month}`, { method: 'POST' });
+  }
+
+  async categorizeTransaction(transactionId, entityId) {
+    return this.request(`/ai/categorize-transaction?transaction_id=${transactionId}&entity_id=${entityId}`, { method: 'POST' });
+  }
+
+  async generateTags(transactionId) {
+    return this.request(`/ai/generate-tags?transaction_id=${transactionId}`, { method: 'POST' });
+  }
+
+  async getGoalRecommendations(goalId) {
+    return this.request(`/ai/goal-recommendations?goal_id=${goalId}`, { method: 'POST' });
+  }
+
+  async estimateTax(entityId, taxYear, filingStatus) {
+    return this.request(`/ai/estimate-tax?entity_id=${entityId}&tax_year=${taxYear}&filing_status=${filingStatus}`, { method: 'POST' });
+  }
+
+  async forecastBudget(entityId, months = 3) {
+    return this.request(`/ai/forecast-budget?entity_id=${entityId}&forecast_months=${months}`, { method: 'POST' });
+  }
+
+  async detectBills(entityId) {
+    return this.request(`/ai/detect-bills?entity_id=${entityId}`, { method: 'POST' });
+  }
 }
 
 export const api = new ApiClient();
