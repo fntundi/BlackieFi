@@ -20,6 +20,12 @@ import Goals from './pages/Goals';
 import Entities from './pages/Entities';
 import Settings from './pages/Settings';
 import AdminSettings from './pages/AdminSettings';
+import Calendar from './pages/Calendar';
+import Reports from './pages/Reports';
+import Import from './pages/Import';
+import TaxPlanning from './pages/TaxPlanning';
+import Groups from './pages/Groups';
+import FinancialSettings from './pages/FinancialSettings';
 
 import './App.css';
 
