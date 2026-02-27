@@ -335,13 +335,66 @@ class GoalStatusUpdate(BaseModel):
 class SystemSettingsUpdate(BaseModel):
     ai_enabled: Optional[bool] = None
     default_llm_provider: Optional[str] = None
+    default_model: Optional[str] = None
 
 class SystemSettingsResponse(BaseModel):
     ai_enabled: bool
     default_llm_provider: str
+    default_model: Optional[str] = None
 
 class AIStatusResponse(BaseModel):
     system_ai_enabled: bool
     user_ai_enabled: bool
     effective_ai_enabled: bool
     llm_provider: str
+    llm_model: Optional[str] = None
+
+# ============= LLM Provider Configuration Models =============
+class LLMProviderConfig(BaseModel):
+    provider: str
+    enabled: bool = False
+    api_key: Optional[str] = None
+    default_model: Optional[str] = None
+    base_url: Optional[str] = None  # For Ollama custom URL
+
+class LLMProviderConfigUpdate(BaseModel):
+    enabled: Optional[bool] = None
+    api_key: Optional[str] = None
+    default_model: Optional[str] = None
+    base_url: Optional[str] = None
+
+class LLMProviderResponse(BaseModel):
+    id: str
+    name: str
+    enabled: bool
+    has_api_key: bool
+    default_model: Optional[str] = None
+    base_url: Optional[str] = None
+    requires_api_key: bool
+    is_local: bool
+
+class LLMModelResponse(BaseModel):
+    id: str
+    name: str
+    provider: Optional[str] = None
+
+class LLMProvidersListResponse(BaseModel):
+    providers: List[LLMProviderResponse]
+    active_provider: str
+    system_ai_enabled: bool
+
+class AITestRequest(BaseModel):
+    provider: str
+    prompt: Optional[str] = "Say 'Hello, AI is working!' and nothing else."
+
+class AITestResponse(BaseModel):
+    success: bool
+    provider: str
+    response: Optional[str] = None
+    error: Optional[str] = None
+    message: str
+
+class AIChatRequest(BaseModel):
+    message: str
+    context: Optional[str] = None  # Additional context like transaction data
+    feature: str = "general"  # general, insights, categorization, budgeting
