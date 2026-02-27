@@ -115,6 +115,18 @@ class AlertService:
     async def check_bill_reminders(self, entity_id: str, user_id: str) -> List[Dict[str, Any]]:
         """Check for upcoming bills and send reminders"""
         alerts_sent = []
+        
+        # Check user preferences
+        user = await self.db.users.find_one({"_id": user_id})
+        prefs = user.get("notification_preferences", {}) if user else {}
+        
+        # Skip if bill reminders are disabled
+        if prefs.get("bill_reminders") is False:
+            return alerts_sent
+        
+        # Get user's preferred reminder days (default 7)
+        default_reminder_days = prefs.get("bill_reminder_days", 7)
+        
         today = datetime.now(timezone.utc).date()
         
         # Get all active bills
@@ -133,7 +145,8 @@ class AlertService:
             except:
                 continue
             
-            reminder_days = bill.get("reminder_days", 7)
+            # Use bill-specific reminder days or user default
+            reminder_days = bill.get("reminder_days", default_reminder_days)
             days_until = (due_date - today).days
             
             # Check if within reminder window
