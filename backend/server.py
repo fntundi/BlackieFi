@@ -74,6 +74,13 @@ app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"]
 app.include_router(goals_router, prefix="/api/goals", tags=["Financial Goals"])
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
 app.include_router(admin_llm_router, prefix="/api/admin/llm", tags=["Admin - LLM Configuration"])
+app.include_router(bills_router, prefix="/api/bills", tags=["Bills"])
+app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
+app.include_router(tax_router, prefix="/api/tax", tags=["Tax Planning"])
+app.include_router(groups_router, prefix="/api/groups", tags=["Groups"])
+app.include_router(profiles_router, prefix="/api/financial-profiles", tags=["Financial Profiles"])
+app.include_router(imports_router, prefix="/api/imports", tags=["Imports"])
+app.include_router(ai_functions_router, prefix="/api/ai", tags=["AI Functions"])
 
 if __name__ == "__main__":
     import uvicorn
