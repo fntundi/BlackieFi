@@ -8,17 +8,63 @@ Migrate an existing application from the `base44` platform to a new technology s
 2. **AI Integration:** System-wide and per-account toggles. Support for multiple LLM providers: OpenRouter, Emergent (Universal Key), Ollama (local). AI off by default.
 3. **Authentication:** Username/password based with email for password recovery
 4. **Theme:** Luxury gold/black dark theme applied consistently
+5. **Notifications:** Real-time budget alerts, email notifications, and push notifications
 
 ---
 
 ## What's Been Implemented
+
+### December 27, 2025 - Notifications & Alert System ✅
+
+#### New Pages Created:
+- **Notifications** (`/notifications`) - Full notifications management UI with two tabs:
+  - **Notifications Tab:** Lists all notifications with mark read/delete actions
+  - **Settings Tab:** Comprehensive notification preferences
+
+#### Notification Features:
+- **Email Notifications:** Enable/disable toggle, test email functionality
+- **Budget Alerts:** Toggle with configurable threshold slider (50-100%)
+- **Bill Reminders:** Toggle with days-before-due-date dropdown (1/3/7/14/30 days)
+- **Goal Milestones:** Toggle for 25%, 50%, 75%, 100% milestone notifications
+- **Weekly Summary:** Toggle for weekly financial overview (Sundays)
+- **Monthly Report:** Toggle for detailed monthly report (1st of month)
+
+#### Backend Services:
+- **Alert Service** (`/app/backend/services/alert_service.py`):
+  - `check_budget_alerts()` - Monitors budgets vs spending, respects user threshold
+  - `check_bill_reminders()` - Checks upcoming bills, respects user reminder days
+  - `check_goal_milestones()` - Tracks goal progress for milestone notifications
+  - `run_all_checks()` - Runs all alert checks at once
+
+- **Notification Service** (`/app/backend/services/notification_service.py`):
+  - Email templates for budget alerts, bill reminders, goal milestones, welcome
+  - Resend integration for email delivery
+  - Push notification storage in MongoDB
+
+- **Automatic Budget Alerts:** When expense transactions are created, budget alerts automatically trigger in background
+
+#### API Endpoints:
+- `GET /api/notifications` - List notifications with filters
+- `GET /api/notifications/unread-count` - Get unread notification count
+- `GET /api/notifications/preferences` - Get user preferences
+- `PUT /api/notifications/preferences` - Update user preferences
+- `POST /api/notifications/check-alerts` - Manually trigger alert checks
+- `POST /api/notifications/mark-read` - Mark specific notifications as read
+- `POST /api/notifications/mark-all-read` - Mark all notifications as read
+- `DELETE /api/notifications/{id}` - Delete a notification
+- `POST /api/notifications/send-test-email` - Send test email
+
+#### Code Cleanup:
+- ✅ Removed `/app/functions/` directory (old base44 TypeScript functions)
+- ✅ Removed `/app/frontend-new/` empty directory
+- ✅ Previously removed obsolete Go files
 
 ### December 27, 2025 - Complete Feature Migration ✅
 
 #### New Pages Created:
 1. **Calendar** (`/calendar`) - Financial calendar showing recurring transactions, debt payments, and bills
 2. **Reports** (`/reports`) - 4 report types: Profit & Loss, Balance Sheet, Cash Flow, Budget vs Actual
-3. **Import** (`/import`) - CSV bank statement import with auto-categorization
+3. **Import** (`/import`) - CSV and PDF bank statement import with auto-categorization
 4. **Tax Planning** (`/tax-planning`) - AI-powered tax estimation and scenario planning
 5. **Groups** (`/groups`) - Admin-only group management with member and entity access control
 6. **Financial Settings** (`/financial-settings`) - Admin-only investment profile configuration
@@ -29,8 +75,9 @@ Migrate an existing application from the `base44` platform to a new technology s
 - `/api/tax` - Tax scenario management
 - `/api/groups` - Group-based access control (admin only)
 - `/api/financial-profiles` - Investment settings (admin only)
-- `/api/imports` - CSV import functionality
+- `/api/imports` - CSV/PDF import functionality
 - `/api/ai` - AI functions (anomaly detection, forecasting, cost savings, etc.)
+- `/api/notifications` - Notification management and alerts
 
 #### AI Functions Implemented:
 - `POST /api/ai/detect-anomalies` - Spending anomaly detection
@@ -59,9 +106,9 @@ Migrate an existing application from the `base44` platform to a new technology s
 ---
 
 ## Testing Status
-- **Backend:** 100% (24/24 tests passed) - `/app/backend/tests/test_new_features.py`
+- **Backend:** 100% (15/15 notification tests passed)
 - **Frontend:** 100% (all pages load and function correctly)
-- **Test Reports:** `/app/test_reports/iteration_3.json`
+- **Test Reports:** `/app/test_reports/iteration_5.json`
 
 ---
 
@@ -89,7 +136,9 @@ Migrate an existing application from the `base44` platform to a new technology s
 ├── models.py              # Pydantic models
 ├── auth.py                # JWT & password utilities
 ├── services/
-│   └── llm_service.py     # Multi-provider LLM service
+│   ├── llm_service.py     # Multi-provider LLM service
+│   ├── alert_service.py   # Budget/bill/goal alert monitoring
+│   └── notification_service.py # Email & push notifications
 └── routes/
     ├── admin_llm.py       # Admin LLM configuration
     ├── ai_functions.py    # AI-powered features
@@ -98,23 +147,26 @@ Migrate an existing application from the `base44` platform to a new technology s
     ├── tax.py             # Tax planning
     ├── groups.py          # Group access control
     ├── financial_profiles.py # Investment settings
-    ├── imports.py         # CSV import
+    ├── imports.py         # CSV/PDF import
+    ├── notifications.py   # Notification management
     └── ... other routes
 
 /app/frontend/
 ├── src/
 │   ├── App.jsx            # Router with all routes
-│   ├── api/client.js      # API client (670+ lines)
+│   ├── api/client.js      # API client (750+ lines)
 │   ├── components/
-│   │   └── Layout.jsx     # Sidebar with all nav items
+│   │   ├── Layout.jsx     # Sidebar with notification badge
+│   │   └── AIInsights.jsx # Conditional AI insights widget
 │   └── pages/
 │       ├── Calendar.jsx       # Financial calendar
 │       ├── Reports.jsx        # Report generation
-│       ├── Import.jsx         # CSV import
+│       ├── Import.jsx         # CSV/PDF import
 │       ├── TaxPlanning.jsx    # Tax estimation
 │       ├── Groups.jsx         # Group management
 │       ├── FinancialSettings.jsx # Investment profile
 │       ├── AdminSettings.jsx  # LLM configuration
+│       ├── Notifications.jsx  # Notification management
 │       └── ... 12 other pages
 ```
 
@@ -124,26 +176,32 @@ Migrate an existing application from the `base44` platform to a new technology s
 - [x] Multi-LLM Integration (OpenRouter, Emergent, Ollama)
 - [x] Calendar page with recurring transactions/debts/bills
 - [x] Reports page with 4 report types and CSV export
-- [x] Import page with CSV upload functionality
+- [x] Import page with CSV/PDF upload functionality
 - [x] Tax Planning page with AI estimation
 - [x] Groups page for admin access control
 - [x] Financial Settings page for investment profiles
 - [x] All AI function endpoints with LLM integration
 - [x] Complete navigation sidebar with admin section
+- [x] **Notifications UI with full settings management**
+- [x] **Budget alert logic with automatic triggering**
+- [x] **Weekly summary and monthly report preferences**
+- [x] **Goal milestone notification support**
+- [x] **Code cleanup - removed obsolete base44 code**
+- [x] **Notification bell with unread count in sidebar**
 
 ## Remaining Tasks
 
 ### P1 - High Priority
-- [ ] Password recovery email integration (Resend/SendGrid)
-- [ ] Dashboard AI Insights component (use existing AI endpoints)
-- [ ] Bill Reminders notification system
+- [ ] Wire up AI Insights to fetch real data when AI is enabled
+- [ ] Configure Resend API key for actual email delivery
+- [ ] Password recovery email flow
 
 ### P2 - Medium Priority
-- [ ] Code cleanup: Remove obsolete Go files and base44 code
-- [ ] PDF bank statement import (in addition to CSV)
-- [ ] More OpenRouter models configuration
+- [ ] Implement scheduled job for weekly/monthly summary emails
+- [ ] Push notification infrastructure (web push or mobile)
+- [ ] More comprehensive budget threshold levels
 
 ### P3 - Future Enhancements
-- [ ] Real-time budget alerts
 - [ ] Multi-currency support
 - [ ] Investment portfolio tracking integration
+- [ ] Mobile app version
