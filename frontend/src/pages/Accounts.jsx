@@ -59,112 +59,203 @@ export default function Accounts() {
   };
 
   const totalBalance = accounts.reduce((sum, acc) => sum + parseFloat(acc.balance || 0), 0);
+  const formatCurrency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+
+  const inputStyle = {
+    width: '100%',
+    padding: '0.875rem 1rem',
+    borderRadius: '12px',
+    background: '#0A0A0A',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    color: '#F5F5F5',
+    fontSize: '0.9375rem',
+    outline: 'none',
+    boxSizing: 'border-box'
+  };
 
   return (
-    <div className="page-container animate-fade-in" data-testid="accounts-page">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div style={{ padding: '2rem', background: '#050505', minHeight: '100%' }} data-testid="accounts-page">
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
           <div>
-            <h1 className="text-3xl font-bold text-white">Accounts</h1>
-            <p className="text-slate-400 mt-1">Manage your bank accounts and cash</p>
+            <p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '0.5rem' }}>Finance</p>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>Accounts</h1>
+            <p style={{ marginTop: '0.5rem', color: '#525252' }}>Manage your bank accounts and cash</p>
           </div>
-          <button onClick={() => setShowForm(true)} className="btn btn-primary" data-testid="add-account-btn">
-            <Plus className="w-5 h-5" />
+          <button
+            onClick={() => setShowForm(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              padding: '0.875rem 1.5rem',
+              borderRadius: '12px',
+              fontWeight: '600',
+              background: 'linear-gradient(135deg, #C4A030 0%, #D4AF37 50%, #C4A030 100%)',
+              color: '#000',
+              border: 'none',
+              cursor: 'pointer'
+            }}
+            data-testid="add-account-btn"
+          >
+            <Plus style={{ width: '20px', height: '20px' }} />
             Add Account
           </button>
         </div>
 
-        <div className="stat-card mb-8" data-testid="total-balance">
-          <p className="text-slate-400">Total Balance</p>
-          <p className={`stat-value ${totalBalance >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-            ${totalBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+        {/* Total Balance Card */}
+        <div style={{
+          padding: '1.5rem',
+          borderRadius: '16px',
+          background: 'linear-gradient(135deg, #0F0F0F 0%, #0A0A0A 100%)',
+          border: '1px solid rgba(212, 175, 55, 0.2)',
+          marginBottom: '2rem',
+          position: 'relative',
+          overflow: 'hidden'
+        }} data-testid="total-balance">
+          <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '2px', background: 'linear-gradient(90deg, transparent, #D4AF37, transparent)' }}></div>
+          <p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#525252', marginBottom: '0.5rem' }}>Total Balance</p>
+          <p style={{ fontFamily: 'monospace', fontSize: '2.5rem', fontWeight: '700', color: totalBalance >= 0 ? '#D4AF37' : '#DC2626', margin: 0 }}>
+            {formatCurrency(totalBalance)}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" data-testid="accounts-grid">
+        {/* Accounts Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }} data-testid="accounts-grid">
           {accounts.map((account) => {
             const Icon = ACCOUNT_ICONS[account.type] || Wallet;
             return (
-              <div key={account.id} className="card group" data-testid={`account-${account.id}`}>
-                <div className="flex items-start justify-between mb-4">
-                  <div className="p-3 bg-emerald-500/10 rounded-lg">
-                    <Icon className="w-6 h-6 text-emerald-500" />
+              <div key={account.id} style={{
+                padding: '1.5rem',
+                borderRadius: '16px',
+                background: '#0A0A0A',
+                border: '1px solid rgba(255, 255, 255, 0.06)',
+                transition: 'all 0.3s'
+              }} data-testid={`account-${account.id}`}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(212, 175, 55, 0.1)' }}>
+                    <Icon style={{ width: '24px', height: '24px', color: '#D4AF37' }} />
                   </div>
                   <button
                     onClick={() => deleteMutation.mutate(account.id)}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
+                    style={{
+                      padding: '0.5rem',
+                      borderRadius: '8px',
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#525252',
+                      transition: 'all 0.2s'
+                    }}
                   >
-                    <X className="w-4 h-4" />
+                    <X style={{ width: '16px', height: '16px' }} />
                   </button>
                 </div>
-                <p className="text-lg font-semibold text-white">{account.name}</p>
-                <p className="text-sm text-slate-500 capitalize mb-4">{account.type.replace('_', ' ')}</p>
-                <p className={`font-mono text-2xl font-bold ${parseFloat(account.balance) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                  {account.currency} {parseFloat(account.balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                <p style={{ fontSize: '1.125rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>{account.name}</p>
+                <p style={{ fontSize: '0.875rem', color: '#525252', textTransform: 'capitalize', marginTop: '0.25rem', marginBottom: '1rem' }}>{account.type.replace('_', ' ')}</p>
+                <p style={{ fontFamily: 'monospace', fontSize: '1.5rem', fontWeight: '700', color: parseFloat(account.balance) >= 0 ? '#D4AF37' : '#DC2626', margin: 0 }}>
+                  {formatCurrency(parseFloat(account.balance))}
                 </p>
               </div>
             );
           })}
           {!isLoading && accounts.length === 0 && (
-            <div className="col-span-3 text-center py-12 text-slate-500">
-              No accounts yet. Add your first account to get started.
+            <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '4rem', color: '#525252' }}>
+              <Wallet style={{ width: '48px', height: '48px', margin: '0 auto 1rem', opacity: 0.5 }} />
+              <p>No accounts yet. Add your first account to get started.</p>
             </div>
           )}
         </div>
 
+        {/* Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="card w-full max-w-md" data-testid="add-account-modal">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white">Add Account</h2>
-                <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
-                  <X className="w-5 h-5" />
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.8)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 50,
+            padding: '1rem'
+          }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '400px',
+              padding: '1.5rem',
+              borderRadius: '20px',
+              background: 'linear-gradient(180deg, #0F0F0F 0%, #0A0A0A 100%)',
+              border: '1px solid rgba(212, 175, 55, 0.2)'
+            }} data-testid="add-account-modal">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Add Account</h2>
+                <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#525252' }}>
+                  <X style={{ width: '20px', height: '20px' }} />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="label">Account Name</label>
+              <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Account Name</label>
                   <input
                     type="text"
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input"
+                    style={inputStyle}
                     placeholder="e.g., Main Checking"
                     required
                     data-testid="account-name-input"
                   />
                 </div>
-                <div>
-                  <label className="label">Type</label>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Type</label>
                   <select
                     value={formData.type}
                     onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="input"
+                    style={{ ...inputStyle, cursor: 'pointer' }}
                     data-testid="account-type-select"
                   >
-                    <option value="checking">Checking</option>
-                    <option value="savings">Savings</option>
-                    <option value="credit_card">Credit Card</option>
-                    <option value="cash">Cash</option>
+                    <option value="checking" style={{ background: '#0A0A0A' }}>Checking</option>
+                    <option value="savings" style={{ background: '#0A0A0A' }}>Savings</option>
+                    <option value="credit_card" style={{ background: '#0A0A0A' }}>Credit Card</option>
+                    <option value="cash" style={{ background: '#0A0A0A' }}>Cash</option>
                   </select>
                 </div>
-                <div>
-                  <label className="label">Current Balance</label>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Current Balance</label>
                   <input
                     type="number"
                     step="0.01"
                     value={formData.balance}
                     onChange={(e) => setFormData({ ...formData, balance: e.target.value })}
-                    className="input"
+                    style={inputStyle}
                     placeholder="0.00"
                     data-testid="account-balance-input"
                   />
                 </div>
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary flex-1">
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button type="button" onClick={() => setShowForm(false)} style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    borderRadius: '12px',
+                    fontWeight: '600',
+                    background: 'transparent',
+                    border: '1px solid rgba(212, 175, 55, 0.2)',
+                    color: '#D4AF37',
+                    cursor: 'pointer'
+                  }}>
                     Cancel
                   </button>
-                  <button type="submit" className="btn btn-primary flex-1" data-testid="submit-account-btn">
+                  <button type="submit" style={{
+                    flex: 1,
+                    padding: '0.875rem',
+                    borderRadius: '12px',
+                    fontWeight: '600',
+                    background: 'linear-gradient(135deg, #C4A030 0%, #D4AF37 50%, #C4A030 100%)',
+                    color: '#000',
+                    border: 'none',
+                    cursor: 'pointer'
+                  }} data-testid="submit-account-btn">
                     {createMutation.isPending ? 'Saving...' : 'Save Account'}
                   </button>
                 </div>
@@ -173,6 +264,16 @@ export default function Accounts() {
           </div>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 1024px) {
+          [data-testid="accounts-grid"] { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 640px) {
+          [data-testid="accounts-grid"] { grid-template-columns: 1fr !important; }
+        }
+        input:focus, select:focus { border-color: rgba(212, 175, 55, 0.5) !important; }
+      `}</style>
     </div>
   );
 }
