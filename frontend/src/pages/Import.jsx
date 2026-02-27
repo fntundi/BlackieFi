@@ -62,14 +62,19 @@ export default function Import() {
     setImportResult(null);
 
     try {
-      const result = await api.importCSV(selectedEntity, selectedAccount, file);
+      const isPDF = file.name.toLowerCase().endsWith('.pdf');
+      const result = isPDF 
+        ? await api.importPDF(selectedEntity, selectedAccount, file)
+        : await api.importCSV(selectedEntity, selectedAccount, file);
+      
       setImportResult({
         success: true,
         count: result.transactions_imported,
+        message: result.message,
       });
       queryClient.invalidateQueries(['transactions']);
       queryClient.invalidateQueries(['import-batches']);
-      toast.success(`Imported ${result.transactions_imported} transactions`);
+      toast.success(result.message || `Imported ${result.transactions_imported} transactions`);
     } catch (error) {
       setImportResult({
         success: false,
