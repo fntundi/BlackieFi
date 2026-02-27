@@ -28,59 +28,79 @@ export default function Login() {
     {
       icon: TrendingUp,
       title: 'Wealth Tracking',
-      description: 'Monitor your investments and net worth in real-time'
+      description: 'Monitor investments and net worth in real-time'
     },
     {
       icon: Shield,
       title: 'Bank-Level Security',
-      description: 'Enterprise encryption protects your financial data'
+      description: 'Enterprise encryption protects your data'
     },
     {
       icon: Sparkles,
       title: 'AI Insights',
-      description: 'Smart recommendations powered by machine learning'
+      description: 'Smart recommendations powered by ML'
     }
   ];
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#030303' }}>
+    <div style={{ 
+      minHeight: '100vh', 
+      display: 'flex', 
+      background: '#030303' 
+    }}>
       {/* Left side - Feature Cards */}
-      <div className="hidden lg:flex lg:w-[55%] p-8 flex-col">
+      <div style={{
+        width: '55%',
+        padding: '2.5rem',
+        display: 'flex',
+        flexDirection: 'column',
+        '@media (max-width: 1024px)': { display: 'none' }
+      }} className="feature-panel">
         {/* Logo */}
-        <div className="flex items-center gap-3 mb-auto">
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: 'auto' }}>
+          <div style={{
+            width: '42px',
+            height: '42px',
+            borderRadius: '10px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             background: 'linear-gradient(135deg, #D4AF37 0%, #F9F1D8 50%, #997B19 100%)'
           }}>
-            <Crown className="w-5 h-5 text-black" />
+            <Crown style={{ width: '22px', height: '22px', color: '#000' }} />
           </div>
-          <span className="text-2xl font-semibold tracking-tight" style={{ color: '#F5F5F5' }}>BlackieFi</span>
+          <span style={{ fontSize: '1.5rem', fontWeight: '600', color: '#F5F5F5', letterSpacing: '-0.02em' }}>BlackieFi</span>
         </div>
 
-        {/* Feature Cards Grid */}
-        <div className="flex-1 flex items-center justify-center">
-          <div className="grid grid-cols-1 gap-4 max-w-lg w-full">
+        {/* Feature Cards */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '420px', width: '100%' }}>
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
                 <div
                   key={index}
-                  className="group p-6 rounded-2xl transition-all duration-500 cursor-default"
                   style={{
+                    padding: '1.5rem',
+                    borderRadius: '16px',
                     background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.02) 100%)',
                     border: '1px solid rgba(212, 175, 55, 0.12)',
-                    backdropFilter: 'blur(10px)'
+                    backdropFilter: 'blur(10px)',
+                    transition: 'all 0.3s ease'
                   }}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 rounded-xl transition-all duration-300 group-hover:scale-110" style={{
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem' }}>
+                    <div style={{
+                      padding: '0.875rem',
+                      borderRadius: '12px',
                       background: 'rgba(212, 175, 55, 0.15)',
                       border: '1px solid rgba(212, 175, 55, 0.2)'
                     }}>
-                      <Icon className="w-5 h-5" style={{ color: '#D4AF37' }} />
+                      <Icon style={{ width: '20px', height: '20px', color: '#D4AF37' }} />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg mb-1" style={{ color: '#F5F5F5' }}>{feature.title}</h3>
-                      <p className="text-sm leading-relaxed" style={{ color: '#737373' }}>{feature.description}</p>
+                    <div style={{ flex: 1 }}>
+                      <h3 style={{ fontWeight: '600', fontSize: '1.125rem', marginBottom: '0.25rem', color: '#F5F5F5' }}>{feature.title}</h3>
+                      <p style={{ fontSize: '0.875rem', lineHeight: '1.5', color: '#737373' }}>{feature.description}</p>
                     </div>
                   </div>
                 </div>
@@ -90,54 +110,73 @@ export default function Login() {
         </div>
 
         {/* Bottom tag */}
-        <div className="mt-auto pt-8">
-          <p className="text-xs tracking-widest uppercase" style={{ color: '#404040' }}>
+        <div style={{ marginTop: 'auto', paddingTop: '2rem' }}>
+          <p style={{ fontSize: '0.7rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#404040' }}>
             Trusted by 10,000+ users worldwide
           </p>
         </div>
       </div>
       
       {/* Right side - Login form */}
-      <div className="w-full lg:w-[45%] flex items-center justify-center p-8" style={{
+      <div style={{
+        width: '45%',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '2rem',
         background: 'linear-gradient(180deg, #0A0A0A 0%, #050505 100%)'
-      }}>
-        <div className="w-full max-w-sm">
-          {/* Mobile logo */}
-          <div className="lg:hidden mb-10 text-center">
-            <div className="inline-flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{
+      }} className="login-panel">
+        <div style={{ width: '100%', maxWidth: '360px' }}>
+          {/* Mobile logo - hidden on desktop */}
+          <div className="mobile-logo" style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '10px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 background: 'linear-gradient(135deg, #D4AF37 0%, #F9F1D8 50%, #997B19 100%)'
               }}>
-                <Crown className="w-5 h-5 text-black" />
+                <Crown style={{ width: '22px', height: '22px', color: '#000' }} />
               </div>
-              <span className="text-2xl font-semibold" style={{ color: '#F5F5F5' }}>BlackieFi</span>
+              <span style={{ fontSize: '1.5rem', fontWeight: '600', color: '#F5F5F5' }}>BlackieFi</span>
             </div>
           </div>
           
           {/* Form Card */}
-          <div className="rounded-2xl p-8" style={{
+          <div style={{
+            borderRadius: '20px',
+            padding: '2rem',
             background: '#0F0F0F',
             border: '1px solid rgba(255, 255, 255, 0.06)'
           }}>
-            <div className="mb-8">
-              <h2 className="text-2xl font-semibold mb-2" style={{ color: '#F5F5F5' }}>Welcome back</h2>
+            <div style={{ marginBottom: '2rem' }}>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '600', marginBottom: '0.5rem', color: '#F5F5F5' }}>Welcome back</h2>
               <p style={{ color: '#737373' }}>Sign in to continue to your account</p>
             </div>
             
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div>
-                <label className="block text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: '#737373' }}>
+            <form onSubmit={handleSubmit}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '500', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#737373' }}>
                   Username
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  className="w-full py-3.5 px-4 rounded-xl transition-all duration-300 focus:outline-none"
                   style={{
+                    width: '100%',
+                    padding: '0.875rem 1rem',
+                    borderRadius: '12px',
                     background: '#0A0A0A',
                     border: '1px solid rgba(255, 255, 255, 0.08)',
-                    color: '#F5F5F5'
+                    color: '#F5F5F5',
+                    fontSize: '0.9375rem',
+                    outline: 'none',
+                    transition: 'border-color 0.3s',
+                    boxSizing: 'border-box'
                   }}
                   placeholder="Enter username"
                   required
@@ -145,20 +184,27 @@ export default function Login() {
                 />
               </div>
               
-              <div>
-                <label className="block text-xs font-medium mb-2 uppercase tracking-wider" style={{ color: '#737373' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '500', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.1em', color: '#737373' }}>
                   Password
                 </label>
-                <div className="relative">
+                <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full py-3.5 px-4 pr-12 rounded-xl transition-all duration-300 focus:outline-none"
                     style={{
+                      width: '100%',
+                      padding: '0.875rem 1rem',
+                      paddingRight: '3rem',
+                      borderRadius: '12px',
                       background: '#0A0A0A',
                       border: '1px solid rgba(255, 255, 255, 0.08)',
-                      color: '#F5F5F5'
+                      color: '#F5F5F5',
+                      fontSize: '0.9375rem',
+                      outline: 'none',
+                      transition: 'border-color 0.3s',
+                      boxSizing: 'border-box'
                     }}
                     placeholder="Enter password"
                     required
@@ -167,10 +213,19 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 transition-colors hover:opacity-70"
-                    style={{ color: '#525252' }}
+                    style={{ 
+                      position: 'absolute', 
+                      right: '1rem', 
+                      top: '50%', 
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#525252',
+                      padding: 0
+                    }}
                   >
-                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    {showPassword ? <EyeOff style={{ width: '20px', height: '20px' }} /> : <Eye style={{ width: '20px', height: '20px' }} />}
                   </button>
                 </div>
               </div>
@@ -178,31 +233,49 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center gap-2 group"
                 style={{
+                  width: '100%',
+                  padding: '0.875rem',
+                  borderRadius: '12px',
+                  fontWeight: '600',
+                  fontSize: '0.9375rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.5rem',
                   background: 'linear-gradient(135deg, #C4A030 0%, #D4AF37 50%, #C4A030 100%)',
-                  color: '#000000'
+                  color: '#000000',
+                  border: 'none',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s'
                 }}
                 data-testid="login-submit-btn"
               >
                 {loading ? (
-                  <span className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin"></div>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(0,0,0,0.3)',
+                      borderTopColor: '#000',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
                     Signing in...
                   </span>
                 ) : (
                   <>
                     Sign In
-                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight style={{ width: '16px', height: '16px' }} />
                   </>
                 )}
               </button>
             </form>
             
-            <div className="mt-8 pt-6" style={{ borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
-              <p className="text-center" style={{ color: '#737373' }}>
+            <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255, 255, 255, 0.06)' }}>
+              <p style={{ textAlign: 'center', color: '#737373' }}>
                 Don't have an account?{' '}
-                <Link to="/register" className="font-medium transition-colors hover:opacity-80" style={{ color: '#D4AF37' }}>
+                <Link to="/register" style={{ fontWeight: '500', color: '#D4AF37', textDecoration: 'none' }}>
                   Create one
                 </Link>
               </p>
@@ -210,16 +283,40 @@ export default function Login() {
           </div>
           
           {/* Demo credentials */}
-          <div className="mt-6 p-4 rounded-xl text-center" style={{
+          <div style={{
+            marginTop: '1.5rem',
+            padding: '1rem',
+            borderRadius: '12px',
+            textAlign: 'center',
             background: 'rgba(212, 175, 55, 0.05)',
             border: '1px solid rgba(212, 175, 55, 0.1)'
           }}>
-            <p className="text-xs" style={{ color: '#525252' }}>
+            <p style={{ fontSize: '0.75rem', color: '#525252' }}>
               Demo: <span style={{ color: '#A3A3A3' }}>demo / demo12345</span>
             </p>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @media (max-width: 1024px) {
+          .feature-panel { display: none !important; }
+          .login-panel { width: 100% !important; }
+        }
+        @media (min-width: 1025px) {
+          .mobile-logo { display: none !important; }
+        }
+        input:focus {
+          border-color: rgba(212, 175, 55, 0.5) !important;
+        }
+        button[type="submit"]:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
+        }
+      `}</style>
     </div>
   );
 }
