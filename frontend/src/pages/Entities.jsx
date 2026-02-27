@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
-import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { Plus, Building2, X, User, Briefcase } from 'lucide-react';
+import { useEntity } from '../contexts/EntityContext';
 
 export default function Entities() {
-  const { user } = useAuth();
   const queryClient = useQueryClient();
+  const { selectEntity } = useEntity();
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -21,11 +21,14 @@ export default function Entities() {
 
   const createMutation = useMutation({
     mutationFn: (data) => api.createEntity(data),
-    onSuccess: () => {
+    onSuccess: (newEntity) => {
       queryClient.invalidateQueries(['entities']);
       toast.success('Entity created');
       setShowForm(false);
       setFormData({ name: '', type: 'personal' });
+      if (newEntity?.id) {
+        selectEntity(newEntity.id);
+      }
     },
     onError: (error) => toast.error(error.message),
   });
@@ -44,138 +47,116 @@ export default function Entities() {
     createMutation.mutate(formData);
   };
 
-  const personalEntities = entities.filter(e => e.type === 'personal');
-  const businessEntities = entities.filter(e => e.type === 'business');
+  const inputStyle = {
+    width: '100%',
+    padding: '0.875rem 1rem',
+    borderRadius: '12px',
+    background: '#0A0A0A',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    color: '#F5F5F5',
+    fontSize: '0.9375rem',
+    outline: 'none',
+    boxSizing: 'border-box'
+  };
 
   return (
-    <div className="page-container animate-fade-in" data-testid="entities-page">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div style={{ padding: '2rem', background: '#050505', minHeight: '100%' }} data-testid="entities-page">
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
           <div>
-            <h1 className="text-3xl font-bold text-white">Entities</h1>
-            <p className="text-slate-400 mt-1">Manage your personal and business entities</p>
+            <p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '0.5rem' }}>Management</p>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>Entities</h1>
+            <p style={{ marginTop: '0.5rem', color: '#525252' }}>Manage your personal and business entities</p>
           </div>
-          <button onClick={() => setShowForm(true)} className="btn btn-primary" data-testid="add-entity-btn">
-            <Plus className="w-5 h-5" />
+          <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.5rem', borderRadius: '12px', fontWeight: '600', background: 'linear-gradient(135deg, #C4A030 0%, #D4AF37 50%, #C4A030 100%)', color: '#000', border: 'none', cursor: 'pointer' }} data-testid="add-entity-btn">
+            <Plus style={{ width: '20px', height: '20px' }} />
             Add Entity
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <User className="w-5 h-5 text-cyan-500" />
-              Personal Entities
-            </h2>
-            <div className="space-y-4" data-testid="personal-entities">
-              {personalEntities.map((entity) => (
-                <div key={entity.id} className="card group" data-testid={`entity-${entity.id}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-cyan-500/10 rounded-lg">
-                        <User className="w-6 h-6 text-cyan-500" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">{entity.name}</p>
-                        <p className="text-sm text-slate-500">Personal finances</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => deleteMutation.mutate(entity.id)}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
+        {/* Entities Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }} data-testid="entities-grid">
+          {entities.map((entity) => {
+            const Icon = entity.type === 'business' ? Briefcase : User;
+            return (
+              <div key={entity.id} style={{
+                padding: '1.5rem',
+                borderRadius: '16px',
+                background: '#0A0A0A',
+                border: '1px solid rgba(212, 175, 55, 0.1)',
+                cursor: 'pointer',
+                transition: 'all 0.3s'
+              }} onClick={() => selectEntity(entity.id)} data-testid={`entity-${entity.id}`}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                  <div style={{ padding: '0.75rem', borderRadius: '12px', background: entity.type === 'business' ? 'rgba(212, 175, 55, 0.1)' : 'rgba(59, 130, 246, 0.1)' }}>
+                    <Icon style={{ width: '24px', height: '24px', color: entity.type === 'business' ? '#D4AF37' : '#3B82F6' }} />
                   </div>
+                  <button onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(entity.id); }} style={{ padding: '0.5rem', borderRadius: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#525252' }}>
+                    <X style={{ width: '16px', height: '16px' }} />
+                  </button>
                 </div>
-              ))}
-              {personalEntities.length === 0 && (
-                <p className="text-slate-500 text-center py-4">No personal entities</p>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-emerald-500" />
-              Business Entities
-            </h2>
-            <div className="space-y-4" data-testid="business-entities">
-              {businessEntities.map((entity) => (
-                <div key={entity.id} className="card group" data-testid={`entity-${entity.id}`}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 bg-emerald-500/10 rounded-lg">
-                        <Briefcase className="w-6 h-6 text-emerald-500" />
-                      </div>
-                      <div>
-                        <p className="font-semibold text-white">{entity.name}</p>
-                        <p className="text-sm text-slate-500">Business finances</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => deleteMutation.mutate(entity.id)}
-                      className="opacity-0 group-hover:opacity-100 p-2 text-slate-500 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+                <p style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>{entity.name}</p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                  <span style={{
+                    fontSize: '0.75rem',
+                    padding: '0.25rem 0.5rem',
+                    borderRadius: '6px',
+                    background: entity.type === 'business' ? 'rgba(212, 175, 55, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                    color: entity.type === 'business' ? '#D4AF37' : '#3B82F6',
+                    fontWeight: '600',
+                    textTransform: 'capitalize'
+                  }}>{entity.type}</span>
                 </div>
-              ))}
-              {businessEntities.length === 0 && (
-                <p className="text-slate-500 text-center py-4">No business entities</p>
-              )}
+                <p style={{ fontSize: '0.75rem', color: '#525252', marginTop: '1rem' }}>
+                  Created: {new Date(entity.created_at).toLocaleDateString()}
+                </p>
+              </div>
+            );
+          })}
+          {!isLoading && entities.length === 0 && (
+            <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '4rem', color: '#525252' }}>
+              <Building2 style={{ width: '48px', height: '48px', margin: '0 auto 1rem', opacity: 0.5 }} />
+              <p>No entities yet. Create your first entity.</p>
             </div>
-          </div>
+          )}
         </div>
 
+        {/* Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="card w-full max-w-md" data-testid="add-entity-modal">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white">Add Entity</h2>
-                <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
-                  <X className="w-5 h-5" />
-                </button>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
+            <div style={{ width: '100%', maxWidth: '400px', padding: '1.5rem', borderRadius: '20px', background: 'linear-gradient(180deg, #0F0F0F 0%, #0A0A0A 100%)', border: '1px solid rgba(212, 175, 55, 0.2)' }} data-testid="add-entity-modal">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Add Entity</h2>
+                <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#525252' }}><X style={{ width: '20px', height: '20px' }} /></button>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="label">Entity Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input"
-                    placeholder="e.g., Personal Finances"
-                    required
-                    data-testid="entity-name-input"
-                  />
+              <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Entity Name</label>
+                  <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} style={inputStyle} placeholder="e.g., My Business LLC" required data-testid="entity-name-input" />
                 </div>
-                <div>
-                  <label className="label">Type</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="input"
-                    data-testid="entity-type-select"
-                  >
-                    <option value="personal">Personal</option>
-                    <option value="business">Business</option>
+                <div style={{ marginBottom: '1.5rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Type</label>
+                  <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }} data-testid="entity-type-select">
+                    <option value="personal" style={{ background: '#0A0A0A' }}>Personal</option>
+                    <option value="business" style={{ background: '#0A0A0A' }}>Business</option>
                   </select>
                 </div>
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary flex-1">
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary flex-1" data-testid="submit-entity-btn">
-                    {createMutation.isPending ? 'Saving...' : 'Create Entity'}
-                  </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button type="button" onClick={() => setShowForm(false)} style={{ flex: 1, padding: '0.875rem', borderRadius: '12px', fontWeight: '600', background: 'transparent', border: '1px solid rgba(212, 175, 55, 0.2)', color: '#D4AF37', cursor: 'pointer' }}>Cancel</button>
+                  <button type="submit" style={{ flex: 1, padding: '0.875rem', borderRadius: '12px', fontWeight: '600', background: 'linear-gradient(135deg, #C4A030 0%, #D4AF37 50%, #C4A030 100%)', color: '#000', border: 'none', cursor: 'pointer' }} data-testid="submit-entity-btn">{createMutation.isPending ? 'Saving...' : 'Save Entity'}</button>
                 </div>
               </form>
             </div>
           </div>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 1024px) { [data-testid="entities-grid"] { grid-template-columns: repeat(2, 1fr) !important; } }
+        @media (max-width: 640px) { [data-testid="entities-grid"] { grid-template-columns: 1fr !important; } }
+        input:focus, select:focus { border-color: rgba(212, 175, 55, 0.5) !important; }
+      `}</style>
     </div>
   );
 }

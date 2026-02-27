@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
 import { useEntity } from '../contexts/EntityContext';
 import { toast } from 'sonner';
-import { Plus, LineChart, X, TrendingUp } from 'lucide-react';
+import { Plus, LineChart, X, Building, TrendingUp, Briefcase } from 'lucide-react';
 
 export default function Investments() {
   const { selectedEntityId } = useEntity();
@@ -16,23 +16,27 @@ export default function Investments() {
   });
 
   const { data: vehicles = [], isLoading } = useQuery({
-    queryKey: ['vehicles', selectedEntityId],
+    queryKey: ['investment-vehicles', selectedEntityId],
     queryFn: () => api.getInvestmentVehicles({ entity_id: selectedEntityId }),
     enabled: !!selectedEntityId,
-  });
-
-  const { data: holdings = [] } = useQuery({
-    queryKey: ['holdings'],
-    queryFn: () => api.getInvestmentHoldings(),
   });
 
   const createMutation = useMutation({
     mutationFn: (data) => api.createInvestmentVehicle(data),
     onSuccess: () => {
-      queryClient.invalidateQueries(['vehicles']);
-      toast.success('Investment vehicle created');
+      queryClient.invalidateQueries(['investment-vehicles']);
+      toast.success('Investment account created');
       setShowForm(false);
       setFormData({ name: '', type: 'brokerage', provider: '' });
+    },
+    onError: (error) => toast.error(error.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.deleteInvestmentVehicle(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['investment-vehicles']);
+      toast.success('Investment account removed');
     },
     onError: (error) => toast.error(error.message),
   });
@@ -40,195 +44,129 @@ export default function Investments() {
   const handleSubmit = (e) => {
     e.preventDefault();
     createMutation.mutate({
-      entity_id: selectedEntityId,
       ...formData,
+      entity_id: selectedEntityId,
     });
   };
 
-  const getVehicleHoldings = (vehicleId) => holdings.filter(h => h.vehicle_id === vehicleId);
-  const getVehicleValue = (vehicleId) => {
-    return getVehicleHoldings(vehicleId).reduce((sum, h) => {
-      const price = h.current_price || (h.cost_basis / h.quantity);
-      return sum + (price * h.quantity);
-    }, 0);
+  const inputStyle = {
+    width: '100%',
+    padding: '0.875rem 1rem',
+    borderRadius: '12px',
+    background: '#0A0A0A',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    color: '#F5F5F5',
+    fontSize: '0.9375rem',
+    outline: 'none',
+    boxSizing: 'border-box'
   };
 
-  const totalValue = vehicles.reduce((sum, v) => sum + getVehicleValue(v.id), 0);
-  const totalCostBasis = holdings.reduce((sum, h) => sum + parseFloat(h.cost_basis || 0), 0);
-  const totalGain = totalValue - totalCostBasis;
+  const getTypeLabel = (type) => {
+    const labels = {
+      '401k': '401(k)',
+      'ira': 'IRA',
+      'roth_ira': 'Roth IRA',
+      'brokerage': 'Brokerage',
+      'crypto': 'Crypto',
+      'other': 'Other'
+    };
+    return labels[type] || type;
+  };
 
   return (
-    <div className="page-container animate-fade-in" data-testid="investments-page">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+    <div style={{ padding: '2rem', background: '#050505', minHeight: '100%' }} data-testid="investments-page">
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2rem' }}>
           <div>
-            <h1 className="text-3xl font-bold text-white">Investments</h1>
-            <p className="text-slate-400 mt-1">Track your investment portfolio</p>
+            <p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '0.5rem' }}>Portfolio</p>
+            <h1 style={{ fontSize: '2.5rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>Investments</h1>
+            <p style={{ marginTop: '0.5rem', color: '#525252' }}>Track your investment accounts</p>
           </div>
-          <button onClick={() => setShowForm(true)} className="btn btn-primary" data-testid="add-vehicle-btn">
-            <Plus className="w-5 h-5" />
-            Add Investment Account
+          <button onClick={() => setShowForm(true)} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.875rem 1.5rem', borderRadius: '12px', fontWeight: '600', background: 'linear-gradient(135deg, #C4A030 0%, #D4AF37 50%, #C4A030 100%)', color: '#000', border: 'none', cursor: 'pointer' }} data-testid="add-investment-btn">
+            <Plus style={{ width: '20px', height: '20px' }} />
+            Add Account
           </button>
         </div>
 
-        <div className="grid-3 mb-8">
-          <div className="stat-card" data-testid="total-value">
-            <p className="text-slate-400">Portfolio Value</p>
-            <p className="stat-value text-emerald-500">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-          </div>
-          <div className="stat-card">
-            <p className="text-slate-400">Cost Basis</p>
-            <p className="stat-value text-slate-300">${totalCostBasis.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-          </div>
-          <div className="stat-card">
-            <p className="text-slate-400">Total Gain/Loss</p>
-            <p className={`stat-value ${totalGain >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-              {totalGain >= 0 ? '+' : ''}${totalGain.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              <span className="text-sm ml-2">({totalCostBasis > 0 ? ((totalGain / totalCostBasis) * 100).toFixed(2) : 0}%)</span>
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-6" data-testid="vehicles-list">
-          {vehicles.map((vehicle) => {
-            const vehicleHoldings = getVehicleHoldings(vehicle.id);
-            const vehicleValue = getVehicleValue(vehicle.id);
-            const vehicleCostBasis = vehicleHoldings.reduce((sum, h) => sum + parseFloat(h.cost_basis || 0), 0);
-            const vehicleGain = vehicleValue - vehicleCostBasis;
-
-            return (
-              <div key={vehicle.id} className="card" data-testid={`vehicle-${vehicle.id}`}>
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-cyan-500/10 rounded-lg">
-                      <LineChart className="w-6 h-6 text-cyan-500" />
-                    </div>
-                    <div>
-                      <p className="font-semibold text-white">{vehicle.name}</p>
-                      <p className="text-sm text-slate-500">{vehicle.provider} · {vehicle.type.replace('_', ' ').toUpperCase()}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-mono text-xl font-bold text-emerald-500">
-                      ${vehicleValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </p>
-                    <p className={`text-sm ${vehicleGain >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                      {vehicleGain >= 0 ? '+' : ''}${vehicleGain.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
+        {/* Vehicles Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.5rem' }} data-testid="investments-grid">
+          {vehicles.map((vehicle) => (
+            <div key={vehicle.id} style={{
+              padding: '1.5rem',
+              borderRadius: '16px',
+              background: '#0A0A0A',
+              border: '1px solid rgba(212, 175, 55, 0.1)',
+              transition: 'all 0.3s'
+            }} data-testid={`investment-${vehicle.id}`}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(212, 175, 55, 0.1)' }}>
+                  <LineChart style={{ width: '24px', height: '24px', color: '#D4AF37' }} />
                 </div>
-
-                {vehicleHoldings.length > 0 ? (
-                  <div className="table-container">
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Asset</th>
-                          <th>Class</th>
-                          <th className="text-right">Quantity</th>
-                          <th className="text-right">Price</th>
-                          <th className="text-right">Value</th>
-                          <th className="text-right">Gain/Loss</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {vehicleHoldings.map((holding) => {
-                          const price = holding.current_price || (holding.cost_basis / holding.quantity);
-                          const value = price * holding.quantity;
-                          const gain = value - holding.cost_basis;
-                          const gainPct = (gain / holding.cost_basis) * 100;
-
-                          return (
-                            <tr key={holding.id}>
-                              <td className="font-medium">{holding.asset_name}</td>
-                              <td className="capitalize">{holding.asset_class}</td>
-                              <td className="text-right font-mono">{parseFloat(holding.quantity).toLocaleString()}</td>
-                              <td className="text-right font-mono">${price.toFixed(2)}</td>
-                              <td className="text-right font-mono">${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                              <td className={`text-right font-mono ${gain >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                {gain >= 0 ? '+' : ''}${gain.toFixed(2)} ({gainPct.toFixed(1)}%)
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <p className="text-center text-slate-500 py-4">No holdings in this account</p>
-                )}
+                <button onClick={() => deleteMutation.mutate(vehicle.id)} style={{ padding: '0.5rem', borderRadius: '8px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#525252' }}>
+                  <X style={{ width: '16px', height: '16px' }} />
+                </button>
               </div>
-            );
-          })}
+              <p style={{ fontSize: '1.125rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>{vehicle.name}</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <span style={{ fontSize: '0.75rem', padding: '0.25rem 0.5rem', borderRadius: '6px', background: 'rgba(212, 175, 55, 0.1)', color: '#D4AF37', fontWeight: '600' }}>{getTypeLabel(vehicle.type)}</span>
+                {vehicle.provider && <span style={{ fontSize: '0.875rem', color: '#525252' }}>{vehicle.provider}</span>}
+              </div>
+            </div>
+          ))}
           {!isLoading && vehicles.length === 0 && (
-            <div className="text-center py-12 text-slate-500">
-              No investment accounts yet. Add your first one to start tracking.
+            <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '4rem', color: '#525252' }}>
+              <Briefcase style={{ width: '48px', height: '48px', margin: '0 auto 1rem', opacity: 0.5 }} />
+              <p>No investment accounts yet. Add your first account.</p>
             </div>
           )}
         </div>
 
+        {/* Modal */}
         {showForm && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="card w-full max-w-md" data-testid="add-vehicle-modal">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white">Add Investment Account</h2>
-                <button onClick={() => setShowForm(false)} className="text-slate-400 hover:text-white">
-                  <X className="w-5 h-5" />
-                </button>
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '1rem' }}>
+            <div style={{ width: '100%', maxWidth: '400px', padding: '1.5rem', borderRadius: '20px', background: 'linear-gradient(180deg, #0F0F0F 0%, #0A0A0A 100%)', border: '1px solid rgba(212, 175, 55, 0.2)' }} data-testid="add-investment-modal">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Add Investment Account</h2>
+                <button onClick={() => setShowForm(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#525252' }}><X style={{ width: '20px', height: '20px' }} /></button>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="label">Account Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="input"
-                    placeholder="e.g., 401(k) Retirement"
-                    required
-                    data-testid="vehicle-name-input"
-                  />
+              <form onSubmit={handleSubmit}>
+                <div style={{ marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Account Name</label>
+                  <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} style={inputStyle} placeholder="e.g., Fidelity 401k" required data-testid="investment-name-input" />
                 </div>
-                <div>
-                  <label className="label">Type</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="input"
-                    data-testid="vehicle-type-select"
-                  >
-                    <option value="brokerage">Brokerage</option>
-                    <option value="401k">401(k)</option>
-                    <option value="ira">IRA</option>
-                    <option value="roth_ira">Roth IRA</option>
-                    <option value="crypto">Crypto</option>
-                    <option value="other">Other</option>
-                  </select>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Type</label>
+                    <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} style={{ ...inputStyle, cursor: 'pointer' }} data-testid="investment-type-select">
+                      <option value="401k" style={{ background: '#0A0A0A' }}>401(k)</option>
+                      <option value="ira" style={{ background: '#0A0A0A' }}>IRA</option>
+                      <option value="roth_ira" style={{ background: '#0A0A0A' }}>Roth IRA</option>
+                      <option value="brokerage" style={{ background: '#0A0A0A' }}>Brokerage</option>
+                      <option value="crypto" style={{ background: '#0A0A0A' }}>Crypto</option>
+                      <option value="other" style={{ background: '#0A0A0A' }}>Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Provider</label>
+                    <input type="text" value={formData.provider} onChange={(e) => setFormData({ ...formData, provider: e.target.value })} style={inputStyle} placeholder="Fidelity" data-testid="investment-provider-input" />
+                  </div>
                 </div>
-                <div>
-                  <label className="label">Provider</label>
-                  <input
-                    type="text"
-                    value={formData.provider}
-                    onChange={(e) => setFormData({ ...formData, provider: e.target.value })}
-                    className="input"
-                    placeholder="e.g., Fidelity, Vanguard"
-                    data-testid="vehicle-provider-input"
-                  />
-                </div>
-                <div className="flex gap-3 pt-4">
-                  <button type="button" onClick={() => setShowForm(false)} className="btn btn-secondary flex-1">
-                    Cancel
-                  </button>
-                  <button type="submit" className="btn btn-primary flex-1" data-testid="submit-vehicle-btn">
-                    {createMutation.isPending ? 'Saving...' : 'Add Account'}
-                  </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                  <button type="button" onClick={() => setShowForm(false)} style={{ flex: 1, padding: '0.875rem', borderRadius: '12px', fontWeight: '600', background: 'transparent', border: '1px solid rgba(212, 175, 55, 0.2)', color: '#D4AF37', cursor: 'pointer' }}>Cancel</button>
+                  <button type="submit" style={{ flex: 1, padding: '0.875rem', borderRadius: '12px', fontWeight: '600', background: 'linear-gradient(135deg, #C4A030 0%, #D4AF37 50%, #C4A030 100%)', color: '#000', border: 'none', cursor: 'pointer' }} data-testid="submit-investment-btn">{createMutation.isPending ? 'Saving...' : 'Save Account'}</button>
                 </div>
               </form>
             </div>
           </div>
         )}
       </div>
+
+      <style>{`
+        @media (max-width: 1024px) { [data-testid="investments-grid"] { grid-template-columns: repeat(2, 1fr) !important; } }
+        @media (max-width: 640px) { [data-testid="investments-grid"] { grid-template-columns: 1fr !important; } }
+        input:focus, select:focus { border-color: rgba(212, 175, 55, 0.5) !important; }
+      `}</style>
     </div>
   );
 }
