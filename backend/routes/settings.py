@@ -70,7 +70,8 @@ async def get_ai_status(current_user: dict = Depends(get_current_user)):
     # Get system settings
     system_settings = await db.system_settings.find_one({"_id": "system"})
     system_ai_enabled = system_settings.get("ai_enabled", False) if system_settings else False
-    system_llm_provider = system_settings.get("default_llm_provider", "openrouter") if system_settings else "openrouter"
+    system_llm_provider = system_settings.get("default_llm_provider", "emergent") if system_settings else "emergent"
+    system_model = system_settings.get("default_model") if system_settings else None
     
     # Get user settings
     user = await db.users.find_one({"_id": user_id})
@@ -87,5 +88,6 @@ async def get_ai_status(current_user: dict = Depends(get_current_user)):
         "system_ai_enabled": system_ai_enabled,
         "user_ai_enabled": user_ai_enabled,
         "effective_ai_enabled": effective_ai_enabled,
-        "llm_provider": effective_provider
+        "llm_provider": effective_provider,
+        "llm_model": system_model
     }
