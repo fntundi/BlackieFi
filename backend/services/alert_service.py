@@ -142,7 +142,7 @@ class AlertService:
             
             try:
                 due_date = datetime.fromisoformat(due_date_str).date()
-            except:
+            except (ValueError, TypeError):
                 continue
             
             # Use bill-specific reminder days or user default
