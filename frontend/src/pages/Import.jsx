@@ -164,7 +164,7 @@ export default function Import() {
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>CSV File</label>
+              <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#737373', marginBottom: '0.5rem' }}>Statement File</label>
               <label
                 style={{
                   display: 'flex',
@@ -181,12 +181,12 @@ export default function Import() {
               >
                 <Database style={{ width: '32px', height: '32px', color: '#D4AF37', marginBottom: '0.75rem' }} />
                 <p style={{ color: '#F5F5F5', fontWeight: '500', marginBottom: '0.25rem' }}>
-                  {file ? file.name : 'Click to upload CSV'}
+                  {file ? file.name : 'Click to upload CSV or PDF'}
                 </p>
-                <p style={{ color: '#525252', fontSize: '0.75rem' }}>CSV files only</p>
+                <p style={{ color: '#525252', fontSize: '0.75rem' }}>CSV or PDF bank statements</p>
                 <input
                   type="file"
-                  accept=".csv"
+                  accept=".csv,.pdf"
                   onChange={handleFileChange}
                   style={{ display: 'none' }}
                   data-testid="file-input"
