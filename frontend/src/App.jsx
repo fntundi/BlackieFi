@@ -83,6 +83,7 @@ function AppRoutes() {
                 <Route path="/goals" element={<Goals />} />
                 <Route path="/entities" element={<Entities />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/admin/settings" element={<AdminSettings />} />
               </Routes>
             </Layout>
           </PrivateRoute>
