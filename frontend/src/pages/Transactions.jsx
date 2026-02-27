@@ -9,7 +9,11 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   X,
-  Receipt
+  Receipt,
+  Filter,
+  TrendingUp,
+  TrendingDown,
+  RefreshCw
 } from 'lucide-react';
 
 export default function Transactions() {
@@ -27,7 +31,7 @@ export default function Transactions() {
     account_id: '',
   });
 
-  const { data: transactions = [], isLoading } = useQuery({
+  const { data: transactions = [], isLoading, refetch } = useQuery({
     queryKey: ['transactions', selectedEntityId, filterType],
     queryFn: () => api.getTransactions({
       entity_id: selectedEntityId,
@@ -113,211 +117,486 @@ export default function Transactions() {
     }).format(value);
   };
 
+  // Calculate summary stats
+  const totalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+  const totalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+  const netFlow = totalIncome - totalExpenses;
+
+  // Enhanced tile styles
+  const tileBase = {
+    background: 'linear-gradient(145deg, #0D0D0D 0%, #080808 100%)',
+    borderRadius: '20px',
+    border: '1px solid rgba(255, 255, 255, 0.04)',
+    boxShadow: `
+      0 4px 24px -4px rgba(0, 0, 0, 0.6),
+      0 8px 32px -8px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.03),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.2)
+    `,
+    position: 'relative',
+    overflow: 'hidden',
+  };
+
+  const contentTile = {
+    ...tileBase,
+    padding: '1.75rem',
+    border: '1px solid rgba(212, 175, 55, 0.08)',
+    boxShadow: `
+      0 8px 32px -8px rgba(0, 0, 0, 0.5),
+      0 16px 48px -16px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.02),
+      inset 0 -1px 0 0 rgba(0, 0, 0, 0.15)
+    `,
+  };
+
+  const innerTile = {
+    background: 'linear-gradient(145deg, #0C0C0C 0%, #070707 100%)',
+    borderRadius: '14px',
+    border: '1px solid rgba(255, 255, 255, 0.03)',
+    boxShadow: `
+      inset 0 2px 4px 0 rgba(0, 0, 0, 0.3),
+      inset 0 -1px 0 0 rgba(255, 255, 255, 0.02)
+    `,
+    transition: 'all 0.2s ease',
+  };
+
+  const statMiniTile = {
+    ...tileBase,
+    padding: '1.25rem',
+  };
+
   const inputStyle = {
-    background: 'rgba(10, 10, 10, 0.8)',
-    border: '1px solid rgba(212, 175, 55, 0.15)',
-    color: '#F5F5F5'
+    background: 'linear-gradient(145deg, #0A0A0A 0%, #080808 100%)',
+    border: '1px solid rgba(212, 175, 55, 0.12)',
+    borderRadius: '12px',
+    color: '#F5F5F5',
+    padding: '0.875rem 1rem',
+    fontSize: '0.95rem',
+    outline: 'none',
+    transition: 'all 0.2s',
+    boxShadow: 'inset 0 2px 4px rgba(0, 0, 0, 0.2)'
+  };
+
+  const buttonStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.875rem 1.5rem',
+    borderRadius: '12px',
+    fontWeight: '600',
+    fontSize: '0.95rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s',
+    border: 'none'
   };
 
   return (
-    <div className="p-8 animate-fade-in" style={{ background: '#050505', minHeight: '100vh' }} data-testid="transactions-page">
-      <div className="max-w-7xl mx-auto">
+    <div style={{ padding: '2rem', background: '#050505', minHeight: '100%' }} data-testid="transactions-page">
+      <div style={{ maxWidth: '1400px', margin: '0 auto' }}>
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2.5rem' }}>
           <div>
-            <p className="text-xs font-semibold tracking-widest uppercase mb-2" style={{ color: '#D4AF37' }}>Finances</p>
-            <h1 className="text-4xl font-display font-bold" style={{ color: '#F5F5F5' }}>Transactions</h1>
-            <p className="mt-2" style={{ color: '#6E6E6E' }}>Track your income and expenses</p>
+            <p style={{ 
+              fontSize: '0.7rem', 
+              fontWeight: '600', 
+              letterSpacing: '0.2em', 
+              textTransform: 'uppercase', 
+              color: '#D4AF37', 
+              marginBottom: '0.75rem',
+              textShadow: '0 0 20px rgba(212, 175, 55, 0.3)'
+            }}>Finances</p>
+            <h1 style={{ 
+              fontSize: '2.75rem', 
+              fontWeight: '700', 
+              color: '#F5F5F5', 
+              margin: 0,
+              letterSpacing: '-0.02em'
+            }}>Transactions</h1>
+            <p style={{ marginTop: '0.5rem', color: '#525252', fontSize: '0.95rem' }}>Track your income and expenses</p>
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="px-6 py-3 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2"
             style={{
+              ...buttonStyle,
               background: 'linear-gradient(135deg, #997B19 0%, #D4AF37 50%, #997B19 100%)',
               color: '#000000',
-              boxShadow: '0 4px 20px rgba(212, 175, 55, 0.3)'
+              boxShadow: '0 4px 20px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
             }}
             data-testid="add-transaction-btn"
           >
-            <Plus className="w-5 h-5" />
+            <Plus style={{ width: '20px', height: '20px' }} />
             Add Transaction
           </button>
         </div>
 
+        {/* Summary Stats */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1.25rem', marginBottom: '2rem' }}>
+          <div style={statMiniTile}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ 
+                padding: '0.625rem', 
+                borderRadius: '10px', 
+                background: 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.05) 100%)',
+                border: '1px solid rgba(5, 150, 105, 0.15)'
+              }}>
+                <TrendingUp style={{ width: '18px', height: '18px', color: '#059669' }} />
+              </div>
+              <span style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A' }}>Total Income</span>
+            </div>
+            <p style={{ fontFamily: 'monospace', fontSize: '1.5rem', fontWeight: '700', color: '#059669', margin: 0 }}>{formatCurrency(totalIncome)}</p>
+          </div>
+
+          <div style={statMiniTile}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ 
+                padding: '0.625rem', 
+                borderRadius: '10px', 
+                background: 'linear-gradient(145deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                border: '1px solid rgba(220, 38, 38, 0.15)'
+              }}>
+                <TrendingDown style={{ width: '18px', height: '18px', color: '#DC2626' }} />
+              </div>
+              <span style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A' }}>Total Expenses</span>
+            </div>
+            <p style={{ fontFamily: 'monospace', fontSize: '1.5rem', fontWeight: '700', color: '#DC2626', margin: 0 }}>{formatCurrency(totalExpenses)}</p>
+          </div>
+
+          <div style={{
+            ...statMiniTile,
+            background: 'linear-gradient(145deg, #0F0E0A 0%, #0A0908 100%)',
+            border: '1px solid rgba(212, 175, 55, 0.12)',
+          }}>
+            <div style={{ 
+              position: 'absolute', 
+              top: 0, 
+              left: '10%', 
+              right: '10%', 
+              height: '1px', 
+              background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.4), transparent)' 
+            }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ 
+                padding: '0.625rem', 
+                borderRadius: '10px', 
+                background: 'linear-gradient(145deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%)',
+                border: '1px solid rgba(212, 175, 55, 0.15)'
+              }}>
+                {netFlow >= 0 ? <ArrowUpRight style={{ width: '18px', height: '18px', color: '#D4AF37' }} /> : <ArrowDownRight style={{ width: '18px', height: '18px', color: '#DC2626' }} />}
+              </div>
+              <span style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A' }}>Net Flow</span>
+            </div>
+            <p style={{ 
+              fontFamily: 'monospace', 
+              fontSize: '1.5rem', 
+              fontWeight: '700', 
+              color: netFlow >= 0 ? '#D4AF37' : '#DC2626', 
+              margin: 0,
+              textShadow: netFlow >= 0 ? '0 0 20px rgba(212, 175, 55, 0.3)' : 'none'
+            }}>{netFlow >= 0 ? '+' : ''}{formatCurrency(netFlow)}</p>
+          </div>
+        </div>
+
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: '#6E6E6E' }} />
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', width: '18px', height: '18px', color: '#525252' }} />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search transactions..."
-              className="w-full py-3 pl-12 pr-4 rounded-lg transition-all duration-300 focus:outline-none"
-              style={inputStyle}
+              style={{
+                ...inputStyle,
+                width: '100%',
+                paddingLeft: '2.75rem'
+              }}
               data-testid="search-transactions"
             />
           </div>
-          <select
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-            className="py-3 px-4 rounded-lg transition-all duration-300 focus:outline-none cursor-pointer"
-            style={inputStyle}
-            data-testid="filter-type"
+          <div style={{ position: 'relative' }}>
+            <Filter style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', width: '16px', height: '16px', color: '#525252', pointerEvents: 'none' }} />
+            <select
+              value={filterType}
+              onChange={(e) => setFilterType(e.target.value)}
+              style={{
+                ...inputStyle,
+                paddingLeft: '2.5rem',
+                paddingRight: '2rem',
+                cursor: 'pointer',
+                minWidth: '160px',
+                appearance: 'none'
+              }}
+              data-testid="filter-type"
+            >
+              <option value="" style={{ background: '#0A0A0A' }}>All Types</option>
+              <option value="income" style={{ background: '#0A0A0A' }}>Income</option>
+              <option value="expense" style={{ background: '#0A0A0A' }}>Expense</option>
+              <option value="transfer" style={{ background: '#0A0A0A' }}>Transfer</option>
+            </select>
+          </div>
+          <button
+            onClick={() => refetch()}
+            style={{
+              ...inputStyle,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '48px',
+              cursor: 'pointer'
+            }}
+            title="Refresh"
           >
-            <option value="" style={{ background: '#0A0A0A' }}>All Types</option>
-            <option value="income" style={{ background: '#0A0A0A' }}>Income</option>
-            <option value="expense" style={{ background: '#0A0A0A' }}>Expense</option>
-            <option value="transfer" style={{ background: '#0A0A0A' }}>Transfer</option>
-          </select>
+            <RefreshCw style={{ width: '18px', height: '18px', color: '#D4AF37' }} />
+          </button>
         </div>
 
         {/* Transactions List */}
-        <div className="rounded-2xl p-6" style={{
-          background: '#0A0A0A',
-          border: '1px solid rgba(212, 175, 55, 0.1)'
-        }} data-testid="transactions-list">
+        <div style={contentTile} data-testid="transactions-list">
+          {/* Top accent */}
+          <div style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: '5%', 
+            right: '5%', 
+            height: '1px', 
+            background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.25), transparent)' 
+          }} />
+          
           {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-2 rounded-full animate-spin" style={{
-                borderColor: 'rgba(212, 175, 55, 0.2)',
-                borderTopColor: '#D4AF37'
-              }}></div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4rem' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                border: '3px solid rgba(212, 175, 55, 0.1)',
+                borderTopColor: '#D4AF37',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }} />
             </div>
           ) : filteredTransactions.length > 0 ? (
-            <div className="space-y-3">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
               {filteredTransactions.map((tx) => (
                 <div
                   key={tx.id}
-                  className="flex items-center justify-between p-4 rounded-xl transition-all duration-300"
                   style={{
-                    background: '#0F0F0F',
-                    border: '1px solid rgba(255, 255, 255, 0.03)'
+                    ...innerTile,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '1rem 1.25rem',
                   }}
                   data-testid={`transaction-${tx.id}`}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2.5 rounded-xl" style={{
-                      background: tx.type === 'income' ? 'rgba(5, 150, 105, 0.1)' : 'rgba(220, 38, 38, 0.1)'
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ 
+                      padding: '0.75rem', 
+                      borderRadius: '12px', 
+                      background: tx.type === 'income' 
+                        ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.15) 0%, rgba(5, 150, 105, 0.05) 100%)'
+                        : tx.type === 'transfer'
+                        ? 'linear-gradient(145deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)'
+                        : 'linear-gradient(145deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%)',
+                      border: `1px solid ${tx.type === 'income' ? 'rgba(5, 150, 105, 0.15)' : tx.type === 'transfer' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(220, 38, 38, 0.15)'}`
                     }}>
                       {tx.type === 'income' ? (
-                        <ArrowUpRight className="w-5 h-5" style={{ color: '#059669' }} />
+                        <ArrowUpRight style={{ width: '20px', height: '20px', color: '#059669' }} />
+                      ) : tx.type === 'transfer' ? (
+                        <RefreshCw style={{ width: '20px', height: '20px', color: '#3B82F6' }} />
                       ) : (
-                        <ArrowDownRight className="w-5 h-5" style={{ color: '#DC2626' }} />
+                        <ArrowDownRight style={{ width: '20px', height: '20px', color: '#DC2626' }} />
                       )}
                     </div>
                     <div>
-                      <p className="font-medium" style={{ color: '#F5F5F5' }}>{tx.description || 'Transaction'}</p>
-                      <div className="flex items-center gap-2 text-sm" style={{ color: '#525252' }}>
-                        <span>{getCategoryName(tx.category_id)}</span>
-                        <span>·</span>
-                        <span>{getAccountName(tx.account_id)}</span>
+                      <p style={{ fontWeight: '500', color: '#F5F5F5', margin: 0, fontSize: '0.95rem' }}>{tx.description || 'Transaction'}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.25rem' }}>
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          color: '#4A4A4A',
+                          padding: '0.125rem 0.5rem',
+                          borderRadius: '6px',
+                          background: 'rgba(255, 255, 255, 0.03)'
+                        }}>{getCategoryName(tx.category_id)}</span>
+                        <span style={{ color: '#3A3A3A' }}>·</span>
+                        <span style={{ fontSize: '0.75rem', color: '#4A4A4A' }}>{getAccountName(tx.account_id)}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <p className="font-mono font-semibold" style={{
-                        color: tx.type === 'income' ? '#059669' : '#DC2626'
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <p style={{ 
+                        fontFamily: 'monospace', 
+                        fontWeight: '600', 
+                        fontSize: '1.1rem',
+                        color: tx.type === 'income' ? '#059669' : tx.type === 'transfer' ? '#3B82F6' : '#DC2626',
+                        margin: 0
                       }}>
-                        {tx.type === 'income' ? '+' : '-'}{formatCurrency(parseFloat(tx.amount))}
+                        {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}{formatCurrency(parseFloat(tx.amount))}
                       </p>
-                      <p className="text-xs" style={{ color: '#525252' }}>{tx.date}</p>
+                      <p style={{ fontSize: '0.75rem', color: '#4A4A4A', margin: 0, marginTop: '0.25rem' }}>{tx.date}</p>
                     </div>
                     <button
                       onClick={() => deleteMutation.mutate(tx.id)}
-                      className="p-2 rounded-lg transition-all duration-300"
-                      style={{ color: '#525252' }}
+                      style={{
+                        padding: '0.5rem',
+                        borderRadius: '8px',
+                        background: 'rgba(220, 38, 38, 0.1)',
+                        border: '1px solid rgba(220, 38, 38, 0.15)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
                       data-testid={`delete-transaction-${tx.id}`}
                     >
-                      <X className="w-4 h-4" />
+                      <X style={{ width: '16px', height: '16px', color: '#DC2626' }} />
                     </button>
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="text-center py-16">
-              <Receipt className="w-12 h-12 mx-auto mb-4" style={{ color: '#525252' }} />
-              <p style={{ color: '#525252' }}>No transactions found</p>
+            <div style={{ 
+              ...innerTile,
+              textAlign: 'center', 
+              padding: '4rem',
+            }}>
+              <Receipt style={{ width: '48px', height: '48px', margin: '0 auto 1rem', color: '#3A3A3A' }} />
+              <p style={{ color: '#4A4A4A', margin: 0, fontSize: '1rem' }}>No transactions found</p>
+              <p style={{ color: '#3A3A3A', margin: '0.5rem 0 0', fontSize: '0.875rem' }}>Add your first transaction to get started</p>
             </div>
           )}
         </div>
 
         {/* Add Transaction Modal */}
         {showForm && (
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4" style={{ background: 'rgba(0, 0, 0, 0.8)' }}>
-            <div className="w-full max-w-md rounded-2xl p-6" style={{
-              background: 'linear-gradient(180deg, #0F0F0F 0%, #0A0A0A 100%)',
-              border: '1px solid rgba(212, 175, 55, 0.2)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          <div style={{ 
+            position: 'fixed', 
+            inset: 0, 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            zIndex: 50, 
+            padding: '1rem',
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)'
+          }}>
+            <div style={{
+              ...contentTile,
+              width: '100%',
+              maxWidth: '480px',
+              maxHeight: '90vh',
+              overflowY: 'auto'
             }} data-testid="add-transaction-modal">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold" style={{ color: '#F5F5F5' }}>Add Transaction</h2>
-                <button onClick={() => setShowForm(false)} style={{ color: '#6E6E6E' }}>
-                  <X className="w-5 h-5" />
+              {/* Modal top accent */}
+              <div style={{ 
+                position: 'absolute', 
+                top: 0, 
+                left: '10%', 
+                right: '10%', 
+                height: '2px', 
+                background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.5), transparent)' 
+              }} />
+              
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
+                <div>
+                  <p style={{ fontSize: '0.65rem', fontWeight: '600', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#D4AF37', marginBottom: '0.25rem' }}>New Entry</p>
+                  <h2 style={{ fontSize: '1.5rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Add Transaction</h2>
+                </div>
+                <button 
+                  onClick={() => setShowForm(false)} 
+                  style={{
+                    padding: '0.5rem',
+                    borderRadius: '10px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <X style={{ width: '20px', height: '20px', color: '#6E6E6E' }} />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} className="space-y-4">
+              
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <div>
-                  <label className="label">Type</label>
-                  <select
-                    value={formData.type}
-                    onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                    className="w-full py-3 px-4 rounded-lg focus:outline-none cursor-pointer"
-                    style={inputStyle}
-                    data-testid="transaction-type-select"
-                  >
-                    <option value="expense" style={{ background: '#0A0A0A' }}>Expense</option>
-                    <option value="income" style={{ background: '#0A0A0A' }}>Income</option>
-                    <option value="transfer" style={{ background: '#0A0A0A' }}>Transfer</option>
-                  </select>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A', marginBottom: '0.5rem' }}>Type</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
+                    {['expense', 'income', 'transfer'].map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setFormData({ ...formData, type })}
+                        style={{
+                          padding: '0.75rem',
+                          borderRadius: '10px',
+                          background: formData.type === type 
+                            ? type === 'income' 
+                              ? 'linear-gradient(145deg, rgba(5, 150, 105, 0.2) 0%, rgba(5, 150, 105, 0.1) 100%)'
+                              : type === 'transfer'
+                              ? 'linear-gradient(145deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%)'
+                              : 'linear-gradient(145deg, rgba(220, 38, 38, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%)'
+                            : 'rgba(255, 255, 255, 0.02)',
+                          border: formData.type === type 
+                            ? `1px solid ${type === 'income' ? 'rgba(5, 150, 105, 0.3)' : type === 'transfer' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(220, 38, 38, 0.3)'}`
+                            : '1px solid rgba(255, 255, 255, 0.06)',
+                          color: formData.type === type 
+                            ? type === 'income' ? '#059669' : type === 'transfer' ? '#3B82F6' : '#DC2626'
+                            : '#6E6E6E',
+                          fontWeight: '600',
+                          fontSize: '0.875rem',
+                          textTransform: 'capitalize',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        data-testid={`type-${type}`}
+                      >
+                        {type}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+                
                 <div>
-                  <label className="label">Amount</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A', marginBottom: '0.5rem' }}>Amount</label>
                   <input
                     type="number"
                     step="0.01"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full py-3 px-4 rounded-lg focus:outline-none"
-                    style={inputStyle}
+                    style={{ ...inputStyle, width: '100%' }}
                     placeholder="0.00"
                     required
                     data-testid="transaction-amount-input"
                   />
                 </div>
+                
                 <div>
-                  <label className="label">Date</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A', marginBottom: '0.5rem' }}>Date</label>
                   <input
                     type="date"
                     value={formData.date}
                     onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full py-3 px-4 rounded-lg focus:outline-none"
-                    style={inputStyle}
+                    style={{ ...inputStyle, width: '100%' }}
                     required
                     data-testid="transaction-date-input"
                   />
                 </div>
+                
                 <div>
-                  <label className="label">Description</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A', marginBottom: '0.5rem' }}>Description</label>
                   <input
                     type="text"
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full py-3 px-4 rounded-lg focus:outline-none"
-                    style={inputStyle}
+                    style={{ ...inputStyle, width: '100%' }}
                     placeholder="Enter description"
                     data-testid="transaction-description-input"
                   />
                 </div>
+                
                 <div>
-                  <label className="label">Category</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A', marginBottom: '0.5rem' }}>Category</label>
                   <select
                     value={formData.category_id}
                     onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                    className="w-full py-3 px-4 rounded-lg focus:outline-none cursor-pointer"
-                    style={inputStyle}
+                    style={{ ...inputStyle, width: '100%', cursor: 'pointer' }}
                     data-testid="transaction-category-select"
                   >
                     <option value="" style={{ background: '#0A0A0A' }}>Select category</option>
@@ -329,13 +608,13 @@ export default function Transactions() {
                     }
                   </select>
                 </div>
+                
                 <div>
-                  <label className="label">Account</label>
+                  <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#5A5A5A', marginBottom: '0.5rem' }}>Account</label>
                   <select
                     value={formData.account_id}
                     onChange={(e) => setFormData({ ...formData, account_id: e.target.value })}
-                    className="w-full py-3 px-4 rounded-lg focus:outline-none cursor-pointer"
-                    style={inputStyle}
+                    style={{ ...inputStyle, width: '100%', cursor: 'pointer' }}
                     data-testid="transaction-account-select"
                   >
                     <option value="" style={{ background: '#0A0A0A' }}>Select account</option>
@@ -344,12 +623,15 @@ export default function Transactions() {
                     ))}
                   </select>
                 </div>
-                <div className="flex gap-3 pt-4">
+                
+                <div style={{ display: 'flex', gap: '0.75rem', paddingTop: '0.5rem' }}>
                   <button 
                     type="button" 
                     onClick={() => setShowForm(false)} 
-                    className="flex-1 py-3 rounded-lg font-semibold transition-all duration-300"
                     style={{
+                      ...buttonStyle,
+                      flex: 1,
+                      justifyContent: 'center',
                       background: 'transparent',
                       border: '1px solid rgba(212, 175, 55, 0.2)',
                       color: '#D4AF37'
@@ -359,10 +641,13 @@ export default function Transactions() {
                   </button>
                   <button 
                     type="submit" 
-                    className="flex-1 py-3 rounded-lg font-semibold transition-all duration-300"
                     style={{
+                      ...buttonStyle,
+                      flex: 1,
+                      justifyContent: 'center',
                       background: 'linear-gradient(135deg, #997B19 0%, #D4AF37 50%, #997B19 100%)',
-                      color: '#000000'
+                      color: '#000000',
+                      boxShadow: '0 4px 16px rgba(212, 175, 55, 0.25)'
                     }}
                     data-testid="submit-transaction-btn"
                   >
@@ -374,6 +659,22 @@ export default function Transactions() {
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        input:focus, select:focus {
+          border-color: rgba(212, 175, 55, 0.3) !important;
+          box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.1), inset 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+        }
+        @media (max-width: 768px) {
+          [data-testid="transactions-page"] > div > div:nth-child(2) {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
