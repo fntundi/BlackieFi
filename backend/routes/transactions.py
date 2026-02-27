@@ -1,7 +1,7 @@
 """
 Transaction routes
 """
-from fastapi import APIRouter, HTTPException, Depends, status, Query
+from fastapi import APIRouter, HTTPException, Depends, status, Query, BackgroundTasks
 from datetime import datetime, timezone
 from bson import ObjectId
 from typing import List, Optional
@@ -9,8 +9,18 @@ from typing import List, Optional
 from database import get_db
 from models import TransactionInput, TransactionResponse
 from auth import get_current_user
+from services.alert_service import AlertService
 
 router = APIRouter()
+
+async def check_budget_alerts_background(entity_id: str, user_id: str, db):
+    """Background task to check budget alerts after transaction"""
+    try:
+        alert_service = AlertService(db)
+        await alert_service.check_budget_alerts(entity_id, user_id)
+    except Exception as e:
+        # Log error but don't fail the transaction
+        print(f"Background alert check failed: {e}")
 
 @router.get("", response_model=List[TransactionResponse])
 async def list_transactions(
