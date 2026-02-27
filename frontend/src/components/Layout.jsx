@@ -164,6 +164,7 @@ export default function Layout({ children }) {
             {navItems.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
+              const showBadge = item.showBadge && unreadCount > 0;
               return (
                 <Link
                   key={item.path}
@@ -182,10 +183,34 @@ export default function Layout({ children }) {
                   }}
                   data-testid={`nav-${item.label.toLowerCase()}`}
                 >
-                  <Icon style={{ width: '18px', height: '18px', color: isActive ? '#D4AF37' : '#525252' }} />
-                  <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>{item.label}</span>
-                  {isActive && (
-                    <div style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#D4AF37' }}></div>
+                  <div style={{ position: 'relative' }}>
+                    <Icon style={{ width: '18px', height: '18px', color: isActive ? '#D4AF37' : '#525252' }} />
+                    {showBadge && (
+                      <span style={{
+                        position: 'absolute',
+                        top: '-4px',
+                        right: '-4px',
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: '#DC2626',
+                        border: '2px solid #0A0A0A'
+                      }} />
+                    )}
+                  </div>
+                  <span style={{ fontWeight: '500', fontSize: '0.875rem', flex: 1 }}>{item.label}</span>
+                  {showBadge && (
+                    <span style={{
+                      fontSize: '0.625rem',
+                      padding: '0.125rem 0.375rem',
+                      borderRadius: '999px',
+                      background: 'rgba(220, 38, 38, 0.2)',
+                      color: '#DC2626',
+                      fontWeight: '600'
+                    }}>{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  )}
+                  {isActive && !showBadge && (
+                    <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#D4AF37' }}></div>
                   )}
                 </Link>
               );
