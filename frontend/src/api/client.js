@@ -636,6 +636,28 @@ class ApiClient {
     return response.json();
   }
 
+  async importPDF(entityId, accountId, file) {
+    const formData = new FormData();
+    formData.append('entity_id', entityId);
+    formData.append('account_id', accountId);
+    formData.append('file', file);
+
+    const response = await fetch(`${this.baseUrl}/imports/pdf`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'PDF import failed');
+    }
+
+    return response.json();
+  }
+
   async deleteImportBatch(id, deleteTransactions = false) {
     const query = deleteTransactions ? '?delete_transactions=true' : '';
     return this.request(`/imports/batches/${id}${query}`, { method: 'DELETE' });
