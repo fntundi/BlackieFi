@@ -398,3 +398,214 @@ class AIChatRequest(BaseModel):
     message: str
     context: Optional[str] = None  # Additional context like transaction data
     feature: str = "general"  # general, insights, categorization, budgeting
+
+# ============= Bill Models =============
+class BillPayment(BaseModel):
+    date: str
+    amount: float
+    transaction_id: Optional[str] = None
+
+class BillInput(BaseModel):
+    entity_id: str
+    name: str
+    payee: Optional[str] = ""
+    typical_amount: float
+    frequency: str = "monthly"  # monthly, quarterly, yearly
+    due_date: str
+    reminder_days: int = 7
+    category_id: Optional[str] = None
+    auto_detected: bool = False
+
+class BillResponse(BaseModel):
+    id: str
+    entity_id: str
+    name: str
+    payee: Optional[str] = ""
+    typical_amount: float
+    frequency: str
+    due_date: str
+    reminder_days: int
+    category_id: Optional[str] = None
+    status: str = "pending"  # pending, upcoming, overdue, paid
+    auto_detected: bool
+    last_paid_date: Optional[str] = None
+    last_paid_amount: Optional[float] = None
+    payment_history: List[BillPayment] = []
+    created_at: str
+    updated_at: str
+
+# ============= Import Batch Models =============
+class ImportBatchInput(BaseModel):
+    entity_id: str
+    account_id: str
+    file_name: str
+    file_url: str
+    file_type: str  # csv, pdf
+
+class ImportBatchResponse(BaseModel):
+    id: str
+    entity_id: str
+    account_id: str
+    file_name: str
+    file_url: str
+    file_type: str
+    status: str = "processing"  # processing, completed, failed
+    transactions_imported: int = 0
+    error_message: Optional[str] = None
+    created_date: str
+    updated_at: str
+
+# ============= Report Models =============
+class ReportFilterPresetInput(BaseModel):
+    name: str
+    report_type: str
+    filters: dict
+
+class ReportFilterPresetResponse(BaseModel):
+    id: str
+    user_id: str
+    name: str
+    report_type: str
+    filters: dict
+    created_at: str
+
+class GenerateReportInput(BaseModel):
+    report_type: str  # profit_loss, balance_sheet, cash_flow, budget_vs_actual
+    entity_id: str
+    start_date: str
+    end_date: str
+    category_id: Optional[str] = None
+
+# ============= Tax Models =============
+class TaxScenarioInput(BaseModel):
+    entity_id: str
+    name: str
+    tax_year: int
+    filing_status: str  # single, married_filing_jointly, married_filing_separately, head_of_household
+    total_income: float
+    total_deductions: float
+    estimated_tax_liability: float
+    effective_tax_rate: float
+    potential_deductions: List[dict] = []
+    potential_credits: List[dict] = []
+    recommendations: List[str] = []
+    scenario_adjustments: Optional[dict] = None
+    is_baseline: bool = False
+
+class TaxScenarioResponse(BaseModel):
+    id: str
+    entity_id: str
+    name: str
+    tax_year: int
+    filing_status: str
+    total_income: float
+    total_deductions: float
+    estimated_tax_liability: float
+    effective_tax_rate: float
+    potential_deductions: List[dict] = []
+    potential_credits: List[dict] = []
+    recommendations: List[str] = []
+    scenario_adjustments: Optional[dict] = None
+    is_baseline: bool
+    created_at: str
+    updated_at: str
+
+# ============= Group Models =============
+class GroupInput(BaseModel):
+    name: str
+    description: Optional[str] = ""
+
+class GroupResponse(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = ""
+    is_active: bool = True
+    created_at: str
+    updated_at: str
+
+class GroupMemberInput(BaseModel):
+    group_id: str
+    user_email: str
+    role: str = "member"  # member, admin
+
+class GroupMemberResponse(BaseModel):
+    id: str
+    group_id: str
+    user_email: str
+    role: str
+    created_at: str
+
+class GroupEntityAccessInput(BaseModel):
+    group_id: str
+    entity_id: str
+    access_level: str = "read"  # read, write
+
+class GroupEntityAccessResponse(BaseModel):
+    id: str
+    group_id: str
+    entity_id: str
+    access_level: str
+    created_at: str
+
+# ============= Financial Profile Models =============
+class FinancialGoalProfile(BaseModel):
+    goal: str
+    target_amount: Optional[float] = None
+    timeline_years: Optional[int] = None
+
+class FinancialProfileInput(BaseModel):
+    entity_id: str
+    risk_tolerance: str = "moderate"  # conservative, moderate, aggressive
+    investment_experience: str = "beginner"  # beginner, intermediate, advanced
+    age: Optional[int] = None
+    annual_income: Optional[float] = None
+    time_horizon: int = 10
+    liquidity_needs: str = "medium"  # low, medium, high
+    financial_goals: List[FinancialGoalProfile] = []
+
+class FinancialProfileResponse(BaseModel):
+    id: str
+    entity_id: str
+    risk_tolerance: str
+    investment_experience: str
+    age: Optional[int] = None
+    annual_income: Optional[float] = None
+    time_horizon: int
+    liquidity_needs: str
+    financial_goals: List[FinancialGoalProfile] = []
+    created_at: str
+    updated_at: str
+
+# ============= AI Feature Models =============
+class DetectAnomaliesInput(BaseModel):
+    entity_id: str
+
+class ForecastCashFlowInput(BaseModel):
+    entity_id: str
+    forecast_months: int = 3
+
+class IdentifyCostSavingsInput(BaseModel):
+    entity_id: str
+
+class GenerateBudgetInput(BaseModel):
+    entity_id: str
+    month: str
+
+class CategorizeTransactionInput(BaseModel):
+    transaction_id: str
+    entity_id: str
+
+class GenerateTagsInput(BaseModel):
+    transaction_id: str
+
+class GenerateGoalRecommendationsInput(BaseModel):
+    goal_id: str
+
+class EstimateTaxInput(BaseModel):
+    entity_id: str
+    tax_year: int
+    filing_status: str
+
+class AnalyzeTaxScenarioInput(BaseModel):
+    baseline_scenario_id: str
+    adjustments: dict
