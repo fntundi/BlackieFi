@@ -21,6 +21,13 @@ from routes.inventory import router as inventory_router
 from routes.goals import router as goals_router
 from routes.settings import router as settings_router
 from routes.admin_llm import router as admin_llm_router
+from routes.bills import router as bills_router
+from routes.reports import router as reports_router
+from routes.tax import router as tax_router
+from routes.groups import router as groups_router
+from routes.financial_profiles import router as profiles_router
+from routes.imports import router as imports_router
+from routes.ai_functions import router as ai_functions_router
 from database import init_db, close_db
 
 @asynccontextmanager
