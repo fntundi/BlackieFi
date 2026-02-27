@@ -83,6 +83,9 @@ export default function Dashboard() {
           <p style={{ marginTop: '0.5rem', color: '#525252' }}>Your financial overview at a glance</p>
         </div>
 
+        {/* AI Insights - Only shows when AI is enabled */}
+        <AIInsights entityId={selectedEntityId} />
+
         {/* Stats Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '2rem' }}>
           {/* Net Worth */}
