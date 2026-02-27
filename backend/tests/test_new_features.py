@@ -234,16 +234,20 @@ class TestTaxAPI:
         """Test POST /api/tax/scenarios creates a scenario"""
         if not entity_id:
             pytest.skip("No entity available")
+        # Using correct field names from TaxScenarioInput model
         scenario_data = {
             "entity_id": entity_id,
             "tax_year": 2025,
             "name": "TEST_Tax Scenario",
             "filing_status": "single",
-            "estimated_income": 75000,
-            "estimated_deductions": 15000,
-            "estimated_credits": 2000,
-            "estimated_tax": 12000,
-            "notes": "Test scenario"
+            "total_income": 75000,
+            "total_deductions": 15000,
+            "estimated_tax_liability": 12000,
+            "effective_tax_rate": 16.0,
+            "potential_deductions": [],
+            "potential_credits": [],
+            "recommendations": [],
+            "is_baseline": False
         }
         response = requests.post(f"{BASE_URL}/api/tax/scenarios", headers=admin_headers, json=scenario_data)
         assert response.status_code == 200
