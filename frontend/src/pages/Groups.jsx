@@ -295,7 +295,7 @@ function GroupCard({ group, entities, expanded, onToggle, onDelete, onAddMember,
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <button onClick={(e) => { e.stopPropagation(); if (confirm('Delete this group?')) onDelete(); }} style={{ padding: '0.5rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+          <button onClick={(e) => { e.stopPropagation(); if (window.confirm('Delete this group?')) onDelete(); }} style={{ padding: '0.5rem', background: 'transparent', border: 'none', cursor: 'pointer' }}>
             <Trash2 style={{ width: '18px', height: '18px', color: '#DC2626' }} />
           </button>
           {expanded ? <ChevronUp style={{ width: '20px', height: '20px', color: '#525252' }} /> : <ChevronDown style={{ width: '20px', height: '20px', color: '#525252' }} />}
