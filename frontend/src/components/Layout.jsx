@@ -45,6 +45,7 @@ const navItems = [
   { path: '/reports', icon: FileText, label: 'Reports' },
   { path: '/import', icon: Upload, label: 'Import' },
   { path: '/tax-planning', icon: Calculator, label: 'Tax Planning' },
+  { path: '/notifications', icon: Bell, label: 'Notifications', showBadge: true },
 ];
 
 export default function Layout({ children }) {
