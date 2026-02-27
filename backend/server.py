@@ -20,6 +20,7 @@ from routes.assets import router as assets_router
 from routes.inventory import router as inventory_router
 from routes.goals import router as goals_router
 from routes.settings import router as settings_router
+from routes.admin_llm import router as admin_llm_router
 from database import init_db, close_db
 
 @asynccontextmanager
