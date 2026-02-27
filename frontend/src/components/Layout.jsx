@@ -20,7 +20,13 @@ import {
   ChevronDown,
   User,
   Crown,
-  Cpu
+  Cpu,
+  Calendar,
+  FileText,
+  Upload,
+  Calculator,
+  Users,
+  Sliders
 } from 'lucide-react';
 
 const navItems = [
@@ -34,6 +40,10 @@ const navItems = [
   { path: '/assets', icon: Package, label: 'Assets' },
   { path: '/goals', icon: Target, label: 'Goals' },
   { path: '/entities', icon: Building2, label: 'Entities' },
+  { path: '/calendar', icon: Calendar, label: 'Calendar' },
+  { path: '/reports', icon: FileText, label: 'Reports' },
+  { path: '/import', icon: Upload, label: 'Import' },
+  { path: '/tax-planning', icon: Calculator, label: 'Tax Planning' },
 ];
 
 export default function Layout({ children }) {
