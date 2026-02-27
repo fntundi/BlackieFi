@@ -20,6 +20,17 @@ class AlertService:
         """Check if any budgets have exceeded thresholds and send alerts"""
         alerts_sent = []
         
+        # Check user preferences
+        user = await self.db.users.find_one({"_id": user_id})
+        prefs = user.get("notification_preferences", {}) if user else {}
+        
+        # Skip if budget alerts are disabled
+        if prefs.get("budget_alerts") is False:
+            return alerts_sent
+        
+        # Get user's preferred threshold (default 80%)
+        default_threshold = prefs.get("budget_alert_threshold", 80)
+        
         # Get current month
         current_month = datetime.now(timezone.utc).strftime("%Y-%m")
         
@@ -33,7 +44,9 @@ class AlertService:
             return alerts_sent
         
         # Get categories
-        categories = {str(c["_id"]): c["name"] async for c in self.db.categories.find()}
+        categories = {}
+        async for c in self.db.categories.find():
+            categories[str(c["_id"])] = c["name"]
         
         # Get transactions for this month
         month_start = f"{current_month}-01"
@@ -57,7 +70,8 @@ class AlertService:
             
             if planned > 0:
                 percentage = int((spent / planned) * 100)
-                alert_threshold = cat_budget.get("alert_threshold", 80)
+                # Use category-specific threshold or user default
+                alert_threshold = cat_budget.get("alert_threshold", default_threshold)
                 
                 # Check if threshold exceeded and not already alerted
                 if percentage >= alert_threshold:
