@@ -66,6 +66,7 @@ app.include_router(assets_router, prefix="/api/assets", tags=["Assets"])
 app.include_router(inventory_router, prefix="/api/inventory", tags=["Inventory"])
 app.include_router(goals_router, prefix="/api/goals", tags=["Financial Goals"])
 app.include_router(settings_router, prefix="/api/settings", tags=["Settings"])
+app.include_router(admin_llm_router, prefix="/api/admin/llm", tags=["Admin - LLM Configuration"])
 
 if __name__ == "__main__":
     import uvicorn
