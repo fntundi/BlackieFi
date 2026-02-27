@@ -175,6 +175,32 @@ export default function Layout({ children }) {
 
         {/* User section */}
         <div style={{ padding: '1rem', borderTop: '1px solid rgba(212, 175, 55, 0.1)' }}>
+          {/* Admin Link - Only show for admins */}
+          {user?.role === 'admin' && (
+            <Link
+              to="/admin/settings"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                textDecoration: 'none',
+                marginBottom: '0.5rem',
+                background: location.pathname === '/admin/settings' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                borderLeft: location.pathname === '/admin/settings' ? '2px solid #D4AF37' : '2px solid transparent',
+                color: location.pathname === '/admin/settings' ? '#D4AF37' : '#A3A3A3'
+              }}
+              data-testid="nav-admin-settings"
+            >
+              <Cpu style={{ width: '18px', height: '18px', color: location.pathname === '/admin/settings' ? '#D4AF37' : '#525252' }} />
+              <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>AI Config</span>
+              {location.pathname === '/admin/settings' && (
+                <div style={{ marginLeft: 'auto', width: '6px', height: '6px', borderRadius: '50%', background: '#D4AF37' }}></div>
+              )}
+            </Link>
+          )}
+
           <Link
             to="/settings"
             style={{
