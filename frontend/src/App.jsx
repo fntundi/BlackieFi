@@ -26,6 +26,7 @@ import Import from './pages/Import';
 import TaxPlanning from './pages/TaxPlanning';
 import Groups from './pages/Groups';
 import FinancialSettings from './pages/FinancialSettings';
+import Notifications from './pages/Notifications';
 
 import './App.css';
 
@@ -96,6 +97,7 @@ function AppRoutes() {
                 <Route path="/tax-planning" element={<TaxPlanning />} />
                 <Route path="/groups" element={<Groups />} />
                 <Route path="/financial-settings" element={<FinancialSettings />} />
+                <Route path="/notifications" element={<Notifications />} />
               </Routes>
             </Layout>
           </PrivateRoute>
