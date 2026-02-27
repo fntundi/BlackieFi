@@ -423,6 +423,42 @@ class ApiClient {
   async deleteGoal(id) {
     return this.request(`/goals/${id}`, { method: 'DELETE' });
   }
+
+  // Admin LLM Configuration endpoints
+  async getLLMProviders() {
+    return this.request('/admin/llm/providers');
+  }
+
+  async getProviderModels(provider) {
+    return this.request(`/admin/llm/providers/${provider}/models`);
+  }
+
+  async updateProviderConfig(provider, config) {
+    return this.request(`/admin/llm/providers/${provider}`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+  }
+
+  async setActiveProvider(provider) {
+    return this.request(`/admin/llm/providers/${provider}/set-active`, {
+      method: 'POST',
+    });
+  }
+
+  async testProvider(provider, prompt) {
+    return this.request('/admin/llm/test', {
+      method: 'POST',
+      body: JSON.stringify({ provider, prompt }),
+    });
+  }
+
+  async aiChat(message, context, feature = 'general') {
+    return this.request('/admin/llm/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, context, feature }),
+    });
+  }
 }
 
 export const api = new ApiClient();
