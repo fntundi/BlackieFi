@@ -78,10 +78,15 @@ async def list_transactions(
     } for t in transactions]
 
 @router.post("", response_model=TransactionResponse, status_code=status.HTTP_201_CREATED)
-async def create_transaction(input: TransactionInput, current_user: dict = Depends(get_current_user)):
+async def create_transaction(
+    input: TransactionInput, 
+    background_tasks: BackgroundTasks,
+    current_user: dict = Depends(get_current_user)
+):
     """Create a new transaction"""
     db = get_db()
     now = datetime.now(timezone.utc).isoformat()
+    user_id = current_user.get("user_id")
     
     transaction_id = str(ObjectId())
     transaction_doc = {
@@ -109,6 +114,10 @@ async def create_transaction(input: TransactionInput, current_user: dict = Depen
             {"_id": input.account_id},
             {"$inc": {"balance": balance_change}}
         )
+    
+    # Check budget alerts in background for expense transactions
+    if input.type == "expense":
+        background_tasks.add_task(check_budget_alerts_background, input.entity_id, user_id, db)
     
     return {
         "id": transaction_id,
