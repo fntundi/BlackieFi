@@ -292,7 +292,7 @@ export default function Login() {
             border: '1px solid rgba(212, 175, 55, 0.1)'
           }}>
             <p style={{ fontSize: '0.75rem', color: '#525252' }}>
-              Demo: <span style={{ color: '#A3A3A3' }}>demo / demo12345</span>
+              Demo: <span style={{ color: '#A3A3A3' }}>demo / user123</span>
             </p>
           </div>
         </div>
