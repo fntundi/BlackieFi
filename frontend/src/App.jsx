@@ -19,6 +19,7 @@ import Assets from './pages/Assets';
 import Goals from './pages/Goals';
 import Entities from './pages/Entities';
 import Settings from './pages/Settings';
+import AdminSettings from './pages/AdminSettings';
 
 import './App.css';
 
