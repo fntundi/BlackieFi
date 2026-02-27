@@ -76,6 +76,7 @@ async def mark_notifications_read(
     db = get_db()
     user_id = current_user.get("user_id")
     
+    # Convert string IDs to work with MongoDB
     result = await db.notifications.update_many(
         {"_id": {"$in": request.notification_ids}, "user_id": user_id},
         {"$set": {"read": True}}
