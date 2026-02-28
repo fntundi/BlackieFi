@@ -1,52 +1,58 @@
-<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="16" skipped="0" tests="16" time="9.713" timestamp="2026-02-28T10:53:00.372084+00:00" hostname="agent-env-91cef4e2-307d-4b2c-9e07-cc6aa3fa06ec"><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_list_budgets" time="0.911"><failure message="AssertionError: Expected 200, got 401: {&quot;detail&quot;:&quot;Invalid or expired token&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:44: in test_list_budgets
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="16" skipped="0" tests="16" time="2.157" timestamp="2026-02-28T10:55:16.151204+00:00" hostname="agent-env-91cef4e2-307d-4b2c-9e07-cc6aa3fa06ec"><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_list_budgets" time="0.716"><failure message="AssertionError: Expected 200, got 401: {&quot;detail&quot;:&quot;Invalid or expired token&quot;}&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:54: in test_list_budgets
     assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
 E   AssertionError: Expected 200, got 401: {"detail":"Invalid or expired token"}
 E   assert 401 == 200
-E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_get_budget_by_month" time="0.585"><failure message="KeyError: 0">tests/test_budgets.py:66: in test_get_budget_by_month
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_get_budget_by_month" time="0.070"><failure message="KeyError: 0">tests/test_budgets.py:78: in test_get_budget_by_month
     test_month = all_budgets[0]["month"]
                  ^^^^^^^^^^^^^^
-E   KeyError: 0</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_create_budget" time="0.695"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:92: in test_create_budget
-    self.session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
-                                                  ^^^^^^^^^^^^
-E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_create_duplicate_budget_fails" time="0.569"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:135: in test_create_duplicate_budget_fails
-    self.session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
-                                                  ^^^^^^^^^^^^
-E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_get_single_budget" time="0.617"><failure message="KeyError: 0">tests/test_budgets.py:163: in test_get_single_budget
+E   KeyError: 0</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_create_budget" time="0.071"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:105: in test_create_budget
+    session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+                                             ^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_create_duplicate_budget_fails" time="0.077"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:150: in test_create_duplicate_budget_fails
+    session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+                                             ^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_get_single_budget" time="0.075"><failure message="KeyError: 0">tests/test_budgets.py:180: in test_get_single_budget
     budget_id = budgets[0]["id"]
                 ^^^^^^^^^^
-E   KeyError: 0</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_get_nonexistent_budget" time="0.613"><failure message="AssertionError: Expected 404, got 401&#10;assert 401 == 404&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:176: in test_get_nonexistent_budget
+E   KeyError: 0</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_get_nonexistent_budget" time="0.076"><failure message="AssertionError: Expected 404, got 401&#10;assert 401 == 404&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:195: in test_get_nonexistent_budget
     assert response.status_code == 404, f"Expected 404, got {response.status_code}"
 E   AssertionError: Expected 404, got 401
 E   assert 401 == 404
-E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_update_budget" time="0.566"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:189: in test_update_budget
-    self.session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
-                                                  ^^^^^^^^^^^^
-E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_update_category_budgets" time="0.542"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:245: in test_update_category_budgets
-    self.session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
-                                                  ^^^^^^^^^^^^
-E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_delete_budget" time="0.748"><failure message="KeyError: 0">tests/test_budgets.py:305: in test_delete_budget
-    budget_id = existing[0]["id"]
-                ^^^^^^^^^^^
-E   KeyError: 0</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_delete_nonexistent_budget" time="0.633"><failure message="AssertionError: Expected 404, got 401&#10;assert 401 == 404&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:324: in test_delete_nonexistent_budget
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_update_budget" time="0.075"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:210: in test_update_budget
+    session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+                                             ^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_update_category_budgets" time="0.080"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:268: in test_update_category_budgets
+    session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+                                             ^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_delete_budget" time="0.075"><failure message="TypeError: string indices must be integers, not 'str'">tests/test_budgets.py:321: in test_delete_budget
+    session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+                                             ^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetAPI" name="test_delete_nonexistent_budget" time="0.073"><failure message="AssertionError: Expected 404, got 401&#10;assert 401 == 404&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:349: in test_delete_nonexistent_budget
     assert response.status_code == 404, f"Expected 404, got {response.status_code}"
 E   AssertionError: Expected 404, got 401
 E   assert 401 == 404
-E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_goals_for_budget" time="0.458"><failure message="AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'">tests/test_budgets.py:357: in test_get_goals_for_budget
-    "entity_id": self.entity_id,
-                 ^^^^^^^^^^^^^^
-E   AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_debts_for_budget" time="0.447"><failure message="AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'">tests/test_budgets.py:366: in test_get_debts_for_budget
-    "entity_id": self.entity_id
-                 ^^^^^^^^^^^^^^
-E   AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_bills_for_budget" time="0.456"><failure message="AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'">tests/test_budgets.py:374: in test_get_bills_for_budget
-    "entity_id": self.entity_id
-                 ^^^^^^^^^^^^^^
-E   AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_accounts_for_available_funds" time="0.502"><failure message="AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'">tests/test_budgets.py:382: in test_get_accounts_for_available_funds
-    "entity_id": self.entity_id
-                 ^^^^^^^^^^^^^^
-E   AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_transactions_for_spending" time="0.500"><failure message="AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'">tests/test_budgets.py:393: in test_get_transactions_for_spending
-    "entity_id": self.entity_id,
-                 ^^^^^^^^^^^^^^
-E   AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_categories_for_budget" time="0.463"><failure message="AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'">tests/test_budgets.py:404: in test_get_categories_for_budget
-    "entity_id": self.entity_id
-                 ^^^^^^^^^^^^^^
-E   AttributeError: 'TestBudgetLinkedData' object has no attribute 'entity_id'</failure></testcase></testsuite></testsuites>
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_goals_for_budget" time="0.078"><failure message="AssertionError: Expected 200, got 401&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:364: in test_get_goals_for_budget
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+E   AssertionError: Expected 200, got 401
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_debts_for_budget" time="0.094"><failure message="AssertionError: Expected 200, got 401&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:374: in test_get_debts_for_budget
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+E   AssertionError: Expected 200, got 401
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_bills_for_budget" time="0.074"><failure message="AssertionError: Expected 200, got 401&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:384: in test_get_bills_for_budget
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+E   AssertionError: Expected 200, got 401
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_accounts_for_available_funds" time="0.073"><failure message="AssertionError: Expected 200, got 401&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:394: in test_get_accounts_for_available_funds
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+E   AssertionError: Expected 200, got 401
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_transactions_for_spending" time="0.070"><failure message="AssertionError: Expected 200, got 401&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:408: in test_get_transactions_for_spending
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+E   AssertionError: Expected 200, got 401
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase><testcase classname="tests.test_budgets.TestBudgetLinkedData" name="test_get_categories_for_budget" time="0.071"><failure message="AssertionError: Expected 200, got 401&#10;assert 401 == 200&#10; +  where 401 = &lt;Response [401]&gt;.status_code">tests/test_budgets.py:420: in test_get_categories_for_budget
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+E   AssertionError: Expected 200, got 401
+E   assert 401 == 200
+E    +  where 401 = &lt;Response [401]&gt;.status_code</failure></testcase></testsuite></testsuites>
