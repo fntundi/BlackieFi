@@ -74,7 +74,7 @@ export default function Budgets() {
   const [dragOverCategory, setDragOverCategory] = useState(null);
 
   // Fetch data
-  const { data: budgets = [], isLoading: loadingBudgets } = useQuery({
+  const { data: budgets = [] } = useQuery({
     queryKey: ['budgets', selectedEntityId],
     queryFn: () => api.getBudgets({ entity_id: selectedEntityId }),
     enabled: !!selectedEntityId,
