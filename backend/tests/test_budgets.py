@@ -28,7 +28,7 @@ def get_authenticated_session():
         })
         
         if login_response.status_code == 200:
-            _token = login_response.json().get("access_token")
+            _token = login_response.json().get("token")  # API returns 'token' not 'access_token'
             _session.headers.update({"Authorization": f"Bearer {_token}"})
             
             # Get entity_id from entities endpoint
