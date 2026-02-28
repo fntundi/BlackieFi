@@ -11,7 +11,6 @@ import {
   ChevronRight,
   DollarSign,
   TrendingUp,
-  TrendingDown,
   Target,
   CreditCard,
   Calendar,
@@ -21,7 +20,6 @@ import {
   Sparkles,
   GripVertical,
   ArrowRight,
-  Receipt,
   Home,
   Car,
   Utensils,
@@ -30,10 +28,7 @@ import {
   Heart,
   Briefcase,
   MoreHorizontal,
-  Edit3,
-  Trash2,
-  RefreshCw,
-  Loader2
+  Trash2
 } from 'lucide-react';
 
 // Budget category groups based on common financial planning
