@@ -8,39 +8,49 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
-class TestBudgetAPI:
-    """Budget endpoint tests"""
+# Global session and entity_id for all tests
+_session = None
+_entity_id = None
+_token = None
+
+def get_authenticated_session():
+    """Get or create authenticated session"""
+    global _session, _entity_id, _token
     
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        """Setup test session with authentication"""
-        self.session = requests.Session()
-        self.session.headers.update({"Content-Type": "application/json"})
+    if _session is None:
+        _session = requests.Session()
+        _session.headers.update({"Content-Type": "application/json"})
         
         # Login to get token
-        login_response = self.session.post(f"{BASE_URL}/api/auth/login", json={
+        login_response = _session.post(f"{BASE_URL}/api/auth/login", json={
             "username": "demo",
             "password": "user123"
         })
         
         if login_response.status_code == 200:
-            token = login_response.json().get("access_token")
-            self.session.headers.update({"Authorization": f"Bearer {token}"})
-            self.entity_id = login_response.json().get("user", {}).get("entity_id")
+            _token = login_response.json().get("access_token")
+            _session.headers.update({"Authorization": f"Bearer {_token}"})
             
-            # Get entity_id from entities endpoint if not in login response
-            if not self.entity_id:
-                entities_response = self.session.get(f"{BASE_URL}/api/entities")
-                if entities_response.status_code == 200:
-                    entities = entities_response.json()
-                    if entities:
-                        self.entity_id = entities[0].get("id")
+            # Get entity_id from entities endpoint
+            entities_response = _session.get(f"{BASE_URL}/api/entities")
+            if entities_response.status_code == 200:
+                entities = entities_response.json()
+                if entities:
+                    _entity_id = entities[0].get("id")
         else:
-            pytest.skip("Authentication failed - skipping tests")
+            raise Exception(f"Authentication failed: {login_response.status_code}")
+    
+    return _session, _entity_id
+
+
+class TestBudgetAPI:
+    """Budget endpoint tests"""
     
     def test_list_budgets(self):
         """Test GET /api/budgets - List all budgets"""
-        response = self.session.get(f"{BASE_URL}/api/budgets", params={"entity_id": self.entity_id})
+        session, entity_id = get_authenticated_session()
+        
+        response = session.get(f"{BASE_URL}/api/budgets", params={"entity_id": entity_id})
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         
         data = response.json()
@@ -59,13 +69,15 @@ class TestBudgetAPI:
     
     def test_get_budget_by_month(self):
         """Test GET /api/budgets with month filter"""
+        session, entity_id = get_authenticated_session()
+        
         # First get all budgets to find an existing month
-        all_budgets = self.session.get(f"{BASE_URL}/api/budgets", params={"entity_id": self.entity_id}).json()
+        all_budgets = session.get(f"{BASE_URL}/api/budgets", params={"entity_id": entity_id}).json()
         
         if all_budgets:
             test_month = all_budgets[0]["month"]
-            response = self.session.get(f"{BASE_URL}/api/budgets", params={
-                "entity_id": self.entity_id,
+            response = session.get(f"{BASE_URL}/api/budgets", params={
+                "entity_id": entity_id,
                 "month": test_month
             })
             assert response.status_code == 200
@@ -78,21 +90,22 @@ class TestBudgetAPI:
     
     def test_create_budget(self):
         """Test POST /api/budgets - Create a new budget"""
+        session, entity_id = get_authenticated_session()
+        
         # Use a test month that likely doesn't exist
         test_month = "2099-12"
         
-        # First check if budget exists for this month
-        existing = self.session.get(f"{BASE_URL}/api/budgets", params={
-            "entity_id": self.entity_id,
+        # First check if budget exists for this month and delete
+        existing = session.get(f"{BASE_URL}/api/budgets", params={
+            "entity_id": entity_id,
             "month": test_month
         }).json()
         
-        # Delete if exists
         for budget in existing:
-            self.session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+            session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
         
         # Get categories for budget
-        categories_response = self.session.get(f"{BASE_URL}/api/categories", params={"entity_id": self.entity_id})
+        categories_response = session.get(f"{BASE_URL}/api/categories", params={"entity_id": entity_id})
         categories = categories_response.json() if categories_response.status_code == 200 else []
         expense_categories = [c for c in categories if c.get("type") in ["expense", "both"]]
         
@@ -104,64 +117,68 @@ class TestBudgetAPI:
             ]
         
         create_payload = {
-            "entity_id": self.entity_id,
+            "entity_id": entity_id,
             "month": test_month,
             "category_budgets": category_budgets,
             "total_planned": 500.0
         }
         
-        response = self.session.post(f"{BASE_URL}/api/budgets", json=create_payload)
+        response = session.post(f"{BASE_URL}/api/budgets", json=create_payload)
         assert response.status_code == 201, f"Expected 201, got {response.status_code}: {response.text}"
         
         data = response.json()
         assert data["month"] == test_month, "Month should match"
-        assert data["entity_id"] == self.entity_id, "Entity ID should match"
+        assert data["entity_id"] == entity_id, "Entity ID should match"
         assert "id" in data, "Should have id"
         print(f"Successfully created budget for {test_month} with id: {data['id']}")
         
         # Cleanup
-        self.session.delete(f"{BASE_URL}/api/budgets/{data['id']}")
+        session.delete(f"{BASE_URL}/api/budgets/{data['id']}")
     
     def test_create_duplicate_budget_fails(self):
         """Test that creating duplicate budget for same month fails"""
+        session, entity_id = get_authenticated_session()
+        
         test_month = "2099-11"
         
         # Clean up first
-        existing = self.session.get(f"{BASE_URL}/api/budgets", params={
-            "entity_id": self.entity_id,
+        existing = session.get(f"{BASE_URL}/api/budgets", params={
+            "entity_id": entity_id,
             "month": test_month
         }).json()
         for budget in existing:
-            self.session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+            session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
         
         # Create first budget
         payload = {
-            "entity_id": self.entity_id,
+            "entity_id": entity_id,
             "month": test_month,
             "category_budgets": [],
             "total_planned": 0
         }
         
-        first_response = self.session.post(f"{BASE_URL}/api/budgets", json=payload)
+        first_response = session.post(f"{BASE_URL}/api/budgets", json=payload)
         assert first_response.status_code == 201
         budget_id = first_response.json()["id"]
         
         # Try to create duplicate
-        duplicate_response = self.session.post(f"{BASE_URL}/api/budgets", json=payload)
+        duplicate_response = session.post(f"{BASE_URL}/api/budgets", json=payload)
         assert duplicate_response.status_code == 409, f"Expected 409 for duplicate, got {duplicate_response.status_code}"
         print("Correctly rejected duplicate budget creation")
         
         # Cleanup
-        self.session.delete(f"{BASE_URL}/api/budgets/{budget_id}")
+        session.delete(f"{BASE_URL}/api/budgets/{budget_id}")
     
     def test_get_single_budget(self):
         """Test GET /api/budgets/{id} - Get specific budget"""
+        session, entity_id = get_authenticated_session()
+        
         # Get existing budgets
-        budgets = self.session.get(f"{BASE_URL}/api/budgets", params={"entity_id": self.entity_id}).json()
+        budgets = session.get(f"{BASE_URL}/api/budgets", params={"entity_id": entity_id}).json()
         
         if budgets:
             budget_id = budgets[0]["id"]
-            response = self.session.get(f"{BASE_URL}/api/budgets/{budget_id}")
+            response = session.get(f"{BASE_URL}/api/budgets/{budget_id}")
             assert response.status_code == 200, f"Expected 200, got {response.status_code}"
             
             data = response.json()
@@ -172,25 +189,29 @@ class TestBudgetAPI:
     
     def test_get_nonexistent_budget(self):
         """Test GET /api/budgets/{id} with invalid ID returns 404"""
-        response = self.session.get(f"{BASE_URL}/api/budgets/nonexistent_id_12345")
+        session, entity_id = get_authenticated_session()
+        
+        response = session.get(f"{BASE_URL}/api/budgets/nonexistent_id_12345")
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
         print("Correctly returned 404 for nonexistent budget")
     
     def test_update_budget(self):
         """Test PUT /api/budgets/{id} - Update budget"""
+        session, entity_id = get_authenticated_session()
+        
         test_month = "2099-10"
         
         # Clean up and create test budget
-        existing = self.session.get(f"{BASE_URL}/api/budgets", params={
-            "entity_id": self.entity_id,
+        existing = session.get(f"{BASE_URL}/api/budgets", params={
+            "entity_id": entity_id,
             "month": test_month
         }).json()
         for budget in existing:
-            self.session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+            session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
         
         # Create budget
-        create_response = self.session.post(f"{BASE_URL}/api/budgets", json={
-            "entity_id": self.entity_id,
+        create_response = session.post(f"{BASE_URL}/api/budgets", json={
+            "entity_id": entity_id,
             "month": test_month,
             "category_budgets": [],
             "total_planned": 100.0
@@ -198,7 +219,7 @@ class TestBudgetAPI:
         budget_id = create_response.json()["id"]
         
         # Get categories
-        categories_response = self.session.get(f"{BASE_URL}/api/categories", params={"entity_id": self.entity_id})
+        categories_response = session.get(f"{BASE_URL}/api/categories", params={"entity_id": entity_id})
         categories = categories_response.json() if categories_response.status_code == 200 else []
         expense_categories = [c for c in categories if c.get("type") in ["expense", "both"]]
         
@@ -210,13 +231,13 @@ class TestBudgetAPI:
             ]
         
         update_payload = {
-            "entity_id": self.entity_id,
+            "entity_id": entity_id,
             "month": test_month,
             "category_budgets": new_category_budgets,
             "total_planned": 300.0
         }
         
-        response = self.session.put(f"{BASE_URL}/api/budgets/{budget_id}", json=update_payload)
+        response = session.put(f"{BASE_URL}/api/budgets/{budget_id}", json=update_payload)
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         
         data = response.json()
@@ -224,28 +245,30 @@ class TestBudgetAPI:
         print(f"Successfully updated budget total_planned to 300.0")
         
         # Verify persistence with GET
-        get_response = self.session.get(f"{BASE_URL}/api/budgets/{budget_id}")
+        get_response = session.get(f"{BASE_URL}/api/budgets/{budget_id}")
         assert get_response.status_code == 200
         assert get_response.json()["total_planned"] == 300.0, "Update should persist"
         print("Update persisted correctly")
         
         # Cleanup
-        self.session.delete(f"{BASE_URL}/api/budgets/{budget_id}")
+        session.delete(f"{BASE_URL}/api/budgets/{budget_id}")
     
     def test_update_category_budgets(self):
         """Test updating category budgets within a budget"""
+        session, entity_id = get_authenticated_session()
+        
         test_month = "2099-09"
         
         # Clean up
-        existing = self.session.get(f"{BASE_URL}/api/budgets", params={
-            "entity_id": self.entity_id,
+        existing = session.get(f"{BASE_URL}/api/budgets", params={
+            "entity_id": entity_id,
             "month": test_month
         }).json()
         for budget in existing:
-            self.session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+            session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
         
         # Get categories
-        categories_response = self.session.get(f"{BASE_URL}/api/categories", params={"entity_id": self.entity_id})
+        categories_response = session.get(f"{BASE_URL}/api/categories", params={"entity_id": entity_id})
         categories = categories_response.json() if categories_response.status_code == 200 else []
         expense_categories = [c for c in categories if c.get("type") in ["expense", "both"]]
         
@@ -254,8 +277,8 @@ class TestBudgetAPI:
             return
         
         # Create budget with one category
-        create_response = self.session.post(f"{BASE_URL}/api/budgets", json={
-            "entity_id": self.entity_id,
+        create_response = session.post(f"{BASE_URL}/api/budgets", json={
+            "entity_id": entity_id,
             "month": test_month,
             "category_budgets": [
                 {"category_id": expense_categories[0]["id"], "planned_amount": 100.0}
@@ -265,8 +288,8 @@ class TestBudgetAPI:
         budget_id = create_response.json()["id"]
         
         # Update to add another category
-        update_response = self.session.put(f"{BASE_URL}/api/budgets/{budget_id}", json={
-            "entity_id": self.entity_id,
+        update_response = session.put(f"{BASE_URL}/api/budgets/{budget_id}", json={
+            "entity_id": entity_id,
             "month": test_month,
             "category_budgets": [
                 {"category_id": expense_categories[0]["id"], "planned_amount": 100.0},
@@ -281,46 +304,48 @@ class TestBudgetAPI:
         print(f"Successfully added second category budget")
         
         # Cleanup
-        self.session.delete(f"{BASE_URL}/api/budgets/{budget_id}")
+        session.delete(f"{BASE_URL}/api/budgets/{budget_id}")
     
     def test_delete_budget(self):
         """Test DELETE /api/budgets/{id}"""
+        session, entity_id = get_authenticated_session()
+        
         test_month = "2099-08"
         
+        # Clean up first
+        existing = session.get(f"{BASE_URL}/api/budgets", params={
+            "entity_id": entity_id,
+            "month": test_month
+        }).json()
+        for budget in existing:
+            session.delete(f"{BASE_URL}/api/budgets/{budget['id']}")
+        
         # Create budget to delete
-        create_response = self.session.post(f"{BASE_URL}/api/budgets", json={
-            "entity_id": self.entity_id,
+        create_response = session.post(f"{BASE_URL}/api/budgets", json={
+            "entity_id": entity_id,
             "month": test_month,
             "category_budgets": [],
             "total_planned": 0
         })
         
-        if create_response.status_code != 201:
-            # Budget might already exist, get it
-            existing = self.session.get(f"{BASE_URL}/api/budgets", params={
-                "entity_id": self.entity_id,
-                "month": test_month
-            }).json()
-            if existing:
-                budget_id = existing[0]["id"]
-            else:
-                pytest.skip("Could not create or find budget to delete")
-        else:
-            budget_id = create_response.json()["id"]
+        assert create_response.status_code == 201, f"Failed to create budget: {create_response.text}"
+        budget_id = create_response.json()["id"]
         
         # Delete budget
-        delete_response = self.session.delete(f"{BASE_URL}/api/budgets/{budget_id}")
+        delete_response = session.delete(f"{BASE_URL}/api/budgets/{budget_id}")
         assert delete_response.status_code == 204, f"Expected 204, got {delete_response.status_code}"
         print(f"Successfully deleted budget: {budget_id}")
         
         # Verify deletion
-        get_response = self.session.get(f"{BASE_URL}/api/budgets/{budget_id}")
+        get_response = session.get(f"{BASE_URL}/api/budgets/{budget_id}")
         assert get_response.status_code == 404, "Deleted budget should return 404"
         print("Deletion verified - budget no longer exists")
     
     def test_delete_nonexistent_budget(self):
         """Test DELETE /api/budgets/{id} with invalid ID returns 404"""
-        response = self.session.delete(f"{BASE_URL}/api/budgets/nonexistent_id_12345")
+        session, entity_id = get_authenticated_session()
+        
+        response = session.delete(f"{BASE_URL}/api/budgets/nonexistent_id_12345")
         assert response.status_code == 404, f"Expected 404, got {response.status_code}"
         print("Correctly returned 404 for deleting nonexistent budget")
 
@@ -328,33 +353,12 @@ class TestBudgetAPI:
 class TestBudgetLinkedData:
     """Test linked data endpoints used by Budget Planner"""
     
-    @pytest.fixture(autouse=True)
-    def setup(self):
-        """Setup test session with authentication"""
-        self.session = requests.Session()
-        self.session.headers.update({"Content-Type": "application/json"})
-        
-        login_response = self.session.post(f"{BASE_URL}/api/auth/login", json={
-            "username": "demo",
-            "password": "user123"
-        })
-        
-        if login_response.status_code == 200:
-            token = login_response.json().get("access_token")
-            self.session.headers.update({"Authorization": f"Bearer {token}"})
-            
-            entities_response = self.session.get(f"{BASE_URL}/api/entities")
-            if entities_response.status_code == 200:
-                entities = entities_response.json()
-                if entities:
-                    self.entity_id = entities[0].get("id")
-        else:
-            pytest.skip("Authentication failed")
-    
     def test_get_goals_for_budget(self):
         """Test GET /api/goals - Used for linked goals in budget"""
-        response = self.session.get(f"{BASE_URL}/api/goals", params={
-            "entity_id": self.entity_id,
+        session, entity_id = get_authenticated_session()
+        
+        response = session.get(f"{BASE_URL}/api/goals", params={
+            "entity_id": entity_id,
             "status": "active"
         })
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
@@ -362,24 +366,30 @@ class TestBudgetLinkedData:
     
     def test_get_debts_for_budget(self):
         """Test GET /api/debts - Used for linked debts in budget"""
-        response = self.session.get(f"{BASE_URL}/api/debts", params={
-            "entity_id": self.entity_id
+        session, entity_id = get_authenticated_session()
+        
+        response = session.get(f"{BASE_URL}/api/debts", params={
+            "entity_id": entity_id
         })
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         print(f"Found {len(response.json())} debts")
     
     def test_get_bills_for_budget(self):
         """Test GET /api/bills - Used for linked bills in budget"""
-        response = self.session.get(f"{BASE_URL}/api/bills", params={
-            "entity_id": self.entity_id
+        session, entity_id = get_authenticated_session()
+        
+        response = session.get(f"{BASE_URL}/api/bills", params={
+            "entity_id": entity_id
         })
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         print(f"Found {len(response.json())} bills")
     
     def test_get_accounts_for_available_funds(self):
         """Test GET /api/accounts - Used for Available Funds calculation"""
-        response = self.session.get(f"{BASE_URL}/api/accounts", params={
-            "entity_id": self.entity_id
+        session, entity_id = get_authenticated_session()
+        
+        response = session.get(f"{BASE_URL}/api/accounts", params={
+            "entity_id": entity_id
         })
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         
@@ -389,8 +399,10 @@ class TestBudgetLinkedData:
     
     def test_get_transactions_for_spending(self):
         """Test GET /api/transactions - Used for spending calculations"""
-        response = self.session.get(f"{BASE_URL}/api/transactions", params={
-            "entity_id": self.entity_id,
+        session, entity_id = get_authenticated_session()
+        
+        response = session.get(f"{BASE_URL}/api/transactions", params={
+            "entity_id": entity_id,
             "limit": 500
         })
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
@@ -400,8 +412,10 @@ class TestBudgetLinkedData:
     
     def test_get_categories_for_budget(self):
         """Test GET /api/categories - Used for category budgets"""
-        response = self.session.get(f"{BASE_URL}/api/categories", params={
-            "entity_id": self.entity_id
+        session, entity_id = get_authenticated_session()
+        
+        response = session.get(f"{BASE_URL}/api/categories", params={
+            "entity_id": entity_id
         })
         assert response.status_code == 200, f"Expected 200, got {response.status_code}"
         
