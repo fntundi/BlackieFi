@@ -1080,6 +1080,80 @@ class ApiClient {
     const token = this.getToken();
     return `${API_URL}/admin/backup/download/${backupName}?token=${token}`;
   }
+
+  // =============================================================================
+  // BACKUP SCHEDULE ENDPOINTS
+  // =============================================================================
+
+  async getBackupSchedule() {
+    return this.request('/admin/backup/schedule');
+  }
+
+  async updateBackupSchedule(settings) {
+    return this.request('/admin/backup/schedule', {
+      method: 'PUT',
+      body: JSON.stringify(settings),
+    });
+  }
+
+  async getBackupHistory(limit = 10) {
+    return this.request(`/admin/backup/schedule/history?limit=${limit}`);
+  }
+
+  // =============================================================================
+  // MARKET DATA ENDPOINTS
+  // =============================================================================
+
+  async getMarketDataProviders() {
+    return this.request('/market/providers');
+  }
+
+  async updateMarketDataProvider(provider, config) {
+    return this.request(`/market/providers/${provider}`, {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+  }
+
+  async testMarketDataProvider(provider) {
+    return this.request(`/market/providers/${provider}/test`, {
+      method: 'POST',
+    });
+  }
+
+  // Stock Market Data (Alpha Vantage)
+  async getStockQuote(symbol) {
+    return this.request(`/market/stocks/quote/${symbol}`);
+  }
+
+  async getStockHistorical(symbol, outputsize = 'compact') {
+    return this.request(`/market/stocks/historical/${symbol}?outputsize=${outputsize}`);
+  }
+
+  async searchStocks(query) {
+    return this.request(`/market/stocks/search?q=${encodeURIComponent(query)}`);
+  }
+
+  // Crypto Market Data (CoinGecko)
+  async getCryptoPrice(coinId) {
+    return this.request(`/market/crypto/price/${coinId}`);
+  }
+
+  async getCryptoHistorical(coinId, days = 30) {
+    return this.request(`/market/crypto/historical/${coinId}?days=${days}`);
+  }
+
+  async getTopCryptos(limit = 10) {
+    return this.request(`/market/crypto/top?limit=${limit}`);
+  }
+
+  async searchCryptos(query) {
+    return this.request(`/market/crypto/search?q=${encodeURIComponent(query)}`);
+  }
+
+  async getTrendingCryptos() {
+    return this.request('/market/crypto/trending');
+  }
 }
 
 export const api = new ApiClient();
