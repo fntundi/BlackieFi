@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from database import get_db
 from routes.auth import get_current_user
 from services.backup_service import get_backup_service
+from services.backup_scheduler_service import get_backup_scheduler_service, BackupFrequency
 from services.audit_service import get_audit_service, AuditAction
 
 router = APIRouter(prefix="/api/admin/backup", tags=["Backup & Recovery"])
