@@ -30,6 +30,8 @@ from routes.imports import router as imports_router
 from routes.ai_functions import router as ai_functions_router
 from routes.notifications import router as notifications_router
 from routes.knowledge import router as knowledge_router
+from routes.strategy_studio import router as strategy_router
+from routes.analysis_lab import router as analysis_router
 from database import init_db, close_db
 
 @asynccontextmanager
