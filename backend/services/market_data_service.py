@@ -623,4 +623,7 @@ def get_market_data_service(db: AsyncIOMotorDatabase) -> MarketDataService:
     global _market_service
     if _market_service is None:
         _market_service = MarketDataService(db)
+    else:
+        # Update db reference in case it changed
+        _market_service.db = db
     return _market_service
