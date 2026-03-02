@@ -761,11 +761,10 @@ class ApiClient {
     if (tags) formData.append('tags', tags);
     if (entityId) formData.append('entity_id', entityId);
 
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${this.baseUrl}/knowledge/upload`, {
+    const response = await fetch(`${API_URL}/knowledge/upload`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.token}`,
       },
       body: formData,
     });
@@ -799,11 +798,10 @@ class ApiClient {
     const formData = new FormData();
     if (query) formData.append('query', query);
 
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${this.baseUrl}/knowledge/analyze/${docId}`, {
+    const response = await fetch(`${API_URL}/knowledge/analyze/${docId}`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${this.token}`,
       },
       body: formData,
     });
