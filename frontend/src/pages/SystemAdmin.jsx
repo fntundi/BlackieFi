@@ -21,35 +21,26 @@ const SystemAdmin = () => {
     severity: '',
   });
 
-  // Check if user is admin
-  if (user?.role !== 'admin') {
-    return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        <Shield style={{ width: 64, height: 64, color: '#D4AF37', margin: '0 auto 1rem' }} />
-        <h2 style={{ color: '#fff', marginBottom: '0.5rem' }}>Access Denied</h2>
-        <p style={{ color: '#666' }}>This page is only accessible to administrators.</p>
-      </div>
-    );
-  }
+  const isAdmin = user?.role === 'admin';
 
-  // Audit queries
+  // Audit queries - always call hooks but disable when not admin
   const { data: auditLogs = [], isLoading: logsLoading, refetch: refetchLogs } = useQuery({
     queryKey: ['audit-logs', filters],
     queryFn: () => api.getAuditLogs({ limit: 50, ...filters }),
-    enabled: activeTab === 'audit',
+    enabled: isAdmin && activeTab === 'audit',
     select: (data) => data.logs || [],
   });
 
   const { data: auditStats } = useQuery({
     queryKey: ['audit-stats'],
     queryFn: () => api.getAuditStatistics(7),
-    enabled: activeTab === 'audit',
+    enabled: isAdmin && activeTab === 'audit',
   });
 
   const { data: securityEvents = [] } = useQuery({
     queryKey: ['security-events'],
     queryFn: () => api.getSecurityEvents(24, 20),
-    enabled: activeTab === 'audit',
+    enabled: isAdmin && activeTab === 'audit',
     select: (data) => data.events || [],
   });
 
@@ -57,14 +48,14 @@ const SystemAdmin = () => {
   const { data: backups = [], isLoading: backupsLoading, refetch: refetchBackups } = useQuery({
     queryKey: ['backups'],
     queryFn: () => api.listBackups(),
-    enabled: activeTab === 'backup',
+    enabled: isAdmin && activeTab === 'backup',
     select: (data) => data.backups || [],
   });
 
   const { data: dbStats } = useQuery({
     queryKey: ['db-stats'],
     queryFn: () => api.getDatabaseStats(),
-    enabled: activeTab === 'backup',
+    enabled: isAdmin && activeTab === 'backup',
   });
 
   // Mutations
@@ -94,6 +85,17 @@ const SystemAdmin = () => {
     },
     onError: () => toast.error('Failed to cleanup backups'),
   });
+
+  // Check if user is admin - now after all hooks
+  if (!isAdmin) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <Shield style={{ width: 64, height: 64, color: '#D4AF37', margin: '0 auto 1rem' }} />
+        <h2 style={{ color: '#fff', marginBottom: '0.5rem' }}>Access Denied</h2>
+        <p style={{ color: '#666' }}>This page is only accessible to administrators.</p>
+      </div>
+    );
+  }
 
   const formatBytes = (bytes) => {
     if (!bytes) return '0 B';
