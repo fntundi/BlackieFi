@@ -168,7 +168,7 @@ async def upload_document(
     
     # Check for duplicate
     existing = await db.knowledge_documents.find_one({
-        "user_id": current_user["id"],
+        "user_id": get_user_id(current_user),
         "file_hash": file_hash
     })
     if existing:
