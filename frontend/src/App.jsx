@@ -29,6 +29,7 @@ import FinancialSettings from './pages/FinancialSettings';
 import Notifications from './pages/Notifications';
 import AICoPilot from './pages/AICoPilot';
 import SystemAdmin from './pages/SystemAdmin';
+import MarketDataSettings from './pages/MarketDataSettings';
 
 import './App.css';
 
