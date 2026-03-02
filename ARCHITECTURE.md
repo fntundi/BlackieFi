@@ -91,18 +91,33 @@ docker-compose -f docker-compose.microservices.yml logs -f gateway
 ```
 /app/
 ├── services/
-│   ├── gateway/           # API Gateway Service
-│   │   ├── main.py
+│   ├── gateway/           # API Gateway Service (8080)
+│   │   ├── main.py        # Request routing, rate limiting, auth
 │   │   ├── Dockerfile
 │   │   └── requirements.txt
 │   │
-│   ├── auth/              # Auth & Identity Service
-│   │   ├── main.py
+│   ├── auth/              # Auth & Identity Service (8001)
+│   │   ├── main.py        # Login, MFA, JWT, RBAC
 │   │   ├── Dockerfile
 │   │   └── requirements.txt
 │   │
-│   ├── core/              # Core Domain Service
-│   │   ├── main.py
+│   ├── core/              # Core Domain Service (8002)
+│   │   ├── main.py        # Budgets, Transactions, AI, Reports
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   ├── entity/            # Entity Service (8003) - NEW!
+│   │   ├── main.py        # LLCs, LPs, Trusts, Corporations
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   ├── portfolio/         # Portfolio Service (8004) - NEW!
+│   │   ├── main.py        # Accounts, Investment Vehicles, Holdings
+│   │   ├── Dockerfile
+│   │   └── requirements.txt
+│   │
+│   ├── assets/            # Asset Management Service (8005) - NEW!
+│   │   ├── main.py        # Real Estate, Tax Liens, PE, Precious Metals
 │   │   ├── Dockerfile
 │   │   └── requirements.txt
 │   │
