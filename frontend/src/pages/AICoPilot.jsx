@@ -205,6 +205,7 @@ export default function AICoPilot() {
 
   const tabs = [
     { id: 'insights', label: 'Quick Insights', icon: Sparkles },
+    { id: 'knowledge', label: 'Knowledge Lab', icon: FolderOpen },
     { id: 'chat', label: 'Chat', icon: Brain },
     { id: 'analysis', label: 'Deep Analysis', icon: BarChart3 },
   ];
