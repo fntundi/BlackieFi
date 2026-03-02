@@ -184,18 +184,34 @@ const MarketDataSettings = () => {
                 </button>
               </div>
 
-              {/* API Key Section */}
+              {/* API Key Section - Always show for providers that require keys */}
               {provider.requires_api_key && (
                 <div style={{ padding: '1rem', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', marginBottom: '1rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
                     <Key style={{ width: 16, height: 16, color: '#888' }} />
-                    <span style={{ color: '#888', fontSize: '0.85rem' }}>API Key</span>
+                    <span style={{ color: '#888', fontSize: '0.85rem' }}>API Key {provider.enabled && !provider.has_api_key && <span style={{ color: '#ef4444' }}>(Required)</span>}</span>
                     {provider.has_api_key && (
                       <span style={{ color: '#22c55e', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                         <Check style={{ width: 12, height: 12 }} /> Configured
                       </span>
                     )}
                   </div>
+                  
+                  {/* Warning when enabled but no API key */}
+                  {provider.enabled && !provider.has_api_key && (
+                    <div style={{ 
+                      padding: '0.75rem', 
+                      background: 'rgba(239, 68, 68, 0.1)', 
+                      borderRadius: '6px', 
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      marginBottom: '0.75rem'
+                    }}>
+                      <p style={{ color: '#ef4444', fontSize: '0.85rem', margin: 0 }}>
+                        ⚠️ API key required. Without it, you may experience rate limiting errors.
+                      </p>
+                    </div>
+                  )}
+                  
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <input
                       type="password"
