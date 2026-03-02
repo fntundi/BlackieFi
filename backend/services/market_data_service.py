@@ -40,9 +40,9 @@ class MarketDataService:
             "name": "CoinGecko",
             "description": "Comprehensive cryptocurrency market data. Covers 10,000+ coins with real-time prices.",
             "base_url": "https://api.coingecko.com/api/v3",
-            "requires_api_key": False,  # Free tier doesn't require key
+            "requires_api_key": True,  # API key required for reliable access (rate limits)
             "env_key": "COINGECKO_API_KEY",
-            "rate_limit": "10-30 requests/minute depending on tier",
+            "rate_limit": "10-30 requests/minute (free), 500 requests/minute (Pro)",
             "signup_url": "https://www.coingecko.com/en/api/pricing",
             "asset_type": "crypto",
         },
