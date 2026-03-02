@@ -1,26 +1,139 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --gold: #D4AF37;
+  --gold-light: rgba(212, 175, 55, 0.1);
+  --gold-border: rgba(212, 175, 55, 0.2);
+  --background: #050505;
+  --surface: #0a0a0a;
+  --surface-hover: #111111;
+  --border: rgba(255, 255, 255, 0.05);
+  --text: #ffffff;
+  --text-muted: #888888;
+  --text-dim: #666666;
+  --success: #22c55e;
+  --error: #ef4444;
+  --warning: #eab308;
+  --info: #3b82f6;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--background);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 175, 55, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 175, 55, 0.5);
+}
+
+/* Gold accent line */
+.gold-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+/* Card styles */
+.card {
+  @apply bg-[#0a0a0a] border border-white/5 rounded-xl p-6;
+}
+
+.card-hover {
+  @apply hover:border-[#D4AF37]/20 transition-colors;
+}
+
+/* Button styles */
+.btn-primary {
+  @apply bg-gradient-to-br from-[#D4AF37] to-[#B8960C] text-black font-semibold px-6 py-3 rounded-lg;
+  @apply hover:shadow-lg hover:shadow-[#D4AF37]/20 transition-all;
+}
+
+.btn-secondary {
+  @apply bg-transparent border border-[#D4AF37] text-[#D4AF37] font-semibold px-6 py-3 rounded-lg;
+  @apply hover:bg-[#D4AF37]/10 transition-colors;
+}
+
+.btn-ghost {
+  @apply bg-transparent text-gray-400 px-4 py-2 rounded-lg;
+  @apply hover:bg-white/5 hover:text-white transition-colors;
+}
+
+/* Input styles */
+.input {
+  @apply bg-[#0a0a0a] border border-white/10 rounded-lg px-4 py-3 text-white;
+  @apply focus:border-[#D4AF37]/50 focus:outline-none transition-colors;
+}
+
+/* Stat card */
+.stat-card {
+  @apply bg-[#0a0a0a] border border-white/5 rounded-xl p-4;
+}
+
+.stat-card-gold {
+  @apply bg-[#0a0a0a] border border-[#D4AF37]/20 rounded-xl p-4 relative overflow-hidden;
+}
+
+/* Sidebar styles */
+.sidebar {
+  @apply fixed left-0 top-0 bottom-0 w-64 bg-[#050505] border-r border-white/5;
+  @apply flex flex-col;
+}
+
+.sidebar-link {
+  @apply flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400;
+  @apply hover:bg-white/5 hover:text-white transition-colors;
+}
+
+.sidebar-link-active {
+  @apply bg-[#D4AF37]/10 text-[#D4AF37] border-l-2 border-[#D4AF37];
+}
+
+/* Animation keyframes */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Status badges */
+.badge-success {
+  @apply bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs font-medium;
+}
+
+.badge-error {
+  @apply bg-red-500/20 text-red-400 px-2 py-1 rounded text-xs font-medium;
+}
+
+.badge-warning {
+  @apply bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded text-xs font-medium;
+}
+
+.badge-info {
+  @apply bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-medium;
 }
