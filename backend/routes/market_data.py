@@ -145,8 +145,11 @@ async def get_stock_quote(
     service = get_market_data_service(db)
     result = await service.get_stock_quote(symbol)
     
-    if "error" in result and not result.get("enabled"):
-        raise HTTPException(status_code=503, detail="Stock market data is not enabled. Please configure Alpha Vantage in settings.")
+    if "error" in result:
+        if result.get("enabled") == False:
+            raise HTTPException(status_code=503, detail="Stock market data is not enabled. Please configure Alpha Vantage in settings.")
+        # Pass through API key or other errors
+        return result
     
     return result
 
@@ -162,8 +165,11 @@ async def get_stock_historical(
     service = get_market_data_service(db)
     result = await service.get_stock_historical(symbol, outputsize)
     
-    if "error" in result and not result.get("enabled"):
-        raise HTTPException(status_code=503, detail="Stock market data is not enabled")
+    if "error" in result:
+        if result.get("enabled") == False:
+            raise HTTPException(status_code=503, detail="Stock market data is not enabled")
+        # Pass through API key or other errors
+        return result
     
     return result
 
@@ -178,8 +184,11 @@ async def search_stocks(
     service = get_market_data_service(db)
     result = await service.search_stocks(q)
     
-    if "error" in result and not result.get("enabled"):
-        raise HTTPException(status_code=503, detail="Stock market data is not enabled")
+    if "error" in result:
+        if result.get("enabled") == False:
+            raise HTTPException(status_code=503, detail="Stock market data is not enabled")
+        # Pass through API key or other errors
+        return result
     
     return result
 
