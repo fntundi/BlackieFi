@@ -106,6 +106,9 @@ app.include_router(notifications_router, prefix="/api/notifications", tags=["Not
 app.include_router(knowledge_router, tags=["Knowledge Lab"])
 app.include_router(strategy_router, tags=["Strategy Studio"])
 app.include_router(analysis_router, tags=["Analysis Lab"])
+app.include_router(audit_router, tags=["Audit Logs"])
+app.include_router(metrics_router, tags=["Observability"])
+app.include_router(backup_router, tags=["Backup & Recovery"])
 
 if __name__ == "__main__":
     import uvicorn
