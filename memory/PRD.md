@@ -451,6 +451,12 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
   - [x] Mobile-optimized viewport and touch handling
   - [x] Offline fallback page
   - [x] App install prompt handling
+- [x] **Integration Scaffolding Enhancement** (March 2026)
+  - [x] Boolean toggle system for all market data providers
+  - [x] API key requirement enforcement when provider is enabled
+  - [x] Clear error messages for missing API keys
+  - [x] CoinGecko now requires API key (prevents rate limiting issues)
+  - [x] UI warning when provider enabled but no API key configured
 
 ## Remaining Tasks
 
@@ -461,16 +467,18 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 
 ### P1 - High Priority
 - [ ] Configure Resend API key for actual email delivery
-- [ ] Set up Grafana dashboards for Prometheus metrics visualization
+- [ ] Set up Grafana dashboards for Prometheus metrics visualization (requires Docker)
 - [ ] Generate PWA icons (currently placeholder)
 
 ### P2 - Medium Priority
-- [ ] Frontend migration to Next.js
+- [ ] Frontend migration to Next.js (PAUSED per user request)
 - [ ] Implement scheduled job for weekly/monthly summary emails
-- [ ] Add CoinGecko Pro API key for higher rate limits
+- [ ] Financial Modeling Prep integration for additional stock data
+- [ ] Zillow/ATTOM integration for real estate data
 
 ### P3 - Future Enhancements
 - [ ] Multi-currency support
-- [ ] Zillow/ATTOM integration for real estate data
+- [ ] ChromaDB integration for RAG vector storage
 - [ ] Push notifications via service worker
 - [ ] Decommission legacy monolith
+- [ ] Database migration to PostgreSQL
