@@ -32,12 +32,22 @@ from routes.notifications import router as notifications_router
 from routes.knowledge import router as knowledge_router
 from routes.strategy_studio import router as strategy_router
 from routes.analysis_lab import router as analysis_router
+from routes.audit import router as audit_router
+from routes.metrics import router as metrics_router
+from routes.backup import router as backup_router
 from database import init_db, close_db
+from services.metrics_service import get_metrics_service
+from services.audit_service import get_audit_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
+    
+    # Initialize metrics service
+    metrics = get_metrics_service()
+    metrics.initialize("blackiefi-api", "3.0.0")
+    
     yield
     # Shutdown
     await close_db()
