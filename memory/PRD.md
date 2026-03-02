@@ -16,35 +16,51 @@ Migrate an existing application from the `base44` platform to a new technology s
 
 ---
 
-## Architecture (Phase 1 Implemented)
+## Architecture (Phase 2 Complete)
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                    API GATEWAY (8080)                         │
-│  Rate Limiting • Auth Enforcement • Request Routing           │
-└──────────────────────────────────────────────────────────────┘
-                           │
-           ┌───────────────┼───────────────┐
-           ▼               ▼               ▼
-    ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
-    │ AUTH (8001) │  │ CORE (8002) │  │  FRONTEND   │
-    │   MFA/JWT   │  │  Business   │  │   React     │
-    └─────────────┘  └─────────────┘  └─────────────┘
-           │               │
-           ▼               ▼
-    ┌─────────────────────────────────────────────────────────┐
-    │  MongoDB (27017)  │  Redis (6379)  │  ChromaDB (8000)   │
-    └─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              INTERNET                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          API GATEWAY (8080)                              │
+│  • TLS Termination    • Rate Limiting    • Auth Enforcement              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+        ┌───────────────┬───────────┼───────────┬───────────────┐
+        ▼               ▼           ▼           ▼               ▼
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│    AUTH     │ │   ENTITY    │ │  PORTFOLIO  │ │    ASSET    │ │    CORE     │
+│   (8001)    │ │   (8003)    │ │   (8004)    │ │   (8005)    │ │   (8002)    │
+│             │ │             │ │             │ │             │ │             │
+│ • Login/MFA │ │ • LLCs/LPs  │ │ • Accounts  │ │ • Real Est. │ │ • Budgets   │
+│ • JWT/RBAC  │ │ • Trusts    │ │ • Vehicles  │ │ • Tax Liens │ │ • Trans.    │
+│ • Sessions  │ │ • Corps     │ │ • Holdings  │ │ • PE/Metals │ │ • AI/Reports│
+└─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         DATA LAYER                                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                      │
+│  │   MongoDB   │  │    Redis    │  │  ChromaDB   │                      │
+│  │   (27017)   │  │   (6379)    │  │   (8000)    │                      │
+│  └─────────────┘  └─────────────┘  └─────────────┘                      │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Services Created (Phase 1)
+### Services Created (Phase 1 & 2)
 - **API Gateway** (`/app/services/gateway/`) - Centralized routing, auth, rate limiting
 - **Auth Service** (`/app/services/auth/`) - MFA (TOTP), JWT tokens, RBAC foundation
-- **Core Service** (`/app/services/core/`) - Domain logic (entities, portfolios, assets)
+- **Core Service** (`/app/services/core/`) - Budgets, Transactions, Reports, AI
+- **Entity Service** (`/app/services/entity/`) - LLCs, LPs, Trusts, Corporations (NEW!)
+- **Portfolio Service** (`/app/services/portfolio/`) - Accounts, Vehicles, Holdings (NEW!)
+- **Asset Management Service** (`/app/services/assets/`) - Real Estate, Tax Liens, PE, Metals (NEW!)
 - **Shared Config** (`/app/services/shared/`) - Secrets management pattern
 
 ### Infrastructure
-- **docker-compose.microservices.yml** - Full containerized deployment
+- **docker-compose.microservices.yml** - Full containerized deployment (updated with 3 new services)
 - **MongoDB** - Primary database (keeping existing for Phase 1)
 - **Redis** - Caching, sessions, rate limiting
 - **ChromaDB** - Vector store for AI/RAG
@@ -52,6 +68,36 @@ Migrate an existing application from the `base44` platform to a new technology s
 ---
 
 ## What's Been Implemented
+
+### December 2025 - Phase 2: Entity-Centric Refactor ✅
+
+#### Entity Service (`/app/services/entity/`) - 673 lines
+- **Full CRUD** for entities (LLCs, LPs, Trusts, Corporations, Personal)
+- **Entity types** with jurisdiction tracking
+- **Soft delete** with archive/restore functionality
+- **Default entity** per user management
+- **Entity summary** with aggregate statistics
+- **Audit logging** for all entity operations
+
+#### Portfolio Service (`/app/services/portfolio/`) - 898 lines
+- **Accounts** (checking, savings, credit cards, money market, brokerage)
+- **Investment Vehicles** (401k, IRA, Roth IRA, 403b, SEP IRA, brokerage, crypto, HSA, 529)
+- **Investment Holdings** with cost basis, quantity, and gain/loss tracking
+- **Portfolio summary** with net worth calculation
+- **Entity-scoped access** verification
+
+#### Asset Management Service (`/app/services/assets/`) - 1269 lines
+- **General Assets** with depreciation calculations (straight-line, declining balance)
+- **Real Estate** properties with rental income, cap rate, equity tracking
+- **Property Tax Liens** with interest accrual and ROI calculation
+- **Private Equity** investments with MOIC (Multiple on Invested Capital)
+- **Precious Metals** (gold, silver, platinum, palladium) with price tracking
+- **Assets summary** endpoint aggregating all asset types
+
+#### Gateway Updates
+- **Service routing** updated for all new services
+- **Route mapping** for entity, portfolio, and asset endpoints
+- **Docker Compose** dependencies updated
 
 ### March 2, 2026 - Phase 1: Microservices Foundation ✅
 
