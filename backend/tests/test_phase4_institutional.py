@@ -133,8 +133,12 @@ class TestAuditLogsAPI:
         
         data = response.json()
         assert "actions" in data
-        assert isinstance(data["actions"], list)
+        # Actions are grouped by category (dict) not a flat list
+        assert isinstance(data["actions"], dict)
         assert len(data["actions"]) > 0
+        # Verify structure - each category has a list of actions
+        for category, actions in data["actions"].items():
+            assert isinstance(actions, list)
 
 
 class TestBackupAPI:
