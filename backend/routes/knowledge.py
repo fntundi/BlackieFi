@@ -251,7 +251,7 @@ async def list_documents(
     db = Depends(get_db),
 ):
     """List all documents in the Knowledge Lab"""
-    query = {"user_id": current_user["id"]}
+    query = {"user_id": get_user_id(current_user)}
     
     if entity_id:
         query["entity_id"] = entity_id
