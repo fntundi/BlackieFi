@@ -53,6 +53,49 @@ Migrate an existing application from the `base44` platform to a new technology s
 
 ## What's Been Implemented
 
+### March 2, 2026 - Phase 1: Microservices Foundation ✅
+
+#### API Gateway Service (`/app/services/gateway/`)
+- **Centralized routing** to all backend services
+- **Rate limiting** with Redis (configurable requests/window)
+- **JWT authentication enforcement** at the edge
+- **Request correlation** with X-Request-ID headers
+- **Health checks** and graceful error handling
+- **CORS configuration** for frontend access
+
+#### Auth Service (`/app/services/auth/`)
+- **User registration** with password hashing (bcrypt)
+- **Login with MFA** - TOTP support with QR code setup
+- **JWT tokens** - Access (24h) + Refresh (30 days) token pattern
+- **Token refresh** - Seamless session extension
+- **Token blacklisting** - Immediate logout capability via Redis
+- **Password reset** - Secure token-based flow
+- **Backup codes** - 10 one-time codes for MFA recovery
+- **User profile** - Get/update current user
+
+#### Core Service (`/app/services/core/`)
+- **Route migration** - All existing routes imported
+- **Entity-scoped queries** - Ready for entity context
+- **Database indexes** - Optimized for performance
+- **Seed data** - Default categories on startup
+
+#### Infrastructure
+- **docker-compose.microservices.yml** - Full stack definition
+- **MongoDB 7.0** - Primary database with auth
+- **Redis 7** - Sessions, caching, rate limiting, queues
+- **ChromaDB** - Vector store for AI embeddings
+- **Network isolation** - Public/Internal network separation
+- **Health checks** - All services with health endpoints
+
+#### Security Features Implemented
+- [x] JWT-based authentication
+- [x] MFA with TOTP (Google Authenticator compatible)
+- [x] Rate limiting per IP
+- [x] Secrets management pattern
+- [x] Token blacklisting for logout
+- [x] Password hashing with bcrypt
+- [x] Request correlation IDs
+
 ### February 28, 2026 - Enhanced Budget Planner ✅
 
 Complete rewrite of the Budgets page with EveryDollar-inspired features for zero-based budgeting:
