@@ -431,8 +431,10 @@ async def get_knowledge_stats(
     db = Depends(get_db),
 ):
     """Get statistics about the Knowledge Lab"""
+    user_id = current_user.get("id") or current_user.get("_id")
+    
     pipeline = [
-        {"$match": {"user_id": current_user["id"]}},
+        {"$match": {"user_id": user_id}},
         {"$group": {
             "_id": "$file_type",
             "count": {"$sum": 1},
