@@ -369,20 +369,35 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 - [x] **Goal milestone notification support**
 - [x] **Code cleanup - removed obsolete base44 code**
 - [x] **Notification bell with unread count in sidebar**
+- [x] **Phase 1: Microservices Foundation** (Gateway, Auth, Core services)
+- [x] **Phase 2: Entity-Centric Refactor** (Entity, Portfolio, Asset Management services)
 
 ## Remaining Tasks
 
+### P0 - Critical (For Next Session)
+- [ ] Deploy and test microservices via docker-compose.microservices.yml
+- [ ] Update frontend API client to route through new gateway
+- [ ] Integration testing of new microservices
+
 ### P1 - High Priority
+- [ ] Phase 3: AI Co-Pilot Implementation
+  - [ ] Knowledge Lab (document upload, RAG)
+  - [ ] Strategy Studio (investment frameworks)
+  - [ ] Analysis Lab (AI-powered asset analysis)
 - [ ] Wire up AI Insights to fetch real data when AI is enabled
 - [ ] Configure Resend API key for actual email delivery
-- [ ] Password recovery email flow
 
 ### P2 - Medium Priority
+- [ ] Phase 4: Institutional Hardening
+  - [ ] Observability stack (Prometheus, Grafana)
+  - [ ] Audit logging
+  - [ ] DR & backup procedures
+- [ ] Frontend migration to Next.js
+- [ ] Apply "tile" UI style to remaining pages
 - [ ] Implement scheduled job for weekly/monthly summary emails
-- [ ] Push notification infrastructure (web push or mobile)
-- [ ] More comprehensive budget threshold levels
 
 ### P3 - Future Enhancements
 - [ ] Multi-currency support
-- [ ] Investment portfolio tracking integration
+- [ ] Market data integrations (Alpha Vantage, CoinGecko, Zillow)
 - [ ] Mobile app version
+- [ ] Decommission legacy monolith
