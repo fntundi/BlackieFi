@@ -29,7 +29,8 @@ import {
   Sliders,
   Bell,
   Brain,
-  Shield
+  Shield,
+  TrendingUp
 } from 'lucide-react';
 
 const navItems = [
