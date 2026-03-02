@@ -181,14 +181,73 @@ docker-compose -f docker-compose.microservices.yml logs -f gateway
 
 ### Core Service
 All existing BlackieFi endpoints are available through the Core Service:
-- `/api/entities/*` - Entity management
-- `/api/accounts/*` - Account management
 - `/api/transactions/*` - Transaction management
 - `/api/budgets/*` - Budget management
-- `/api/assets/*` - Asset management
 - `/api/goals/*` - Financial goals
 - `/api/ai/*` - AI Co-Pilot functions
+- `/api/reports/*` - Report generation
+- `/api/notifications/*` - Notification management
 - And more...
+
+### Entity Service (NEW in Phase 2)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/entities` | List all entities |
+| `POST /api/entities` | Create new entity |
+| `GET /api/entities/{id}` | Get entity details |
+| `PUT /api/entities/{id}` | Update entity |
+| `POST /api/entities/{id}/archive` | Archive entity |
+| `POST /api/entities/{id}/restore` | Restore archived entity |
+| `DELETE /api/entities/{id}` | Delete entity permanently |
+| `GET /api/entities/default/current` | Get default entity |
+| `POST /api/entities/default/set` | Set default entity |
+| `GET /api/entities/summary` | Get entities summary |
+
+### Portfolio Service (NEW in Phase 2)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/accounts` | List all accounts |
+| `POST /api/accounts` | Create account |
+| `GET /api/accounts/{id}` | Get account details |
+| `PUT /api/accounts/{id}` | Update account |
+| `DELETE /api/accounts/{id}` | Delete account |
+| `GET /api/vehicles` | List investment vehicles |
+| `POST /api/vehicles` | Create vehicle |
+| `GET /api/vehicles/{id}` | Get vehicle details |
+| `PUT /api/vehicles/{id}` | Update vehicle |
+| `DELETE /api/vehicles/{id}` | Delete vehicle |
+| `GET /api/holdings` | List holdings |
+| `POST /api/holdings` | Create holding |
+| `GET /api/holdings/{id}` | Get holding details |
+| `PUT /api/holdings/{id}` | Update holding |
+| `DELETE /api/holdings/{id}` | Delete holding |
+| `GET /api/portfolio/summary` | Get portfolio summary |
+
+### Asset Management Service (NEW in Phase 2)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/assets` | List general assets |
+| `POST /api/assets` | Create asset |
+| `GET /api/assets/{id}` | Get asset details |
+| `PUT /api/assets/{id}` | Update asset |
+| `DELETE /api/assets/{id}` | Delete asset |
+| `GET /api/assets/summary` | Get all assets summary |
+| `GET /api/real-estate` | List real estate properties |
+| `POST /api/real-estate` | Create property |
+| `GET /api/real-estate/{id}` | Get property details |
+| `DELETE /api/real-estate/{id}` | Delete property |
+| `GET /api/tax-liens` | List tax liens |
+| `POST /api/tax-liens` | Create tax lien |
+| `GET /api/tax-liens/{id}` | Get lien details |
+| `DELETE /api/tax-liens/{id}` | Delete lien |
+| `GET /api/private-equity` | List PE investments |
+| `POST /api/private-equity` | Create PE investment |
+| `GET /api/private-equity/{id}` | Get PE details |
+| `DELETE /api/private-equity/{id}` | Delete PE investment |
+| `GET /api/precious-metals` | List precious metals |
+| `POST /api/precious-metals` | Create metal holding |
+| `GET /api/precious-metals/{id}` | Get metal details |
+| `DELETE /api/precious-metals/{id}` | Delete metal holding |
 
 ## 📊 Market Data Providers
 
