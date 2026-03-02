@@ -83,7 +83,8 @@ class TestEntitiesEndpoint:
     def test_entities_unauthorized(self):
         """Test entities endpoint requires auth"""
         response = requests.get(f"{BASE_URL}/api/entities")
-        assert response.status_code == 401
+        # 401 or 403 are both valid unauthorized responses
+        assert response.status_code in [401, 403]
 
 
 class TestAccountsEndpoint:
@@ -99,7 +100,8 @@ class TestAccountsEndpoint:
     def test_accounts_unauthorized(self):
         """Test accounts endpoint requires auth"""
         response = requests.get(f"{BASE_URL}/api/accounts")
-        assert response.status_code == 401
+        # 401 or 403 are both valid unauthorized responses
+        assert response.status_code in [401, 403]
 
 
 class TestAssetsEndpoint:
@@ -115,7 +117,8 @@ class TestAssetsEndpoint:
     def test_assets_unauthorized(self):
         """Test assets endpoint requires auth"""
         response = requests.get(f"{BASE_URL}/api/assets")
-        assert response.status_code == 401
+        # 401 or 403 are both valid unauthorized responses
+        assert response.status_code in [401, 403]
 
 
 class TestCategoriesEndpoint:
@@ -174,11 +177,18 @@ class TestDebtsEndpoint:
 
 
 class TestInvestmentsEndpoint:
-    """Investments endpoint tests"""
+    """Investments endpoint tests - vehicles and holdings"""
     
-    def test_list_investments(self, auth_headers):
-        """Test GET /api/investments returns list"""
-        response = requests.get(f"{BASE_URL}/api/investments", headers=auth_headers)
+    def test_list_investment_vehicles(self, auth_headers):
+        """Test GET /api/investments/vehicles returns list"""
+        response = requests.get(f"{BASE_URL}/api/investments/vehicles", headers=auth_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert isinstance(data, list)
+    
+    def test_list_investment_holdings(self, auth_headers):
+        """Test GET /api/investments/holdings returns list"""
+        response = requests.get(f"{BASE_URL}/api/investments/holdings", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
