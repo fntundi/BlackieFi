@@ -433,6 +433,92 @@ const SystemAdmin = () => {
         </div>
       </div>
 
+      {/* Backup Schedule */}
+      <div style={tileStyles.content}>
+        <GoldAccentLine />
+        <div style={{ ...headerStyles.section, marginBottom: '1rem' }}>
+          <Clock style={{ width: 20, height: 20, color: '#D4AF37' }} />
+          <span>Automated Backup Schedule</span>
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+          <div>
+            <label style={{ color: '#888', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>Frequency</label>
+            <select
+              value={backupSchedule?.frequency || 'disabled'}
+              onChange={(e) => updateScheduleMutation.mutate({
+                ...backupSchedule,
+                enabled: e.target.value !== 'disabled',
+                frequency: e.target.value,
+              })}
+              style={inputStyles.select}
+            >
+              <option value="disabled">Disabled</option>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </div>
+          
+          <div>
+            <label style={{ color: '#888', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>Backup Type</label>
+            <select
+              value={backupSchedule?.backup_type || 'full'}
+              onChange={(e) => updateScheduleMutation.mutate({
+                ...backupSchedule,
+                backup_type: e.target.value,
+              })}
+              style={inputStyles.select}
+              disabled={!backupSchedule?.enabled}
+            >
+              <option value="full">Full Backup</option>
+              <option value="critical">Critical Data Only</option>
+            </select>
+          </div>
+          
+          <div>
+            <label style={{ color: '#888', fontSize: '0.8rem', display: 'block', marginBottom: '0.5rem' }}>Retention (days)</label>
+            <select
+              value={backupSchedule?.retention_days || 30}
+              onChange={(e) => updateScheduleMutation.mutate({
+                ...backupSchedule,
+                retention_days: parseInt(e.target.value),
+              })}
+              style={inputStyles.select}
+              disabled={!backupSchedule?.enabled}
+            >
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">30 days</option>
+              <option value="60">60 days</option>
+              <option value="90">90 days</option>
+            </select>
+          </div>
+        </div>
+        
+        {backupSchedule?.enabled && (
+          <div style={{ padding: '0.75rem', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.2)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#22c55e' }}>
+              <CheckCircle style={{ width: 16, height: 16 }} />
+              <span style={{ fontWeight: '500' }}>Scheduled backups are enabled</span>
+            </div>
+            {backupSchedule?.next_backup && (
+              <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+                Next backup: {formatDate(backupSchedule.next_backup)}
+              </p>
+            )}
+            {backupSchedule?.last_backup && (
+              <p style={{ color: '#888', fontSize: '0.85rem' }}>
+                Last backup: {formatDate(backupSchedule.last_backup)} 
+                {backupSchedule.last_backup_success === false && (
+                  <span style={{ color: '#ef4444', marginLeft: '0.5rem' }}>(Failed)</span>
+                )}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Backups List */}
       <div style={tileStyles.content}>
         <div style={{ ...headerStyles.section, marginBottom: '1rem' }}>
