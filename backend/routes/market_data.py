@@ -208,7 +208,7 @@ async def get_crypto_price(
     result = await service.get_crypto_price(coin_id)
     
     if "error" in result:
-        if result.get("enabled") == False:
+        if not result.get("enabled") and result.get("enabled") is not None:
             raise HTTPException(status_code=503, detail="Crypto market data is not enabled. Please configure CoinGecko in settings.")
         if result.get("requires_api_key"):
             raise HTTPException(status_code=503, detail=result["error"])
@@ -228,7 +228,7 @@ async def get_crypto_historical(
     result = await service.get_crypto_historical(coin_id, days)
     
     if "error" in result:
-        if result.get("enabled") == False:
+        if not result.get("enabled") and result.get("enabled") is not None:
             raise HTTPException(status_code=503, detail="Crypto market data is not enabled")
         if result.get("requires_api_key"):
             raise HTTPException(status_code=503, detail=result["error"])
@@ -247,7 +247,7 @@ async def get_top_cryptos(
     result = await service.get_top_cryptos(limit)
     
     if "error" in result:
-        if result.get("enabled") == False:
+        if not result.get("enabled") and result.get("enabled") is not None:
             raise HTTPException(status_code=503, detail="Crypto market data is not enabled")
         if result.get("requires_api_key"):
             raise HTTPException(status_code=503, detail=result["error"])
@@ -266,7 +266,7 @@ async def search_cryptos(
     result = await service.search_cryptos(q)
     
     if "error" in result:
-        if result.get("enabled") == False:
+        if not result.get("enabled") and result.get("enabled") is not None:
             raise HTTPException(status_code=503, detail="Crypto market data is not enabled")
         if result.get("requires_api_key"):
             raise HTTPException(status_code=503, detail=result["error"])
@@ -284,11 +284,9 @@ async def get_trending_cryptos(
     result = await service.get_trending_cryptos()
     
     if "error" in result:
-        if result.get("enabled") == False:
+        if not result.get("enabled") and result.get("enabled") is not None:
             raise HTTPException(status_code=503, detail="Crypto market data is not enabled")
         if result.get("requires_api_key"):
             raise HTTPException(status_code=503, detail=result["error"])
-    
-    return result
     
     return result
