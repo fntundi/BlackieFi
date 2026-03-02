@@ -88,15 +88,38 @@ async def register(input: UserRegisterInput):
     }
 
 @router.post("/login")
-async def login(input: UserLoginInput):
+async def login(input: UserLoginInput, request: Request):
     """Login user"""
     db = get_db()
+    audit = get_audit_service(db)
+    
+    # Get client info for audit
+    ip_address = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+    user_agent = request.headers.get("User-Agent", "unknown")
     
     user = await db.users.find_one({"username": input.username})
     if not user:
+        # Log failed login attempt
+        await audit.log(
+            action=AuditAction.LOGIN_FAILED,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details={"username": input.username, "reason": "user_not_found"},
+            success=False,
+        )
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not verify_password(input.password, user["password_hash"]):
+        # Log failed login attempt
+        await audit.log(
+            action=AuditAction.LOGIN_FAILED,
+            user_id=user["_id"],
+            user_email=user.get("email"),
+            ip_address=ip_address,
+            user_agent=user_agent,
+            details={"username": input.username, "reason": "invalid_password"},
+            success=False,
+        )
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     token = create_access_token({
@@ -104,6 +127,17 @@ async def login(input: UserLoginInput):
         "username": user["username"],
         "role": user["role"]
     })
+    
+    # Log successful login
+    await audit.log(
+        action=AuditAction.LOGIN,
+        user_id=user["_id"],
+        user_email=user.get("email"),
+        ip_address=ip_address,
+        user_agent=user_agent,
+        details={"username": input.username},
+        success=True,
+    )
     
     return {
         "user": {
