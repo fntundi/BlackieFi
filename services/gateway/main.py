@@ -36,10 +36,40 @@ LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "*").split(",")
 
 # Service routing configuration
+ENTITY_SERVICE_URL = os.environ.get("ENTITY_SERVICE_URL", "http://entity-service:8003")
+PORTFOLIO_SERVICE_URL = os.environ.get("PORTFOLIO_SERVICE_URL", "http://portfolio-service:8004")
+ASSET_SERVICE_URL = os.environ.get("ASSET_SERVICE_URL", "http://asset-service:8005")
+
 SERVICE_ROUTES = {
     # Auth service routes
     "/api/v1/auth": AUTH_SERVICE_URL,
     "/api/auth": AUTH_SERVICE_URL,  # Legacy support
+    
+    # Entity service routes
+    "/api/v1/entities": ENTITY_SERVICE_URL,
+    "/api/entities": ENTITY_SERVICE_URL,
+    
+    # Portfolio service routes
+    "/api/v1/accounts": PORTFOLIO_SERVICE_URL,
+    "/api/accounts": PORTFOLIO_SERVICE_URL,
+    "/api/v1/vehicles": PORTFOLIO_SERVICE_URL,
+    "/api/vehicles": PORTFOLIO_SERVICE_URL,
+    "/api/v1/holdings": PORTFOLIO_SERVICE_URL,
+    "/api/holdings": PORTFOLIO_SERVICE_URL,
+    "/api/v1/portfolio": PORTFOLIO_SERVICE_URL,
+    "/api/portfolio": PORTFOLIO_SERVICE_URL,
+    
+    # Asset service routes
+    "/api/v1/assets": ASSET_SERVICE_URL,
+    "/api/assets": ASSET_SERVICE_URL,
+    "/api/v1/real-estate": ASSET_SERVICE_URL,
+    "/api/real-estate": ASSET_SERVICE_URL,
+    "/api/v1/tax-liens": ASSET_SERVICE_URL,
+    "/api/tax-liens": ASSET_SERVICE_URL,
+    "/api/v1/private-equity": ASSET_SERVICE_URL,
+    "/api/private-equity": ASSET_SERVICE_URL,
+    "/api/v1/precious-metals": ASSET_SERVICE_URL,
+    "/api/precious-metals": ASSET_SERVICE_URL,
     
     # Core service routes (everything else)
     "/api/v1": CORE_SERVICE_URL,
