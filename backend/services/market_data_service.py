@@ -375,8 +375,10 @@ class MarketDataService:
             )
             data = response.json()
             
-            if "error" in data:
-                return {"error": data["error"]}
+            # Handle error response from CoinGecko
+            if isinstance(data, dict) and ("error" in data or "status" in data):
+                error_msg = data.get("error") or data.get("status", {}).get("error_message", "Unknown error")
+                return {"error": error_msg}
             
             # Format prices as list of {date, price}
             prices = []
