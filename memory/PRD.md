@@ -373,6 +373,8 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 - [x] **Phase 2: Entity-Centric Refactor** (Entity, Portfolio, Asset Management services)
 - [x] **UI "Tile" Styling Update** (Accounts, Goals, Debts, Investments, Assets pages)
 - [x] **AI Co-Pilot Page** (Quick Insights, Chat, Deep Analysis tabs)
+- [x] **Knowledge Lab** (Document, image, video upload with AI analysis)
+- [x] **Deployment Scripts** (deploy.sh + DEPLOYMENT.md for Docker microservices)
 
 ## Remaining Tasks
 
