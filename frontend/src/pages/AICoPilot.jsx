@@ -38,6 +38,10 @@ export default function AICoPilot() {
   const [chatMessage, setChatMessage] = useState('');
   const [chatHistory, setChatHistory] = useState([]);
   const [isAnalyzing, setIsAnalyzing] = useState({});
+  const fileInputRef = useRef(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState(null);
+  const [analyzeQuery, setAnalyzeQuery] = useState('');
 
   // Check AI status
   const { data: aiStatus } = useQuery({
@@ -47,6 +51,91 @@ export default function AICoPilot() {
 
   // AI is enabled if either system or user has it enabled
   const aiEnabled = aiStatus?.system_ai_enabled || aiStatus?.user_ai_enabled;
+
+  // Knowledge Lab data
+  const { data: knowledgeDocs = [], isLoading: docsLoading } = useQuery({
+    queryKey: ['knowledge-documents'],
+    queryFn: () => api.getKnowledgeDocuments(),
+    enabled: aiEnabled,
+  });
+
+  const { data: knowledgeStats } = useQuery({
+    queryKey: ['knowledge-stats'],
+    queryFn: () => api.getKnowledgeStats(),
+    enabled: aiEnabled,
+  });
+
+  // Upload mutation
+  const uploadMutation = useMutation({
+    mutationFn: ({ file, description, tags }) => 
+      api.uploadKnowledgeDocument(file, description, tags, selectedEntityId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['knowledge-documents']);
+      queryClient.invalidateQueries(['knowledge-stats']);
+      toast.success('Document uploaded successfully');
+      setUploadingFile(false);
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Upload failed');
+      setUploadingFile(false);
+    },
+  });
+
+  // Delete mutation
+  const deleteMutation = useMutation({
+    mutationFn: (docId) => api.deleteKnowledgeDocument(docId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['knowledge-documents']);
+      queryClient.invalidateQueries(['knowledge-stats']);
+      toast.success('Document deleted');
+      setSelectedDoc(null);
+    },
+    onError: (error) => toast.error(error.message || 'Delete failed'),
+  });
+
+  // Analyze mutation
+  const analyzeMutation = useMutation({
+    mutationFn: ({ docId, query }) => api.analyzeKnowledgeDocument(docId, query),
+    onSuccess: (data) => {
+      // Add analysis result to chat
+      setChatHistory(prev => [
+        ...prev,
+        { role: 'user', content: `Analyze: ${selectedDoc?.original_filename}${analyzeQuery ? ` - ${analyzeQuery}` : ''}` },
+        { role: 'assistant', content: data.analysis }
+      ]);
+      setActiveTab('chat');
+      toast.success('Analysis complete');
+    },
+    onError: (error) => toast.error(error.message || 'Analysis failed'),
+  });
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploadingFile(true);
+    uploadMutation.mutate({ file, description: null, tags: null });
+    e.target.value = '';
+  };
+
+  const handleAnalyze = () => {
+    if (!selectedDoc) return;
+    analyzeMutation.mutate({ docId: selectedDoc.id, query: analyzeQuery });
+  };
+
+  const getFileIcon = (fileType) => {
+    switch (fileType) {
+      case 'image': return Image;
+      case 'video': return Video;
+      default: return File;
+    }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   // AI Analysis Results State
   const [analysisResults, setAnalysisResults] = useState({
