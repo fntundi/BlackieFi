@@ -145,7 +145,7 @@ async def get_stock_quote(
     service = get_market_data_service(db)
     result = await service.get_stock_quote(symbol)
     
-    if "error" in result and result.get("enabled") == False:
+    if "error" in result and not result.get("enabled"):
         raise HTTPException(status_code=503, detail="Stock market data is not enabled. Please configure Alpha Vantage in settings.")
     
     return result
@@ -162,7 +162,7 @@ async def get_stock_historical(
     service = get_market_data_service(db)
     result = await service.get_stock_historical(symbol, outputsize)
     
-    if "error" in result and result.get("enabled") == False:
+    if "error" in result and not result.get("enabled"):
         raise HTTPException(status_code=503, detail="Stock market data is not enabled")
     
     return result
@@ -178,7 +178,7 @@ async def search_stocks(
     service = get_market_data_service(db)
     result = await service.search_stocks(q)
     
-    if "error" in result and result.get("enabled") == False:
+    if "error" in result and not result.get("enabled"):
         raise HTTPException(status_code=503, detail="Stock market data is not enabled")
     
     return result
@@ -198,7 +198,7 @@ async def get_crypto_price(
     service = get_market_data_service(db)
     result = await service.get_crypto_price(coin_id)
     
-    if "error" in result and result.get("enabled") == False:
+    if "error" in result and not result.get("enabled"):
         raise HTTPException(status_code=503, detail="Crypto market data is not enabled. Please configure CoinGecko in settings.")
     
     return result
@@ -215,7 +215,7 @@ async def get_crypto_historical(
     service = get_market_data_service(db)
     result = await service.get_crypto_historical(coin_id, days)
     
-    if "error" in result and result.get("enabled") == False:
+    if "error" in result and not result.get("enabled"):
         raise HTTPException(status_code=503, detail="Crypto market data is not enabled")
     
     return result
@@ -231,7 +231,7 @@ async def get_top_cryptos(
     service = get_market_data_service(db)
     result = await service.get_top_cryptos(limit)
     
-    if "error" in result and result.get("enabled") == False:
+    if "error" in result and not result.get("enabled"):
         raise HTTPException(status_code=503, detail="Crypto market data is not enabled")
     
     return result
@@ -247,7 +247,7 @@ async def search_cryptos(
     service = get_market_data_service(db)
     result = await service.search_cryptos(q)
     
-    if "error" in result and result.get("enabled") == False:
+    if "error" in result and not result.get("enabled"):
         raise HTTPException(status_code=503, detail="Crypto market data is not enabled")
     
     return result
@@ -262,7 +262,7 @@ async def get_trending_cryptos(
     service = get_market_data_service(db)
     result = await service.get_trending_cryptos()
     
-    if "error" in result and result.get("enabled") == False:
+    if "error" in result and not result.get("enabled"):
         raise HTTPException(status_code=503, detail="Crypto market data is not enabled")
     
     return result
