@@ -486,6 +486,11 @@ class MarketDataService:
         if not await self._is_provider_enabled(MarketDataProvider.COINGECKO):
             return {"error": "CoinGecko is not enabled", "enabled": False}
         
+        # Check if API key is configured
+        api_key = await self._get_api_key(MarketDataProvider.COINGECKO)
+        if not api_key:
+            return {"error": "CoinGecko API key not configured. Please add your API key in Market Data Settings.", "requires_api_key": True}
+        
         cache_key = f"cg_search_{query.lower().replace(' ', '_')}"
         cached = await self._get_from_cache(cache_key)
         if cached:
@@ -496,10 +501,7 @@ class MarketDataService:
             client = await self._get_client()
             base_url = self.PROVIDER_CONFIGS[MarketDataProvider.COINGECKO]["base_url"]
             
-            headers = {}
-            api_key = await self._get_api_key(MarketDataProvider.COINGECKO)
-            if api_key:
-                headers["x-cg-demo-api-key"] = api_key
+            headers = {"x-cg-demo-api-key": api_key}
             
             response = await client.get(
                 f"{base_url}/search",
