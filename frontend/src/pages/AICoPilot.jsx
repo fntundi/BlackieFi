@@ -12,7 +12,6 @@ import {
   Calculator,
   FileText,
   Send,
-  RefreshCw,
   ChevronRight,
   Lightbulb,
   Target,
@@ -23,11 +22,22 @@ import {
   File,
   Image,
   Video,
-  X,
   Search,
   Trash2,
   Eye,
-  FolderOpen
+  FolderOpen,
+  FlaskConical,
+  Briefcase,
+  Shield,
+  TrendingDown,
+  Building2,
+  Coins,
+  LineChart,
+  Scale,
+  ClipboardCheck,
+  Globe,
+  PieChart,
+  MessageSquare
 } from 'lucide-react';
 import { tileStyles, headerStyles, buttonStyles, GoldAccentLine, formatCurrency } from '../styles/tileStyles';
 
@@ -42,6 +52,21 @@ export default function AICoPilot() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState(null);
   const [analyzeQuery, setAnalyzeQuery] = useState('');
+  
+  // Strategy Studio state
+  const [selectedFramework, setSelectedFramework] = useState(null);
+  const [strategyAssetType, setStrategyAssetType] = useState('stock');
+  const [strategyTicker, setStrategyTicker] = useState('');
+  const [strategyContext, setStrategyContext] = useState('');
+  
+  // Analysis Lab state
+  const [analysisAssetType, setAnalysisAssetType] = useState('stock');
+  const [analysisIdentifier, setAnalysisIdentifier] = useState('');
+  const [analysisDepth, setAnalysisDepth] = useState('standard');
+  const [analysisType, setAnalysisType] = useState('comprehensive');
+  const [investmentAmount, setInvestmentAmount] = useState('');
+  const [timeHorizon, setTimeHorizon] = useState('medium');
+  const [marketSector, setMarketSector] = useState('');
 
   // Check AI status
   const { data: aiStatus } = useQuery({
@@ -49,7 +74,6 @@ export default function AICoPilot() {
     queryFn: () => api.getAIStatus(),
   });
 
-  // AI is enabled if either system or user has it enabled
   const aiEnabled = aiStatus?.system_ai_enabled || aiStatus?.user_ai_enabled;
 
   // Knowledge Lab data
@@ -64,6 +88,14 @@ export default function AICoPilot() {
     queryFn: () => api.getKnowledgeStats(),
     enabled: aiEnabled,
   });
+
+  // Strategy frameworks
+  const { data: frameworksData } = useQuery({
+    queryKey: ['strategy-frameworks'],
+    queryFn: () => api.getStrategyFrameworks(),
+    enabled: aiEnabled,
+  });
+  const frameworks = frameworksData?.frameworks || [];
 
   // Upload mutation
   const uploadMutation = useMutation({
@@ -93,11 +125,10 @@ export default function AICoPilot() {
     onError: (error) => toast.error(error.message || 'Delete failed'),
   });
 
-  // Analyze mutation
+  // Analyze mutation - uses new AI service
   const analyzeMutation = useMutation({
     mutationFn: ({ docId, query }) => api.analyzeKnowledgeDocument(docId, query),
     onSuccess: (data) => {
-      // Add analysis result to chat
       setChatHistory(prev => [
         ...prev,
         { role: 'user', content: `Analyze: ${selectedDoc?.original_filename}${analyzeQuery ? ` - ${analyzeQuery}` : ''}` },
@@ -109,10 +140,131 @@ export default function AICoPilot() {
     onError: (error) => toast.error(error.message || 'Analysis failed'),
   });
 
+  // Strategy analysis mutation
+  const strategyMutation = useMutation({
+    mutationFn: () => api.analyzeWithStrategy(
+      selectedFramework?.id || 'default_0',
+      strategyAssetType,
+      strategyTicker,
+      strategyContext || null
+    ),
+    onSuccess: (data) => {
+      setChatHistory(prev => [
+        ...prev,
+        { role: 'user', content: `Strategy Analysis (${data.framework}): ${data.asset}` },
+        { role: 'assistant', content: data.analysis }
+      ]);
+      setActiveTab('chat');
+      toast.success('Strategy analysis complete');
+    },
+    onError: (error) => toast.error(error.message || 'Strategy analysis failed'),
+  });
+
+  // Comprehensive analysis mutation
+  const comprehensiveMutation = useMutation({
+    mutationFn: () => api.comprehensiveAnalysis(analysisAssetType, analysisIdentifier, analysisDepth),
+    onSuccess: (data) => {
+      setChatHistory(prev => [
+        ...prev,
+        { role: 'user', content: `Comprehensive Analysis: ${data.identifier} (${data.asset_type})` },
+        { role: 'assistant', content: data.analysis }
+      ]);
+      setActiveTab('chat');
+      toast.success('Analysis complete');
+    },
+    onError: (error) => toast.error(error.message || 'Analysis failed'),
+  });
+
+  // Risk assessment mutation
+  const riskMutation = useMutation({
+    mutationFn: () => api.riskAssessment(
+      analysisAssetType,
+      analysisIdentifier,
+      parseFloat(investmentAmount) || 10000,
+      timeHorizon
+    ),
+    onSuccess: (data) => {
+      setChatHistory(prev => [
+        ...prev,
+        { role: 'user', content: `Risk Assessment: ${data.identifier} ($${data.investment_amount.toLocaleString()})` },
+        { role: 'assistant', content: data.risk_assessment }
+      ]);
+      setActiveTab('chat');
+      toast.success('Risk assessment complete');
+    },
+    onError: (error) => toast.error(error.message || 'Risk assessment failed'),
+  });
+
+  // Due diligence mutation
+  const ddMutation = useMutation({
+    mutationFn: () => api.dueDiligence(
+      analysisAssetType,
+      analysisIdentifier,
+      investmentAmount ? parseFloat(investmentAmount) : null
+    ),
+    onSuccess: (data) => {
+      setChatHistory(prev => [
+        ...prev,
+        { role: 'user', content: `Due Diligence Checklist: ${data.identifier}` },
+        { role: 'assistant', content: data.due_diligence_checklist }
+      ]);
+      setActiveTab('chat');
+      toast.success('Due diligence checklist generated');
+    },
+    onError: (error) => toast.error(error.message || 'Due diligence failed'),
+  });
+
+  // Market research mutation
+  const researchMutation = useMutation({
+    mutationFn: () => api.marketResearch(marketSector),
+    onSuccess: (data) => {
+      setChatHistory(prev => [
+        ...prev,
+        { role: 'user', content: `Market Research: ${data.sector}` },
+        { role: 'assistant', content: data.research }
+      ]);
+      setActiveTab('chat');
+      toast.success('Market research complete');
+    },
+    onError: (error) => toast.error(error.message || 'Research failed'),
+  });
+
+  // Portfolio analysis mutation
+  const portfolioMutation = useMutation({
+    mutationFn: () => api.portfolioAnalysis(selectedEntityId),
+    onSuccess: (data) => {
+      setChatHistory(prev => [
+        ...prev,
+        { role: 'user', content: `Portfolio Analysis (${data.holdings_count} holdings, $${data.total_value.toLocaleString()})` },
+        { role: 'assistant', content: data.analysis }
+      ]);
+      setActiveTab('chat');
+      toast.success('Portfolio analysis complete');
+    },
+    onError: (error) => toast.error(error.message || 'Portfolio analysis failed'),
+  });
+
+  // Chat with knowledge base mutation
+  const knowledgeChatMutation = useMutation({
+    mutationFn: (message) => api.chatWithKnowledgeBase(message),
+    onSuccess: (data) => {
+      setChatHistory(prev => [...prev, { role: 'assistant', content: data.response }]);
+    },
+    onError: (error) => toast.error(error.message || 'Chat failed'),
+  });
+
+  // General chat mutation
+  const chatMutation = useMutation({
+    mutationFn: ({ message, context }) => api.aiChat(message, context, 'copilot'),
+    onSuccess: (data) => {
+      setChatHistory(prev => [...prev, { role: 'assistant', content: data.response }]);
+    },
+    onError: (error) => toast.error(error.message || 'Chat failed'),
+  });
+
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
     setUploadingFile(true);
     uploadMutation.mutate({ file, description: null, tags: null });
     e.target.value = '';
@@ -121,6 +273,19 @@ export default function AICoPilot() {
   const handleAnalyze = () => {
     if (!selectedDoc) return;
     analyzeMutation.mutate({ docId: selectedDoc.id, query: analyzeQuery });
+  };
+
+  const handleSendMessage = () => {
+    if (!chatMessage.trim() || chatMutation.isLoading) return;
+    setChatHistory(prev => [...prev, { role: 'user', content: chatMessage }]);
+    
+    // If we have knowledge docs, use knowledge chat
+    if (knowledgeDocs.length > 0) {
+      knowledgeChatMutation.mutate(chatMessage);
+    } else {
+      chatMutation.mutate({ message: chatMessage, context: { entity_id: selectedEntityId } });
+    }
+    setChatMessage('');
   };
 
   const getFileIcon = (fileType) => {
@@ -137,41 +302,16 @@ export default function AICoPilot() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // AI Analysis Results State
   const [analysisResults, setAnalysisResults] = useState({
     anomalies: null,
     cashFlow: null,
     savings: null,
     budgetSuggestion: null,
-    taxEstimate: null,
   });
 
-  // Chat mutation
-  const chatMutation = useMutation({
-    mutationFn: ({ message, context }) => api.aiChat(message, context, 'copilot'),
-    onSuccess: (data) => {
-      setChatHistory(prev => [...prev, { role: 'assistant', content: data.response }]);
-    },
-    onError: (error) => toast.error(error.message || 'Chat failed'),
-  });
-
-  const handleSendMessage = () => {
-    if (!chatMessage.trim() || chatMutation.isLoading) return;
-    
-    setChatHistory(prev => [...prev, { role: 'user', content: chatMessage }]);
-    chatMutation.mutate({ 
-      message: chatMessage,
-      context: { entity_id: selectedEntityId }
-    });
-    setChatMessage('');
-  };
-
-  // Analysis functions
   const runAnalysis = async (type) => {
     if (!selectedEntityId || !aiEnabled) return;
-    
     setIsAnalyzing(prev => ({ ...prev, [type]: true }));
-    
     try {
       let result;
       switch (type) {
@@ -206,44 +346,42 @@ export default function AICoPilot() {
   const tabs = [
     { id: 'insights', label: 'Quick Insights', icon: Sparkles },
     { id: 'knowledge', label: 'Knowledge Lab', icon: FolderOpen },
-    { id: 'chat', label: 'Chat', icon: Brain },
-    { id: 'analysis', label: 'Deep Analysis', icon: BarChart3 },
+    { id: 'strategy', label: 'Strategy Studio', icon: Briefcase },
+    { id: 'analysis', label: 'Analysis Lab', icon: FlaskConical },
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
   ];
 
   const quickInsightCards = [
-    {
-      id: 'anomalies',
-      title: 'Spending Anomalies',
-      description: 'Detect unusual spending patterns',
-      icon: AlertTriangle,
-      color: '#DC2626',
-      action: () => runAnalysis('anomalies'),
-    },
-    {
-      id: 'cashFlow',
-      title: 'Cash Flow Forecast',
-      description: '3-month projection based on history',
-      icon: TrendingUp,
-      color: '#059669',
-      action: () => runAnalysis('cashFlow'),
-    },
-    {
-      id: 'savings',
-      title: 'Cost Savings',
-      description: 'Find opportunities to save money',
-      icon: PiggyBank,
-      color: '#D4AF37',
-      action: () => runAnalysis('savings'),
-    },
-    {
-      id: 'budget',
-      title: 'Smart Budget',
-      description: 'AI-generated budget recommendation',
-      icon: Calculator,
-      color: '#8B5CF6',
-      action: () => runAnalysis('budget'),
-    },
+    { id: 'anomalies', title: 'Spending Anomalies', description: 'Detect unusual spending patterns', icon: AlertTriangle, color: '#DC2626', action: () => runAnalysis('anomalies') },
+    { id: 'cashFlow', title: 'Cash Flow Forecast', description: '3-month projection', icon: TrendingUp, color: '#059669', action: () => runAnalysis('cashFlow') },
+    { id: 'savings', title: 'Cost Savings', description: 'Find savings opportunities', icon: PiggyBank, color: '#D4AF37', action: () => runAnalysis('savings') },
+    { id: 'budget', title: 'Smart Budget', description: 'AI budget recommendation', icon: Calculator, color: '#8B5CF6', action: () => runAnalysis('budget') },
   ];
+
+  const assetTypes = [
+    { id: 'stock', label: 'Stock', icon: LineChart },
+    { id: 'real_estate', label: 'Real Estate', icon: Building2 },
+    { id: 'crypto', label: 'Crypto', icon: Coins },
+    { id: 'private_equity', label: 'Private Equity', icon: Briefcase },
+    { id: 'tax_lien', label: 'Tax Lien', icon: FileText },
+    { id: 'precious_metal', label: 'Precious Metal', icon: Coins },
+  ];
+
+  const inputStyle = {
+    padding: '0.75rem 1rem',
+    borderRadius: '10px',
+    background: '#0A0A0A',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    color: '#F5F5F5',
+    fontSize: '0.875rem',
+    outline: 'none',
+    width: '100%',
+  };
+
+  const selectStyle = {
+    ...inputStyle,
+    cursor: 'pointer',
+  };
 
   return (
     <div style={{ padding: '2rem', background: '#050505', minHeight: '100%' }} data-testid="ai-copilot-page">
@@ -253,14 +391,11 @@ export default function AICoPilot() {
           <div>
             <p style={headerStyles.label}>AI Co-Pilot</p>
             <h1 style={headerStyles.title}>Investment Intelligence</h1>
-            <p style={headerStyles.subtitle}>AI-powered insights and analysis for your portfolio</p>
+            <p style={headerStyles.subtitle}>AI-powered insights, research frameworks, and analysis tools</p>
           </div>
           <div style={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '0.75rem',
-            padding: '0.75rem 1.25rem',
-            borderRadius: '12px',
+            display: 'flex', alignItems: 'center', gap: '0.75rem',
+            padding: '0.75rem 1.25rem', borderRadius: '12px',
             background: aiEnabled ? 'rgba(5, 150, 105, 0.1)' : 'rgba(220, 38, 38, 0.1)',
             border: `1px solid ${aiEnabled ? 'rgba(5, 150, 105, 0.2)' : 'rgba(220, 38, 38, 0.2)'}`,
           }}>
@@ -272,17 +407,11 @@ export default function AICoPilot() {
         </div>
 
         {!aiEnabled && (
-          <div style={{
-            ...tileStyles.content,
-            marginBottom: '2rem',
-            borderColor: 'rgba(220, 38, 38, 0.2)',
-            textAlign: 'center',
-            padding: '3rem',
-          }}>
+          <div style={{ ...tileStyles.content, marginBottom: '2rem', borderColor: 'rgba(220, 38, 38, 0.2)', textAlign: 'center', padding: '3rem' }}>
             <Brain style={{ width: '48px', height: '48px', color: '#DC2626', margin: '0 auto 1rem' }} />
             <h3 style={{ color: '#F5F5F5', marginBottom: '0.5rem' }}>AI Features Disabled</h3>
             <p style={{ color: '#8A8A8A', maxWidth: '400px', margin: '0 auto' }}>
-              Enable AI in Admin Settings to unlock intelligent insights, forecasts, and recommendations.
+              Enable AI in Admin Settings to unlock intelligent insights, research frameworks, and analysis tools.
             </p>
           </div>
         )}
@@ -290,7 +419,7 @@ export default function AICoPilot() {
         {aiEnabled && (
           <>
             {/* Tabs */}
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '2rem', flexWrap: 'wrap' }}>
               {tabs.map((tab) => {
                 const TabIcon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -298,22 +427,14 @@ export default function AICoPilot() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
+                    data-testid={`tab-${tab.id}`}
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      padding: '0.75rem 1.25rem',
-                      borderRadius: '12px',
-                      background: isActive 
-                        ? 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%)'
-                        : 'rgba(255, 255, 255, 0.03)',
-                      border: isActive 
-                        ? '1px solid rgba(212, 175, 55, 0.3)'
-                        : '1px solid rgba(255, 255, 255, 0.05)',
+                      display: 'flex', alignItems: 'center', gap: '0.5rem',
+                      padding: '0.75rem 1.25rem', borderRadius: '12px',
+                      background: isActive ? 'linear-gradient(135deg, rgba(212, 175, 55, 0.2) 0%, rgba(212, 175, 55, 0.1) 100%)' : 'rgba(255, 255, 255, 0.03)',
+                      border: isActive ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
                       color: isActive ? '#D4AF37' : '#8A8A8A',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
+                      fontWeight: '600', cursor: 'pointer', transition: 'all 0.2s',
                     }}
                   >
                     <TabIcon style={{ width: '18px', height: '18px' }} />
@@ -326,44 +447,19 @@ export default function AICoPilot() {
             {/* Quick Insights Tab */}
             {activeTab === 'insights' && (
               <div>
-                {/* Quick Analysis Cards */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem', marginBottom: '2rem' }}>
                   {quickInsightCards.map((card) => {
                     const CardIcon = card.icon;
                     const isLoading = isAnalyzing[card.id];
                     return (
-                      <div
-                        key={card.id}
-                        style={{
-                          ...tileStyles.card,
-                          cursor: isLoading ? 'wait' : 'pointer',
-                          border: `1px solid rgba(${card.color === '#DC2626' ? '220, 38, 38' : card.color === '#059669' ? '5, 150, 105' : card.color === '#D4AF37' ? '212, 175, 55' : '139, 92, 246'}, 0.15)`,
-                        }}
-                        onClick={() => !isLoading && card.action()}
-                        data-testid={`insight-${card.id}`}
-                      >
-                        <div style={{
-                          padding: '0.75rem',
-                          borderRadius: '12px',
-                          background: `rgba(${card.color === '#DC2626' ? '220, 38, 38' : card.color === '#059669' ? '5, 150, 105' : card.color === '#D4AF37' ? '212, 175, 55' : '139, 92, 246'}, 0.1)`,
-                          width: 'fit-content',
-                          marginBottom: '1rem',
-                        }}>
-                          {isLoading ? (
-                            <Loader2 style={{ width: '24px', height: '24px', color: card.color, animation: 'spin 1s linear infinite' }} />
-                          ) : (
-                            <CardIcon style={{ width: '24px', height: '24px', color: card.color }} />
-                          )}
+                      <div key={card.id} style={{ ...tileStyles.card, cursor: isLoading ? 'wait' : 'pointer' }} onClick={() => !isLoading && card.action()} data-testid={`insight-${card.id}`}>
+                        <div style={{ padding: '0.75rem', borderRadius: '12px', background: `rgba(${card.color === '#DC2626' ? '220, 38, 38' : card.color === '#059669' ? '5, 150, 105' : card.color === '#D4AF37' ? '212, 175, 55' : '139, 92, 246'}, 0.1)`, width: 'fit-content', marginBottom: '1rem' }}>
+                          {isLoading ? <Loader2 style={{ width: '24px', height: '24px', color: card.color, animation: 'spin 1s linear infinite' }} /> : <CardIcon style={{ width: '24px', height: '24px', color: card.color }} />}
                         </div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#F5F5F5', margin: '0 0 0.5rem 0' }}>
-                          {card.title}
-                        </h3>
-                        <p style={{ fontSize: '0.8rem', color: '#8A8A8A', margin: 0 }}>
-                          {card.description}
-                        </p>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#F5F5F5', margin: '0 0 0.5rem 0' }}>{card.title}</h3>
+                        <p style={{ fontSize: '0.8rem', color: '#8A8A8A', margin: 0 }}>{card.description}</p>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '1rem', color: card.color, fontSize: '0.8rem', fontWeight: '600' }}>
-                          {isLoading ? 'Analyzing...' : 'Run Analysis'}
-                          <ChevronRight style={{ width: '14px', height: '14px' }} />
+                          {isLoading ? 'Analyzing...' : 'Run Analysis'} <ChevronRight style={{ width: '14px', height: '14px' }} />
                         </div>
                       </div>
                     );
@@ -374,92 +470,43 @@ export default function AICoPilot() {
                 {(analysisResults.anomalies || analysisResults.cashFlow || analysisResults.savings || analysisResults.budgetSuggestion) && (
                   <div style={tileStyles.content}>
                     <GoldAccentLine />
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', marginBottom: '1.5rem' }}>
-                      Analysis Results
-                    </h2>
-                    
-                    {/* Anomalies */}
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', marginBottom: '1.5rem' }}>Analysis Results</h2>
                     {analysisResults.anomalies && (
                       <div style={{ marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#DC2626', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <AlertTriangle style={{ width: '18px', height: '18px' }} />
-                          Spending Anomalies
-                        </h3>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#DC2626', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><AlertTriangle style={{ width: '18px', height: '18px' }} />Spending Anomalies</h3>
                         {analysisResults.anomalies.anomalies?.length > 0 ? (
-                          <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#D4D4D4' }}>
-                            {analysisResults.anomalies.anomalies.map((a, i) => (
-                              <li key={i} style={{ marginBottom: '0.5rem' }}>{a}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p style={{ color: '#8A8A8A', margin: 0 }}>No anomalies detected. Your spending looks normal!</p>
-                        )}
+                          <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#D4D4D4' }}>{analysisResults.anomalies.anomalies.map((a, i) => <li key={i} style={{ marginBottom: '0.5rem' }}>{typeof a === 'string' ? a : a.description}</li>)}</ul>
+                        ) : <p style={{ color: '#8A8A8A', margin: 0 }}>No anomalies detected!</p>}
                       </div>
                     )}
-
-                    {/* Cash Flow */}
                     {analysisResults.cashFlow && (
                       <div style={{ marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#059669', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <TrendingUp style={{ width: '18px', height: '18px' }} />
-                          Cash Flow Forecast
-                        </h3>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#059669', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><TrendingUp style={{ width: '18px', height: '18px' }} />Cash Flow Forecast</h3>
                         {analysisResults.cashFlow.forecast && (
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                             {analysisResults.cashFlow.forecast.map((f, i) => (
                               <div key={i} style={{ padding: '1rem', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
                                 <p style={{ fontSize: '0.8rem', color: '#8A8A8A', marginBottom: '0.5rem' }}>Month {i + 1}</p>
-                                <p style={{ fontFamily: 'monospace', fontSize: '1.25rem', fontWeight: '700', color: f.net_flow >= 0 ? '#059669' : '#DC2626', margin: 0 }}>
-                                  {formatCurrency(f.net_flow || 0)}
-                                </p>
+                                <p style={{ fontFamily: 'monospace', fontSize: '1.25rem', fontWeight: '700', color: (f.net_cash_flow || f.net_flow || 0) >= 0 ? '#059669' : '#DC2626', margin: 0 }}>{formatCurrency(f.net_cash_flow || f.net_flow || 0)}</p>
                               </div>
                             ))}
                           </div>
                         )}
-                        {analysisResults.cashFlow.analysis && (
-                          <p style={{ color: '#D4D4D4', marginTop: '1rem', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                            {analysisResults.cashFlow.analysis}
-                          </p>
-                        )}
                       </div>
                     )}
-
-                    {/* Savings */}
                     {analysisResults.savings && (
                       <div style={{ marginBottom: '1.5rem' }}>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#D4AF37', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <PiggyBank style={{ width: '18px', height: '18px' }} />
-                          Cost Saving Opportunities
-                        </h3>
+                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#D4AF37', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><PiggyBank style={{ width: '18px', height: '18px' }} />Cost Saving Opportunities</h3>
                         {analysisResults.savings.opportunities?.length > 0 ? (
-                          <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#D4D4D4' }}>
-                            {analysisResults.savings.opportunities.map((o, i) => (
-                              <li key={i} style={{ marginBottom: '0.5rem' }}>{o}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p style={{ color: '#8A8A8A', margin: 0 }}>Great job! No obvious cost-saving opportunities found.</p>
-                        )}
-                        {analysisResults.savings.potential_savings && (
-                          <p style={{ marginTop: '1rem', fontWeight: '600', color: '#D4AF37' }}>
-                            Potential Monthly Savings: {formatCurrency(analysisResults.savings.potential_savings)}
-                          </p>
-                        )}
+                          <ul style={{ margin: 0, paddingLeft: '1.5rem', color: '#D4D4D4' }}>{analysisResults.savings.opportunities.map((o, i) => <li key={i} style={{ marginBottom: '0.5rem' }}>{typeof o === 'string' ? o : o.description}</li>)}</ul>
+                        ) : <p style={{ color: '#8A8A8A', margin: 0 }}>Great job! No obvious cost-saving opportunities found.</p>}
+                        {analysisResults.savings.total_potential_savings > 0 && <p style={{ marginTop: '1rem', fontWeight: '600', color: '#D4AF37' }}>Potential Monthly Savings: {formatCurrency(analysisResults.savings.total_potential_savings)}</p>}
                       </div>
                     )}
-
-                    {/* Budget Suggestion */}
                     {analysisResults.budgetSuggestion && (
                       <div>
-                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#8B5CF6', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <Calculator style={{ width: '18px', height: '18px' }} />
-                          Smart Budget Suggestion
-                        </h3>
-                        {analysisResults.budgetSuggestion.recommendations && (
-                          <p style={{ color: '#D4D4D4', fontSize: '0.9rem', lineHeight: '1.5' }}>
-                            {analysisResults.budgetSuggestion.recommendations}
-                          </p>
-                        )}
+                        <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#8B5CF6', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Calculator style={{ width: '18px', height: '18px' }} />Smart Budget Suggestion</h3>
+                        {analysisResults.budgetSuggestion.budget_suggestions?.recommendations && <p style={{ color: '#D4D4D4', fontSize: '0.9rem', lineHeight: '1.5' }}>{analysisResults.budgetSuggestion.budget_suggestions.recommendations}</p>}
                       </div>
                     )}
                   </div>
@@ -470,187 +517,51 @@ export default function AICoPilot() {
             {/* Knowledge Lab Tab */}
             {activeTab === 'knowledge' && (
               <div>
-                {/* Hidden file input */}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                  style={{ display: 'none' }}
-                  accept=".pdf,.txt,.csv,.docx,.xlsx,.md,.png,.jpg,.jpeg,.webp,.gif,.heic,.mp4,.mov,.webm,.avi,.mkv"
-                />
-
-                {/* Stats Row */}
+                <input type="file" ref={fileInputRef} onChange={handleFileUpload} style={{ display: 'none' }} accept=".pdf,.txt,.csv,.docx,.xlsx,.md,.png,.jpg,.jpeg,.webp,.gif,.heic,.mp4,.mov,.webm,.avi,.mkv" />
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1.25rem', marginBottom: '2rem' }}>
-                  <div style={tileStyles.statGold}>
-                    <GoldAccentLine />
-                    <p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A8A8A', marginBottom: '0.75rem' }}>
-                      Total Documents
-                    </p>
-                    <p style={{ fontFamily: 'monospace', fontSize: '1.75rem', fontWeight: '700', color: '#D4AF37', margin: 0 }}>
-                      {knowledgeStats?.total_documents || 0}
-                    </p>
-                  </div>
-                  <div style={tileStyles.stat}>
-                    <p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A8A8A', marginBottom: '0.75rem' }}>
-                      Documents
-                    </p>
-                    <p style={{ fontFamily: 'monospace', fontSize: '1.75rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>
-                      {knowledgeStats?.by_type?.document?.count || 0}
-                    </p>
-                  </div>
-                  <div style={tileStyles.stat}>
-                    <p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A8A8A', marginBottom: '0.75rem' }}>
-                      Images
-                    </p>
-                    <p style={{ fontFamily: 'monospace', fontSize: '1.75rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>
-                      {knowledgeStats?.by_type?.image?.count || 0}
-                    </p>
-                  </div>
-                  <div style={tileStyles.stat}>
-                    <p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A8A8A', marginBottom: '0.75rem' }}>
-                      Videos
-                    </p>
-                    <p style={{ fontFamily: 'monospace', fontSize: '1.75rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>
-                      {knowledgeStats?.by_type?.video?.count || 0}
-                    </p>
-                  </div>
+                  <div style={tileStyles.statGold}><GoldAccentLine /><p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A8A8A', marginBottom: '0.75rem' }}>Total Documents</p><p style={{ fontFamily: 'monospace', fontSize: '1.75rem', fontWeight: '700', color: '#D4AF37', margin: 0 }}>{knowledgeStats?.total_documents || 0}</p></div>
+                  <div style={tileStyles.stat}><p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A8A8A', marginBottom: '0.75rem' }}>Documents</p><p style={{ fontFamily: 'monospace', fontSize: '1.75rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>{knowledgeStats?.by_type?.document?.count || 0}</p></div>
+                  <div style={tileStyles.stat}><p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A8A8A', marginBottom: '0.75rem' }}>Images</p><p style={{ fontFamily: 'monospace', fontSize: '1.75rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>{knowledgeStats?.by_type?.image?.count || 0}</p></div>
+                  <div style={tileStyles.stat}><p style={{ fontSize: '0.7rem', fontWeight: '600', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8A8A8A', marginBottom: '0.75rem' }}>Videos</p><p style={{ fontFamily: 'monospace', fontSize: '1.75rem', fontWeight: '700', color: '#F5F5F5', margin: 0 }}>{knowledgeStats?.by_type?.video?.count || 0}</p></div>
                 </div>
-
-                {/* Upload Section */}
                 <div style={tileStyles.content}>
                   <GoldAccentLine />
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <div style={{ 
-                        padding: '0.75rem', 
-                        borderRadius: '12px', 
-                        background: 'rgba(212, 175, 55, 0.1)',
-                        boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)'
-                      }}>
-                        <FolderOpen style={{ width: '24px', height: '24px', color: '#D4AF37' }} />
-                      </div>
-                      <div>
-                        <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Knowledge Lab</h2>
-                        <p style={{ fontSize: '0.8rem', color: '#8A8A8A', margin: 0 }}>Upload documents, images, and videos for AI analysis</p>
-                      </div>
+                      <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(212, 175, 55, 0.1)', boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)' }}><FolderOpen style={{ width: '24px', height: '24px', color: '#D4AF37' }} /></div>
+                      <div><h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Knowledge Lab</h2><p style={{ fontSize: '0.8rem', color: '#8A8A8A', margin: 0 }}>Upload documents for AI analysis with RAG</p></div>
                     </div>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploadingFile}
-                      style={{
-                        ...buttonStyles.primary,
-                        opacity: uploadingFile ? 0.5 : 1,
-                        cursor: uploadingFile ? 'not-allowed' : 'pointer',
-                      }}
-                      data-testid="upload-btn"
-                    >
-                      {uploadingFile ? (
-                        <Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} />
-                      ) : (
-                        <Upload style={{ width: '18px', height: '18px' }} />
-                      )}
+                    <button onClick={() => fileInputRef.current?.click()} disabled={uploadingFile} style={{ ...buttonStyles.primary, opacity: uploadingFile ? 0.5 : 1 }} data-testid="upload-btn">
+                      {uploadingFile ? <Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} /> : <Upload style={{ width: '18px', height: '18px' }} />}
                       {uploadingFile ? 'Uploading...' : 'Upload File'}
                     </button>
                   </div>
-
-                  {/* Supported Formats */}
-                  <div style={{ 
-                    padding: '1rem', 
-                    borderRadius: '12px', 
-                    background: 'rgba(255, 255, 255, 0.02)', 
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                    marginBottom: '1.5rem'
-                  }}>
-                    <p style={{ fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Supported Formats
-                    </p>
+                  <div style={{ padding: '1rem', borderRadius: '12px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid rgba(255, 255, 255, 0.05)', marginBottom: '1.5rem' }}>
+                    <p style={{ fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Supported Formats</p>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                      {[
-                        { icon: File, label: 'PDF, TXT, CSV, DOCX, XLSX, MD', color: '#D4AF37' },
-                        { icon: Image, label: 'PNG, JPG, WEBP, GIF, HEIC', color: '#059669' },
-                        { icon: Video, label: 'MP4, MOV, WEBM, AVI', color: '#8B5CF6' },
-                      ].map((format, i) => (
-                        <div key={i} style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '0.5rem',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: '8px',
-                          background: `rgba(${format.color === '#D4AF37' ? '212, 175, 55' : format.color === '#059669' ? '5, 150, 105' : '139, 92, 246'}, 0.1)`,
-                        }}>
-                          <format.icon style={{ width: '14px', height: '14px', color: format.color }} />
-                          <span style={{ fontSize: '0.75rem', color: format.color }}>{format.label}</span>
+                      {[{ icon: File, label: 'PDF, TXT, CSV, DOCX, XLSX, MD', color: '#D4AF37' }, { icon: Image, label: 'PNG, JPG, WEBP, GIF, HEIC', color: '#059669' }, { icon: Video, label: 'MP4, MOV, WEBM, AVI', color: '#8B5CF6' }].map((format, i) => (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 0.75rem', borderRadius: '8px', background: `rgba(${format.color === '#D4AF37' ? '212, 175, 55' : format.color === '#059669' ? '5, 150, 105' : '139, 92, 246'}, 0.1)` }}>
+                          <format.icon style={{ width: '14px', height: '14px', color: format.color }} /><span style={{ fontSize: '0.75rem', color: format.color }}>{format.label}</span>
                         </div>
                       ))}
                     </div>
                   </div>
-
-                  {/* Documents Grid */}
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }} data-testid="knowledge-grid">
                     {docsLoading ? (
-                      <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '3rem', color: '#525252' }}>
-                        <Loader2 style={{ width: '32px', height: '32px', margin: '0 auto 1rem', animation: 'spin 1s linear infinite', color: '#D4AF37' }} />
-                        <p>Loading documents...</p>
-                      </div>
+                      <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '3rem', color: '#525252' }}><Loader2 style={{ width: '32px', height: '32px', margin: '0 auto 1rem', animation: 'spin 1s linear infinite', color: '#D4AF37' }} /><p>Loading documents...</p></div>
                     ) : knowledgeDocs.length === 0 ? (
-                      <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '3rem', color: '#525252' }}>
-                        <FolderOpen style={{ width: '48px', height: '48px', margin: '0 auto 1rem', opacity: 0.5 }} />
-                        <p style={{ margin: 0 }}>No documents uploaded yet</p>
-                        <p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>Upload financial statements, images, or videos to analyze them with AI</p>
-                      </div>
+                      <div style={{ gridColumn: 'span 3', textAlign: 'center', padding: '3rem', color: '#525252' }}><FolderOpen style={{ width: '48px', height: '48px', margin: '0 auto 1rem', opacity: 0.5 }} /><p style={{ margin: 0 }}>No documents uploaded yet</p><p style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>Upload financial documents to analyze them with AI</p></div>
                     ) : (
                       knowledgeDocs.map((doc) => {
                         const FileIcon = getFileIcon(doc.file_type);
                         const isSelected = selectedDoc?.id === doc.id;
                         return (
-                          <div
-                            key={doc.id}
-                            onClick={() => setSelectedDoc(isSelected ? null : doc)}
-                            style={{
-                              ...tileStyles.card,
-                              cursor: 'pointer',
-                              border: isSelected 
-                                ? '1px solid rgba(212, 175, 55, 0.4)' 
-                                : '1px solid rgba(255, 255, 255, 0.05)',
-                              background: isSelected 
-                                ? 'linear-gradient(145deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%)'
-                                : tileStyles.card.background,
-                            }}
-                            data-testid={`doc-${doc.id}`}
-                          >
+                          <div key={doc.id} onClick={() => setSelectedDoc(isSelected ? null : doc)} style={{ ...tileStyles.card, cursor: 'pointer', border: isSelected ? '1px solid rgba(212, 175, 55, 0.4)' : '1px solid rgba(255, 255, 255, 0.05)', background: isSelected ? 'linear-gradient(145deg, rgba(212, 175, 55, 0.1) 0%, rgba(212, 175, 55, 0.05) 100%)' : tileStyles.card.background }} data-testid={`doc-${doc.id}`}>
                             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                              <div style={{ 
-                                padding: '0.6rem', 
-                                borderRadius: '10px', 
-                                background: `rgba(${doc.file_type === 'document' ? '212, 175, 55' : doc.file_type === 'image' ? '5, 150, 105' : '139, 92, 246'}, 0.1)`,
-                              }}>
-                                <FileIcon style={{ 
-                                  width: '20px', 
-                                  height: '20px', 
-                                  color: doc.file_type === 'document' ? '#D4AF37' : doc.file_type === 'image' ? '#059669' : '#8B5CF6'
-                                }} />
-                              </div>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteMutation.mutate(doc.id);
-                                }}
-                                style={{ 
-                                  padding: '0.4rem', 
-                                  borderRadius: '6px', 
-                                  background: 'transparent', 
-                                  border: 'none', 
-                                  cursor: 'pointer',
-                                  color: '#525252',
-                                  transition: 'color 0.2s',
-                                }}
-                              >
-                                <Trash2 style={{ width: '14px', height: '14px' }} />
-                              </button>
+                              <div style={{ padding: '0.6rem', borderRadius: '10px', background: `rgba(${doc.file_type === 'document' ? '212, 175, 55' : doc.file_type === 'image' ? '5, 150, 105' : '139, 92, 246'}, 0.1)` }}><FileIcon style={{ width: '20px', height: '20px', color: doc.file_type === 'document' ? '#D4AF37' : doc.file_type === 'image' ? '#059669' : '#8B5CF6' }} /></div>
+                              <button onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(doc.id); }} style={{ padding: '0.4rem', borderRadius: '6px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#525252' }}><Trash2 style={{ width: '14px', height: '14px' }} /></button>
                             </div>
-                            <p style={{ fontSize: '0.9rem', fontWeight: '600', color: '#F5F5F5', margin: '0 0 0.25rem 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {doc.original_filename}
-                            </p>
+                            <p style={{ fontSize: '0.9rem', fontWeight: '600', color: '#F5F5F5', margin: '0 0 0.25rem 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{doc.original_filename}</p>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                               <span style={{ fontSize: '0.7rem', color: '#8A8A8A', textTransform: 'uppercase' }}>{doc.file_type}</span>
                               <span style={{ fontSize: '0.7rem', color: '#525252' }}>•</span>
@@ -661,55 +572,175 @@ export default function AICoPilot() {
                       })
                     )}
                   </div>
-
-                  {/* Selected Document Analysis */}
                   {selectedDoc && (
-                    <div style={{ 
-                      marginTop: '1.5rem', 
-                      padding: '1.25rem', 
-                      borderRadius: '16px',
-                      background: 'linear-gradient(145deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.03) 100%)',
-                      border: '1px solid rgba(212, 175, 55, 0.15)',
-                    }}>
-                      <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#D4AF37', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Eye style={{ width: '18px', height: '18px' }} />
-                        Analyze: {selectedDoc.original_filename}
-                      </h3>
+                    <div style={{ marginTop: '1.5rem', padding: '1.25rem', borderRadius: '16px', background: 'linear-gradient(145deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.03) 100%)', border: '1px solid rgba(212, 175, 55, 0.15)' }}>
+                      <h3 style={{ fontSize: '1rem', fontWeight: '600', color: '#D4AF37', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Eye style={{ width: '18px', height: '18px' }} />Analyze: {selectedDoc.original_filename}</h3>
                       <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <input
-                          type="text"
-                          value={analyzeQuery}
-                          onChange={(e) => setAnalyzeQuery(e.target.value)}
-                          placeholder="Ask a question about this file (optional)..."
-                          style={{
-                            flex: 1,
-                            padding: '0.75rem 1rem',
-                            borderRadius: '10px',
-                            background: '#0A0A0A',
-                            border: '1px solid rgba(255, 255, 255, 0.08)',
-                            color: '#F5F5F5',
-                            fontSize: '0.875rem',
-                            outline: 'none',
-                          }}
-                        />
-                        <button
-                          onClick={handleAnalyze}
-                          disabled={analyzeMutation.isLoading}
-                          style={{
-                            ...buttonStyles.primary,
-                            opacity: analyzeMutation.isLoading ? 0.5 : 1,
-                          }}
-                        >
-                          {analyzeMutation.isLoading ? (
-                            <Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} />
-                          ) : (
-                            <Search style={{ width: '18px', height: '18px' }} />
-                          )}
-                          Analyze
+                        <input type="text" value={analyzeQuery} onChange={(e) => setAnalyzeQuery(e.target.value)} placeholder="Ask a question about this file (optional)..." style={{ ...inputStyle, flex: 1 }} />
+                        <button onClick={handleAnalyze} disabled={analyzeMutation.isLoading} style={{ ...buttonStyles.primary, opacity: analyzeMutation.isLoading ? 0.5 : 1 }} data-testid="analyze-doc-btn">
+                          {analyzeMutation.isLoading ? <Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} /> : <Search style={{ width: '18px', height: '18px' }} />} Analyze
                         </button>
                       </div>
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Strategy Studio Tab */}
+            {activeTab === 'strategy' && (
+              <div>
+                <div style={tileStyles.content}>
+                  <GoldAccentLine />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                    <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(212, 175, 55, 0.1)', boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)' }}><Briefcase style={{ width: '24px', height: '24px', color: '#D4AF37' }} /></div>
+                    <div><h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Strategy Studio</h2><p style={{ fontSize: '0.8rem', color: '#8A8A8A', margin: 0 }}>Analyze investments with proven frameworks</p></div>
+                  </div>
+
+                  {/* Framework Selection */}
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Investment Framework</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.75rem' }}>
+                      {frameworks.slice(0, 6).map((fw) => (
+                        <div key={fw.id} onClick={() => setSelectedFramework(fw)} style={{ padding: '1rem', borderRadius: '12px', cursor: 'pointer', background: selectedFramework?.id === fw.id ? 'linear-gradient(145deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%)' : 'rgba(255, 255, 255, 0.02)', border: selectedFramework?.id === fw.id ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)', transition: 'all 0.2s' }} data-testid={`framework-${fw.id}`}>
+                          <h4 style={{ fontSize: '0.875rem', fontWeight: '600', color: selectedFramework?.id === fw.id ? '#D4AF37' : '#F5F5F5', margin: '0 0 0.25rem 0' }}>{fw.name}</h4>
+                          <p style={{ fontSize: '0.7rem', color: '#8A8A8A', margin: 0, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{fw.description}</p>
+                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+                            <span style={{ fontSize: '0.6rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(212, 175, 55, 0.1)', color: '#D4AF37' }}>{fw.risk_tolerance}</span>
+                            <span style={{ fontSize: '0.6rem', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(255, 255, 255, 0.05)', color: '#8A8A8A' }}>{fw.time_horizon}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Asset Input */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Asset Type</label>
+                      <select value={strategyAssetType} onChange={(e) => setStrategyAssetType(e.target.value)} style={selectStyle}>
+                        {assetTypes.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Ticker / Name</label>
+                      <input type="text" value={strategyTicker} onChange={(e) => setStrategyTicker(e.target.value)} placeholder="e.g., AAPL, 123 Main St, Bitcoin..." style={inputStyle} />
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: '1.5rem' }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Additional Context (Optional)</label>
+                    <textarea value={strategyContext} onChange={(e) => setStrategyContext(e.target.value)} placeholder="Any additional information about the investment..." style={{ ...inputStyle, minHeight: '80px', resize: 'vertical' }} />
+                  </div>
+
+                  <button onClick={() => strategyMutation.mutate()} disabled={!strategyTicker || strategyMutation.isLoading} style={{ ...buttonStyles.primary, width: '100%', justifyContent: 'center', opacity: (!strategyTicker || strategyMutation.isLoading) ? 0.5 : 1 }} data-testid="run-strategy-btn">
+                    {strategyMutation.isLoading ? <><Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} /> Analyzing...</> : <><Target style={{ width: '18px', height: '18px' }} /> Run Strategy Analysis</>}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Analysis Lab Tab */}
+            {activeTab === 'analysis' && (
+              <div>
+                <div style={tileStyles.content}>
+                  <GoldAccentLine />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                    <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(212, 175, 55, 0.1)', boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)' }}><FlaskConical style={{ width: '24px', height: '24px', color: '#D4AF37' }} /></div>
+                    <div><h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Analysis Lab</h2><p style={{ fontSize: '0.8rem', color: '#8A8A8A', margin: 0 }}>Deep analysis, risk assessment, and due diligence</p></div>
+                  </div>
+
+                  {/* Analysis Type Selection */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
+                    {[
+                      { id: 'comprehensive', label: 'Comprehensive', icon: BarChart3, desc: 'Full asset analysis' },
+                      { id: 'risk', label: 'Risk Assessment', icon: Shield, desc: 'Evaluate risk factors' },
+                      { id: 'dd', label: 'Due Diligence', icon: ClipboardCheck, desc: 'Verification checklist' },
+                      { id: 'market', label: 'Market Research', icon: Globe, desc: 'Sector overview' },
+                      { id: 'portfolio', label: 'Portfolio', icon: PieChart, desc: 'Analyze your holdings' },
+                    ].map(type => (
+                      <div key={type.id} onClick={() => setAnalysisType(type.id)} style={{ padding: '1rem', borderRadius: '12px', cursor: 'pointer', textAlign: 'center', background: analysisType === type.id ? 'linear-gradient(145deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%)' : 'rgba(255, 255, 255, 0.02)', border: analysisType === type.id ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)' }} data-testid={`analysis-type-${type.id}`}>
+                        <type.icon style={{ width: '24px', height: '24px', color: analysisType === type.id ? '#D4AF37' : '#8A8A8A', margin: '0 auto 0.5rem' }} />
+                        <p style={{ fontSize: '0.8rem', fontWeight: '600', color: analysisType === type.id ? '#D4AF37' : '#F5F5F5', margin: 0 }}>{type.label}</p>
+                        <p style={{ fontSize: '0.65rem', color: '#8A8A8A', margin: '0.25rem 0 0 0' }}>{type.desc}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Conditional Inputs */}
+                  {analysisType !== 'market' && analysisType !== 'portfolio' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '1rem', marginBottom: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Asset Type</label>
+                        <select value={analysisAssetType} onChange={(e) => setAnalysisAssetType(e.target.value)} style={selectStyle}>
+                          {assetTypes.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Identifier</label>
+                        <input type="text" value={analysisIdentifier} onChange={(e) => setAnalysisIdentifier(e.target.value)} placeholder="Ticker, address, or name..." style={inputStyle} />
+                      </div>
+                    </div>
+                  )}
+
+                  {analysisType === 'comprehensive' && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Analysis Depth</label>
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        {['quick', 'standard', 'deep'].map(d => (
+                          <button key={d} onClick={() => setAnalysisDepth(d)} style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', background: analysisDepth === d ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.02)', border: analysisDepth === d ? '1px solid rgba(212, 175, 55, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)', color: analysisDepth === d ? '#D4AF37' : '#8A8A8A', fontWeight: '600', cursor: 'pointer', textTransform: 'capitalize' }}>{d}</button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {analysisType === 'risk' && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Investment Amount ($)</label>
+                        <input type="number" value={investmentAmount} onChange={(e) => setInvestmentAmount(e.target.value)} placeholder="10000" style={inputStyle} />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Time Horizon</label>
+                        <select value={timeHorizon} onChange={(e) => setTimeHorizon(e.target.value)} style={selectStyle}>
+                          <option value="short">Short (1 year)</option>
+                          <option value="medium">Medium (1-5 years)</option>
+                          <option value="long">Long (5+ years)</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  {analysisType === 'market' && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: '600', color: '#8A8A8A', marginBottom: '0.5rem', textTransform: 'uppercase' }}>Market Sector</label>
+                      <input type="text" value={marketSector} onChange={(e) => setMarketSector(e.target.value)} placeholder="e.g., Technology, Real Estate, Healthcare..." style={inputStyle} />
+                    </div>
+                  )}
+
+                  {/* Run Button */}
+                  <button
+                    onClick={() => {
+                      if (analysisType === 'comprehensive') comprehensiveMutation.mutate();
+                      else if (analysisType === 'risk') riskMutation.mutate();
+                      else if (analysisType === 'dd') ddMutation.mutate();
+                      else if (analysisType === 'market') researchMutation.mutate();
+                      else if (analysisType === 'portfolio') portfolioMutation.mutate();
+                    }}
+                    disabled={
+                      (analysisType !== 'market' && analysisType !== 'portfolio' && !analysisIdentifier) ||
+                      (analysisType === 'market' && !marketSector) ||
+                      comprehensiveMutation.isLoading || riskMutation.isLoading || ddMutation.isLoading || researchMutation.isLoading || portfolioMutation.isLoading
+                    }
+                    style={{ ...buttonStyles.primary, width: '100%', justifyContent: 'center', opacity: (comprehensiveMutation.isLoading || riskMutation.isLoading || ddMutation.isLoading || researchMutation.isLoading || portfolioMutation.isLoading) ? 0.5 : 1 }}
+                    data-testid="run-analysis-btn"
+                  >
+                    {(comprehensiveMutation.isLoading || riskMutation.isLoading || ddMutation.isLoading || researchMutation.isLoading || portfolioMutation.isLoading) ? (
+                      <><Loader2 style={{ width: '18px', height: '18px', animation: 'spin 1s linear infinite' }} /> Analyzing...</>
+                    ) : (
+                      <><FlaskConical style={{ width: '18px', height: '18px' }} /> Run Analysis</>
+                    )}
+                  </button>
                 </div>
               </div>
             )}
@@ -719,237 +750,43 @@ export default function AICoPilot() {
               <div style={tileStyles.content}>
                 <GoldAccentLine />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-                  <div style={{ 
-                    padding: '0.75rem', 
-                    borderRadius: '12px', 
-                    background: 'rgba(212, 175, 55, 0.1)',
-                    boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)'
-                  }}>
-                    <Brain style={{ width: '24px', height: '24px', color: '#D4AF37' }} />
-                  </div>
-                  <div>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Chat with AI</h2>
-                    <p style={{ fontSize: '0.8rem', color: '#8A8A8A', margin: 0 }}>Ask questions about your finances</p>
-                  </div>
+                  <div style={{ padding: '0.75rem', borderRadius: '12px', background: 'rgba(212, 175, 55, 0.1)', boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)' }}><Brain style={{ width: '24px', height: '24px', color: '#D4AF37' }} /></div>
+                  <div><h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>AI Chat</h2><p style={{ fontSize: '0.8rem', color: '#8A8A8A', margin: 0 }}>Chat with your AI financial advisor{knowledgeDocs.length > 0 ? ` (${knowledgeDocs.length} docs in context)` : ''}</p></div>
                 </div>
-
-                {/* Chat Messages */}
-                <div style={{ 
-                  minHeight: '300px', 
-                  maxHeight: '400px', 
-                  overflowY: 'auto',
-                  padding: '1rem',
-                  borderRadius: '12px',
-                  background: 'rgba(0, 0, 0, 0.3)',
-                  marginBottom: '1rem',
-                }}>
+                <div style={{ minHeight: '300px', maxHeight: '450px', overflowY: 'auto', padding: '1rem', borderRadius: '12px', background: 'rgba(0, 0, 0, 0.3)', marginBottom: '1rem' }}>
                   {chatHistory.length === 0 ? (
                     <div style={{ textAlign: 'center', padding: '2rem', color: '#525252' }}>
                       <Lightbulb style={{ width: '32px', height: '32px', margin: '0 auto 0.75rem', opacity: 0.5 }} />
                       <p style={{ margin: 0 }}>Start a conversation with your AI financial advisor</p>
                       <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center' }}>
                         {['How can I save more?', 'Analyze my spending', 'Budget recommendations'].map((suggestion) => (
-                          <button
-                            key={suggestion}
-                            onClick={() => {
-                              setChatMessage(suggestion);
-                            }}
-                            style={{
-                              padding: '0.5rem 0.75rem',
-                              borderRadius: '8px',
-                              background: 'rgba(212, 175, 55, 0.1)',
-                              border: '1px solid rgba(212, 175, 55, 0.2)',
-                              color: '#D4AF37',
-                              fontSize: '0.75rem',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            {suggestion}
-                          </button>
+                          <button key={suggestion} onClick={() => setChatMessage(suggestion)} style={{ padding: '0.5rem 0.75rem', borderRadius: '8px', background: 'rgba(212, 175, 55, 0.1)', border: '1px solid rgba(212, 175, 55, 0.2)', color: '#D4AF37', fontSize: '0.75rem', cursor: 'pointer' }}>{suggestion}</button>
                         ))}
                       </div>
                     </div>
                   ) : (
                     chatHistory.map((msg, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                          marginBottom: '1rem',
-                        }}
-                      >
-                        <div style={{
-                          maxWidth: '80%',
-                          padding: '0.75rem 1rem',
-                          borderRadius: '12px',
-                          background: msg.role === 'user' 
-                            ? 'linear-gradient(135deg, #C4A030 0%, #D4AF37 100%)'
-                            : 'rgba(255, 255, 255, 0.05)',
-                          color: msg.role === 'user' ? '#000' : '#F5F5F5',
-                        }}>
-                          <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.5' }}>{msg.content}</p>
+                      <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: '1rem' }}>
+                        <div style={{ maxWidth: '85%', padding: '0.75rem 1rem', borderRadius: '12px', background: msg.role === 'user' ? 'linear-gradient(135deg, #C4A030 0%, #D4AF37 100%)' : 'rgba(255, 255, 255, 0.05)', color: msg.role === 'user' ? '#000' : '#F5F5F5' }}>
+                          <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{msg.content}</p>
                         </div>
                       </div>
                     ))
                   )}
-                  {chatMutation.isLoading && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#8A8A8A' }}>
-                      <Loader2 style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
-                      <span style={{ fontSize: '0.8rem' }}>AI is thinking...</span>
-                    </div>
+                  {(chatMutation.isLoading || knowledgeChatMutation.isLoading) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#8A8A8A' }}><Loader2 style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} /><span style={{ fontSize: '0.8rem' }}>AI is thinking...</span></div>
                   )}
                 </div>
-
-                {/* Chat Input */}
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <input
-                    type="text"
-                    value={chatMessage}
-                    onChange={(e) => setChatMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                    placeholder="Ask about your finances..."
-                    style={{
-                      flex: 1,
-                      padding: '0.875rem 1rem',
-                      borderRadius: '12px',
-                      background: '#0A0A0A',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      color: '#F5F5F5',
-                      fontSize: '0.9375rem',
-                      outline: 'none',
-                    }}
-                    data-testid="chat-input"
-                  />
-                  <button
-                    onClick={handleSendMessage}
-                    disabled={!chatMessage.trim() || chatMutation.isLoading}
-                    style={{
-                      ...buttonStyles.primary,
-                      opacity: (!chatMessage.trim() || chatMutation.isLoading) ? 0.5 : 1,
-                      cursor: (!chatMessage.trim() || chatMutation.isLoading) ? 'not-allowed' : 'pointer',
-                    }}
-                    data-testid="chat-send"
-                  >
-                    <Send style={{ width: '18px', height: '18px' }} />
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Deep Analysis Tab */}
-            {activeTab === 'analysis' && (
-              <div style={tileStyles.content}>
-                <GoldAccentLine />
-                <h2 style={{ fontSize: '1.25rem', fontWeight: '600', color: '#F5F5F5', marginBottom: '1.5rem' }}>
-                  Deep Analysis Tools
-                </h2>
-                
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1.25rem' }}>
-                  {/* Tax Planning */}
-                  <div style={tileStyles.cardGold}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <FileText style={{ width: '24px', height: '24px', color: '#D4AF37' }} />
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Tax Planning</h3>
-                    </div>
-                    <p style={{ fontSize: '0.875rem', color: '#8A8A8A', marginBottom: '1rem' }}>
-                      AI-powered tax estimation and optimization strategies
-                    </p>
-                    <a href="/tax" style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      gap: '0.5rem',
-                      color: '#D4AF37', 
-                      fontSize: '0.875rem', 
-                      fontWeight: '600',
-                      textDecoration: 'none',
-                    }}>
-                      Open Tax Planning
-                      <ChevronRight style={{ width: '16px', height: '16px' }} />
-                    </a>
-                  </div>
-
-                  {/* Reports */}
-                  <div style={tileStyles.cardGold}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <BarChart3 style={{ width: '24px', height: '24px', color: '#D4AF37' }} />
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Financial Reports</h3>
-                    </div>
-                    <p style={{ fontSize: '0.875rem', color: '#8A8A8A', marginBottom: '1rem' }}>
-                      Generate detailed reports with AI insights
-                    </p>
-                    <a href="/reports" style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      gap: '0.5rem',
-                      color: '#D4AF37', 
-                      fontSize: '0.875rem', 
-                      fontWeight: '600',
-                      textDecoration: 'none',
-                    }}>
-                      Open Reports
-                      <ChevronRight style={{ width: '16px', height: '16px' }} />
-                    </a>
-                  </div>
-
-                  {/* Goal Analysis */}
-                  <div style={tileStyles.cardGold}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <Target style={{ width: '24px', height: '24px', color: '#D4AF37' }} />
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Goal Analysis</h3>
-                    </div>
-                    <p style={{ fontSize: '0.875rem', color: '#8A8A8A', marginBottom: '1rem' }}>
-                      AI recommendations for achieving your financial goals
-                    </p>
-                    <a href="/goals" style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      gap: '0.5rem',
-                      color: '#D4AF37', 
-                      fontSize: '0.875rem', 
-                      fontWeight: '600',
-                      textDecoration: 'none',
-                    }}>
-                      Open Goals
-                      <ChevronRight style={{ width: '16px', height: '16px' }} />
-                    </a>
-                  </div>
-
-                  {/* Budget Optimization */}
-                  <div style={tileStyles.cardGold}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-                      <DollarSign style={{ width: '24px', height: '24px', color: '#D4AF37' }} />
-                      <h3 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#F5F5F5', margin: 0 }}>Budget Optimization</h3>
-                    </div>
-                    <p style={{ fontSize: '0.875rem', color: '#8A8A8A', marginBottom: '1rem' }}>
-                      Smart budgeting with AI-powered zero-based planning
-                    </p>
-                    <a href="/budgets" style={{ 
-                      display: 'inline-flex', 
-                      alignItems: 'center', 
-                      gap: '0.5rem',
-                      color: '#D4AF37', 
-                      fontSize: '0.875rem', 
-                      fontWeight: '600',
-                      textDecoration: 'none',
-                    }}>
-                      Open Budgets
-                      <ChevronRight style={{ width: '16px', height: '16px' }} />
-                    </a>
-                  </div>
+                  <input type="text" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()} placeholder="Ask about your finances..." style={{ ...inputStyle, flex: 1 }} data-testid="chat-input" />
+                  <button onClick={handleSendMessage} disabled={!chatMessage.trim() || chatMutation.isLoading || knowledgeChatMutation.isLoading} style={{ ...buttonStyles.primary, opacity: (!chatMessage.trim() || chatMutation.isLoading || knowledgeChatMutation.isLoading) ? 0.5 : 1 }} data-testid="chat-send"><Send style={{ width: '18px', height: '18px' }} /></button>
                 </div>
               </div>
             )}
           </>
         )}
       </div>
-
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
