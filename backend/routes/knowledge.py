@@ -115,8 +115,8 @@ def calculate_file_hash(content: bytes) -> str:
 
 async def get_db():
     """Get database instance"""
-    from database import get_database
-    return get_database()
+    from database import get_db as db_getter
+    return db_getter()
 
 
 @router.post("/upload", response_model=KnowledgeDocumentResponse)
