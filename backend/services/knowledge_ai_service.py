@@ -336,35 +336,50 @@ Focus on:
     ) -> Dict[str, Any]:
         """
         Chat with the knowledge base - answer questions based on uploaded documents.
-        This creates a conversational RAG experience.
+        This creates a conversational RAG experience with actual document content.
         """
         try:
             from emergentintegrations.llm.chat import LlmChat, UserMessage
             
-            # Build context from documents
-            doc_summaries = []
-            for doc in documents[:10]:  # Limit to 10 most relevant docs
-                doc_summaries.append(
-                    f"- {doc.get('original_filename', 'Unknown')}: {doc.get('description', 'No description')} "
-                    f"(Type: {doc.get('file_type', 'document')}, Tags: {', '.join(doc.get('tags', []))})"
-                )
+            # Build context from documents including extracted content
+            doc_contexts = []
+            for doc in documents[:5]:  # Limit to 5 docs for context length
+                doc_info = f"📄 {doc.get('original_filename', 'Unknown')}"
+                if doc.get('description'):
+                    doc_info += f" - {doc['description']}"
+                
+                # Try to extract content from the document
+                filename = doc.get('filename')
+                if filename:
+                    file_path = UPLOAD_DIR / filename
+                    if file_path.exists():
+                        extension = self._get_file_extension(filename)
+                        content = await self._extract_text_content(file_path, extension)
+                        if content and not content.startswith("Error") and not content.startswith("No "):
+                            # Limit content per document to manage context size
+                            truncated = content[:10000] if len(content) > 10000 else content
+                            doc_info += f"\n\nContent:\n{truncated}"
+                            if len(content) > 10000:
+                                doc_info += "\n[... content truncated ...]"
+                
+                doc_contexts.append(doc_info)
             
-            doc_context = "\n".join(doc_summaries) if doc_summaries else "No documents available"
+            doc_context = "\n\n---\n\n".join(doc_contexts) if doc_contexts else "No documents available"
             
             system_message = f"""You are an AI financial research assistant for BlackieFi. 
-You have access to the user's uploaded knowledge base of financial documents.
+You have access to the user's uploaded knowledge base with actual document contents.
 
-Available Documents in Knowledge Base:
+=== KNOWLEDGE BASE DOCUMENTS ===
 {doc_context}
+=== END OF DOCUMENTS ===
 
 Your role:
-1. Answer questions about the user's uploaded documents
-2. Provide financial insights and analysis
-3. Help with research and due diligence
-4. Suggest relevant documents when applicable
+1. Answer questions using the actual content from the documents above
+2. Cite specific data, numbers, and facts from the documents
+3. Provide financial insights and analysis based on the content
+4. If information isn't in the documents, say so clearly
 
-If asked about specific documents, refer to them by name and provide relevant insights.
-If you cannot answer based on the available documents, say so clearly."""
+Be specific and reference actual content from the documents when answering."""
 
             session_id = f"knowledge-chat-{user_id}"
             
@@ -377,7 +392,7 @@ If you cannot answer based on the available documents, say so clearly."""
             # Build conversation context
             context_prompt = ""
             if chat_history:
-                for msg in chat_history[-5:]:  # Last 5 messages for context
+                for msg in chat_history[-3:]:  # Last 3 messages for context
                     role = "User" if msg["role"] == "user" else "Assistant"
                     context_prompt += f"{role}: {msg['content']}\n"
             
