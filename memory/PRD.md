@@ -339,17 +339,26 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 ## Architecture
 ```
 /app/backend/
-├── server.py              # FastAPI main application
+├── server.py              # FastAPI main application (v3.0.0)
 ├── database.py            # MongoDB connection & seeding
 ├── models.py              # Pydantic models
 ├── auth.py                # JWT & password utilities
+├── middleware/
+│   └── observability.py   # Request tracking & metrics middleware
 ├── services/
 │   ├── llm_service.py     # Multi-provider LLM service
 │   ├── alert_service.py   # Budget/bill/goal alert monitoring
-│   └── notification_service.py # Email & push notifications
+│   ├── notification_service.py # Email & push notifications
+│   ├── audit_service.py   # Tamper-evident audit logging (Phase 4)
+│   ├── metrics_service.py # Prometheus metrics collection (Phase 4)
+│   ├── backup_service.py  # Backup & disaster recovery (Phase 4)
+│   └── knowledge_ai_service.py # RAG & document analysis
 └── routes/
     ├── admin_llm.py       # Admin LLM configuration
     ├── ai_functions.py    # AI-powered features
+    ├── audit.py           # Audit log management (Phase 4)
+    ├── backup.py          # Backup & recovery (Phase 4)
+    ├── metrics.py         # Prometheus metrics endpoint (Phase 4)
     ├── bills.py           # Bill management
     ├── reports.py         # Report generation
     ├── tax.py             # Tax planning
@@ -362,11 +371,13 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 /app/frontend/
 ├── src/
 │   ├── App.jsx            # Router with all routes
-│   ├── api/client.js      # API client (750+ lines)
+│   ├── api/client.js      # API client (1000+ lines)
 │   ├── components/
 │   │   ├── Layout.jsx     # Sidebar with notification badge
-│   │   └── AIInsights.jsx # Conditional AI insights widget
+│   │   ├── AIInsights.jsx # Conditional AI insights widget
+│   │   └── ai-copilot/    # Modular AI Co-Pilot components
 │   └── pages/
+│       ├── SystemAdmin.jsx    # Audit logs & backup management (Phase 4)
 │       ├── Calendar.jsx       # Financial calendar
 │       ├── Reports.jsx        # Report generation
 │       ├── Import.jsx         # CSV/PDF import
