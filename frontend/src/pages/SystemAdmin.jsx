@@ -1,110 +1,99 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../api/client';
+import { useAuth } from '../contexts/AuthContext';
+import { toast } from 'sonner';
 import { 
   Shield, Database, Clock, AlertTriangle, 
-  Download, Trash2, RefreshCw, Search, Filter,
+  Download, Trash2, RefreshCw, Search,
   CheckCircle, XCircle, ChevronDown, ChevronUp,
-  Activity, FileText, HardDrive, Users
+  Activity, FileText, HardDrive, Users, Loader2
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { api } from '../api/client';
-import { toast } from 'sonner';
+import { tileStyles, headerStyles, inputStyles, buttonStyles, GoldAccentLine } from '../styles/tileStyles';
 
 const SystemAdmin = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState('audit');
-  const [auditLogs, setAuditLogs] = useState([]);
-  const [auditStats, setAuditStats] = useState(null);
-  const [securityEvents, setSecurityEvents] = useState([]);
-  const [backups, setBackups] = useState([]);
-  const [dbStats, setDbStats] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [expandedLog, setExpandedLog] = useState(null);
   const [filters, setFilters] = useState({
     action: '',
     severity: '',
-    startDate: '',
-    endDate: '',
   });
-  const [expandedLog, setExpandedLog] = useState(null);
 
-  useEffect(() => {
-    if (activeTab === 'audit') {
-      loadAuditData();
-    } else if (activeTab === 'backup') {
-      loadBackupData();
-    }
-  }, [activeTab]);
+  // Check if user is admin
+  if (user?.role !== 'admin') {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>
+        <Shield style={{ width: 64, height: 64, color: '#D4AF37', margin: '0 auto 1rem' }} />
+        <h2 style={{ color: '#fff', marginBottom: '0.5rem' }}>Access Denied</h2>
+        <p style={{ color: '#666' }}>This page is only accessible to administrators.</p>
+      </div>
+    );
+  }
 
-  const loadAuditData = async () => {
-    setLoading(true);
-    try {
-      const [logsRes, statsRes, eventsRes] = await Promise.all([
-        api.getAuditLogs({ limit: 50, ...filters }),
-        api.getAuditStatistics(7),
-        api.getSecurityEvents(24, 20),
-      ]);
-      setAuditLogs(logsRes.logs || []);
-      setAuditStats(statsRes);
-      setSecurityEvents(eventsRes.events || []);
-    } catch (error) {
-      toast.error('Failed to load audit data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Audit queries
+  const { data: auditLogs = [], isLoading: logsLoading, refetch: refetchLogs } = useQuery({
+    queryKey: ['audit-logs', filters],
+    queryFn: () => api.getAuditLogs({ limit: 50, ...filters }),
+    enabled: activeTab === 'audit',
+    select: (data) => data.logs || [],
+  });
 
-  const loadBackupData = async () => {
-    setLoading(true);
-    try {
-      const [backupsRes, statsRes] = await Promise.all([
-        api.listBackups(),
-        api.getDatabaseStats(),
-      ]);
-      setBackups(backupsRes.backups || []);
-      setDbStats(statsRes);
-    } catch (error) {
-      toast.error('Failed to load backup data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: auditStats } = useQuery({
+    queryKey: ['audit-stats'],
+    queryFn: () => api.getAuditStatistics(7),
+    enabled: activeTab === 'audit',
+  });
 
-  const handleCreateBackup = async (type) => {
-    setLoading(true);
-    try {
-      const result = await api.createBackup(type, true, true);
-      toast.success(`Backup created: ${result.backup_name}`);
-      loadBackupData();
-    } catch (error) {
-      toast.error('Failed to create backup');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { data: securityEvents = [] } = useQuery({
+    queryKey: ['security-events'],
+    queryFn: () => api.getSecurityEvents(24, 20),
+    enabled: activeTab === 'audit',
+    select: (data) => data.events || [],
+  });
 
-  const handleDeleteBackup = async (backupName) => {
-    if (!window.confirm(`Delete backup "${backupName}"?`)) return;
-    
-    try {
-      await api.deleteBackup(backupName);
+  // Backup queries
+  const { data: backups = [], isLoading: backupsLoading, refetch: refetchBackups } = useQuery({
+    queryKey: ['backups'],
+    queryFn: () => api.listBackups(),
+    enabled: activeTab === 'backup',
+    select: (data) => data.backups || [],
+  });
+
+  const { data: dbStats } = useQuery({
+    queryKey: ['db-stats'],
+    queryFn: () => api.getDatabaseStats(),
+    enabled: activeTab === 'backup',
+  });
+
+  // Mutations
+  const createBackupMutation = useMutation({
+    mutationFn: (backupType) => api.createBackup(backupType, true, true),
+    onSuccess: (data) => {
+      toast.success(`Backup created: ${data.backup_name}`);
+      queryClient.invalidateQueries(['backups']);
+    },
+    onError: () => toast.error('Failed to create backup'),
+  });
+
+  const deleteBackupMutation = useMutation({
+    mutationFn: (backupName) => api.deleteBackup(backupName),
+    onSuccess: () => {
       toast.success('Backup deleted');
-      loadBackupData();
-    } catch (error) {
-      toast.error('Failed to delete backup');
-    }
-  };
+      queryClient.invalidateQueries(['backups']);
+    },
+    onError: () => toast.error('Failed to delete backup'),
+  });
 
-  const handleCleanup = async () => {
-    if (!window.confirm('Clean up backups older than 30 days?')) return;
-    
-    try {
-      const result = await api.cleanupBackups(30, 5);
-      toast.success(`Cleaned up ${result.deleted?.length || 0} backups`);
-      loadBackupData();
-    } catch (error) {
-      toast.error('Failed to cleanup backups');
-    }
-  };
+  const cleanupMutation = useMutation({
+    mutationFn: () => api.cleanupBackups(30, 5),
+    onSuccess: (data) => {
+      toast.success(`Cleaned up ${data.deleted?.length || 0} backups`);
+      queryClient.invalidateQueries(['backups']);
+    },
+    onError: () => toast.error('Failed to cleanup backups'),
+  });
 
   const formatBytes = (bytes) => {
     if (!bytes) return '0 B';
@@ -119,491 +108,447 @@ const SystemAdmin = () => {
     return new Date(dateStr).toLocaleString();
   };
 
-  const getSeverityColor = (severity) => {
+  const getSeverityStyle = (severity) => {
     switch (severity) {
-      case 'critical': return 'text-red-400 bg-red-500/20';
-      case 'error': return 'text-red-400 bg-red-500/20';
-      case 'warning': return 'text-yellow-400 bg-yellow-500/20';
-      default: return 'text-blue-400 bg-blue-500/20';
+      case 'critical': return { color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)' };
+      case 'error': return { color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)' };
+      case 'warning': return { color: '#eab308', background: 'rgba(234, 179, 8, 0.15)' };
+      default: return { color: '#3b82f6', background: 'rgba(59, 130, 246, 0.15)' };
     }
   };
 
   const renderAuditTab = () => (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/20">
-                <Activity className="h-5 w-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Total Events (7d)</p>
-                <p className="text-xl font-bold text-white">{auditStats?.total_events || 0}</p>
-              </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
+        <div style={tileStyles.stat}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.2)' }}>
+              <Activity style={{ width: 20, height: 20, color: '#3b82f6' }} />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: '#666' }}>Total Events (7d)</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{auditStats?.total_events || 0}</p>
+            </div>
+          </div>
+        </div>
 
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-red-500/20">
-                <AlertTriangle className="h-5 w-5 text-red-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Failed Events</p>
-                <p className="text-xl font-bold text-white">{auditStats?.failed_events || 0}</p>
-              </div>
+        <div style={tileStyles.statRed}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(239, 68, 68, 0.2)' }}>
+              <AlertTriangle style={{ width: 20, height: 20, color: '#ef4444' }} />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: '#666' }}>Failed Events</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{auditStats?.failed_events || 0}</p>
+            </div>
+          </div>
+        </div>
 
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#D4AF37]/20">
-                <Users className="h-5 w-5 text-[#D4AF37]" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Unique Users</p>
-                <p className="text-xl font-bold text-white">{auditStats?.unique_users || 0}</p>
-              </div>
+        <div style={tileStyles.statGold}>
+          <GoldAccentLine />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(212, 175, 55, 0.2)' }}>
+              <Users style={{ width: 20, height: 20, color: '#D4AF37' }} />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: '#666' }}>Unique Users</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{auditStats?.unique_users || 0}</p>
+            </div>
+          </div>
+        </div>
 
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-orange-500/20">
-                <Shield className="h-5 w-5 text-orange-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Security Events (24h)</p>
-                <p className="text-xl font-bold text-white">{securityEvents.length}</p>
-              </div>
+        <div style={tileStyles.stat}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(249, 115, 22, 0.2)' }}>
+              <Shield style={{ width: 20, height: 20, color: '#f97316' }} />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: '#666' }}>Security Events (24h)</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{securityEvents.length}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Security Events */}
+      {/* Security Events Alert */}
       {securityEvents.length > 0 && (
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardHeader className="border-b border-[#1a1a1a]">
-            <CardTitle className="text-lg text-white flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-orange-400" />
-              Recent Security Events
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-[#1a1a1a]">
-              {securityEvents.slice(0, 5).map((event) => (
-                <div key={event.id} className="p-4 hover:bg-[#111]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className={`px-2 py-1 rounded text-xs ${getSeverityColor(event.severity)}`}>
-                        {event.severity}
-                      </span>
-                      <span className="text-white font-medium">{event.action}</span>
-                    </div>
-                    <span className="text-gray-500 text-sm">{formatDate(event.timestamp)}</span>
-                  </div>
-                  {event.ip_address && (
-                    <p className="text-gray-500 text-sm mt-1">IP: {event.ip_address}</p>
-                  )}
+        <div style={tileStyles.content}>
+          <div style={{ ...headerStyles.section, marginBottom: '1rem' }}>
+            <AlertTriangle style={{ width: 20, height: 20, color: '#f97316' }} />
+            <span>Recent Security Events</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {securityEvents.slice(0, 5).map((event) => (
+              <div key={event.id} style={{ ...tileStyles.inner, padding: '0.75rem 1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ ...getSeverityStyle(event.severity), padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600' }}>
+                    {event.severity}
+                  </span>
+                  <span style={{ color: '#fff', fontWeight: '500' }}>{event.action}</span>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                <span style={{ color: '#666', fontSize: '0.8rem' }}>{formatDate(event.timestamp)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Filters */}
-      <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4 items-center">
-            <div className="flex-1 min-w-[200px]">
-              <Input
-                placeholder="Filter by action..."
-                value={filters.action}
-                onChange={(e) => setFilters({ ...filters, action: e.target.value })}
-                className="bg-[#111] border-[#222] text-white"
-              />
-            </div>
-            <select
-              value={filters.severity}
-              onChange={(e) => setFilters({ ...filters, severity: e.target.value })}
-              className="bg-[#111] border border-[#222] text-white rounded-md px-3 py-2"
-            >
-              <option value="">All Severities</option>
-              <option value="info">Info</option>
-              <option value="warning">Warning</option>
-              <option value="error">Error</option>
-              <option value="critical">Critical</option>
-            </select>
-            <Button
-              onClick={loadAuditData}
-              variant="outline"
-              className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10"
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </Button>
-            <Button
-              onClick={() => setFilters({ action: '', severity: '', startDate: '', endDate: '' })}
-              variant="ghost"
-              className="text-gray-400"
-            >
-              Clear
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div style={{ ...tileStyles.content, padding: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <input
+            type="text"
+            placeholder="Filter by action..."
+            value={filters.action}
+            onChange={(e) => setFilters({ ...filters, action: e.target.value })}
+            style={{ ...inputStyles.text, flex: 1, minWidth: '200px' }}
+          />
+          <select
+            value={filters.severity}
+            onChange={(e) => setFilters({ ...filters, severity: e.target.value })}
+            style={inputStyles.select}
+          >
+            <option value="">All Severities</option>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+            <option value="critical">Critical</option>
+          </select>
+          <button onClick={() => refetchLogs()} style={buttonStyles.secondary}>
+            <Search style={{ width: 16, height: 16 }} />
+            Search
+          </button>
+          <button 
+            onClick={() => setFilters({ action: '', severity: '' })} 
+            style={{ ...buttonStyles.ghost, color: '#666' }}
+          >
+            Clear
+          </button>
+        </div>
+      </div>
 
       {/* Audit Logs Table */}
-      <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-        <CardHeader className="border-b border-[#1a1a1a]">
-          <div className="flex justify-between items-center">
-            <CardTitle className="text-lg text-white flex items-center gap-2">
-              <FileText className="h-5 w-5 text-[#D4AF37]" />
-              Audit Logs
-            </CardTitle>
-            <Button
-              onClick={loadAuditData}
-              variant="ghost"
-              size="sm"
-              className="text-gray-400"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
+      <div style={tileStyles.content}>
+        <div style={{ ...headerStyles.section, marginBottom: '1rem', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FileText style={{ width: 20, height: 20, color: '#D4AF37' }} />
+            <span>Audit Logs</span>
           </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          {auditLogs.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <Shield className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No audit logs found</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[#1a1a1a]">
-              {auditLogs.map((log) => (
-                <div key={log.id} className="hover:bg-[#111]">
-                  <div
-                    className="p-4 cursor-pointer"
-                    onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {log.success ? (
-                          <CheckCircle className="h-4 w-4 text-green-400" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-red-400" />
-                        )}
-                        <span className={`px-2 py-1 rounded text-xs ${getSeverityColor(log.severity)}`}>
-                          {log.severity}
-                        </span>
-                        <span className="text-white font-medium">{log.action}</span>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <span className="text-gray-500 text-sm">{formatDate(log.timestamp)}</span>
-                        {expandedLog === log.id ? (
-                          <ChevronUp className="h-4 w-4 text-gray-500" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-gray-500" />
-                        )}
-                      </div>
+          <button onClick={() => refetchLogs()} style={buttonStyles.ghost}>
+            <RefreshCw style={{ width: 16, height: 16, animation: logsLoading ? 'spin 1s linear infinite' : 'none' }} />
+          </button>
+        </div>
+
+        {logsLoading ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <Loader2 style={{ width: 32, height: 32, color: '#D4AF37', margin: '0 auto', animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : auditLogs.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+            <Shield style={{ width: 48, height: 48, margin: '0 auto 1rem', opacity: 0.5 }} />
+            <p>No audit logs found</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {auditLogs.map((log) => (
+              <div key={log.id} style={tileStyles.inner}>
+                <div 
+                  style={{ padding: '0.75rem 1rem', cursor: 'pointer' }}
+                  onClick={() => setExpandedLog(expandedLog === log.id ? null : log.id)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      {log.success ? (
+                        <CheckCircle style={{ width: 16, height: 16, color: '#22c55e' }} />
+                      ) : (
+                        <XCircle style={{ width: 16, height: 16, color: '#ef4444' }} />
+                      )}
+                      <span style={{ ...getSeverityStyle(log.severity), padding: '0.25rem 0.5rem', borderRadius: '4px', fontSize: '0.7rem', fontWeight: '600' }}>
+                        {log.severity}
+                      </span>
+                      <span style={{ color: '#fff', fontWeight: '500' }}>{log.action}</span>
                     </div>
-                    {log.user_email && (
-                      <p className="text-gray-500 text-sm mt-1">User: {log.user_email}</p>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <span style={{ color: '#666', fontSize: '0.8rem' }}>{formatDate(log.timestamp)}</span>
+                      {expandedLog === log.id ? (
+                        <ChevronUp style={{ width: 16, height: 16, color: '#666' }} />
+                      ) : (
+                        <ChevronDown style={{ width: 16, height: 16, color: '#666' }} />
+                      )}
+                    </div>
                   </div>
-                  {expandedLog === log.id && (
-                    <div className="px-4 pb-4 bg-[#080808]">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        {log.resource_type && (
-                          <div>
-                            <p className="text-gray-500">Resource Type</p>
-                            <p className="text-white">{log.resource_type}</p>
-                          </div>
-                        )}
-                        {log.resource_id && (
-                          <div>
-                            <p className="text-gray-500">Resource ID</p>
-                            <p className="text-white font-mono text-xs">{log.resource_id}</p>
-                          </div>
-                        )}
-                        {log.ip_address && (
-                          <div>
-                            <p className="text-gray-500">IP Address</p>
-                            <p className="text-white">{log.ip_address}</p>
-                          </div>
-                        )}
-                        {log.request_id && (
-                          <div>
-                            <p className="text-gray-500">Request ID</p>
-                            <p className="text-white font-mono text-xs">{log.request_id}</p>
-                          </div>
-                        )}
-                        {log.details && Object.keys(log.details).length > 0 && (
-                          <div className="col-span-2">
-                            <p className="text-gray-500 mb-1">Details</p>
-                            <pre className="text-white bg-[#0a0a0a] p-2 rounded text-xs overflow-auto">
-                              {JSON.stringify(log.details, null, 2)}
-                            </pre>
-                          </div>
-                        )}
-                        {log.error_message && (
-                          <div className="col-span-2">
-                            <p className="text-gray-500">Error</p>
-                            <p className="text-red-400">{log.error_message}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+                  {log.user_email && (
+                    <p style={{ color: '#666', fontSize: '0.8rem', marginTop: '0.25rem' }}>User: {log.user_email}</p>
                   )}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                {expandedLog === log.id && (
+                  <div style={{ padding: '0.75rem 1rem', background: 'rgba(0,0,0,0.3)', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.85rem' }}>
+                      {log.resource_type && (
+                        <div>
+                          <p style={{ color: '#666' }}>Resource Type</p>
+                          <p style={{ color: '#fff' }}>{log.resource_type}</p>
+                        </div>
+                      )}
+                      {log.resource_id && (
+                        <div>
+                          <p style={{ color: '#666' }}>Resource ID</p>
+                          <p style={{ color: '#fff', fontFamily: 'monospace', fontSize: '0.75rem' }}>{log.resource_id}</p>
+                        </div>
+                      )}
+                      {log.ip_address && (
+                        <div>
+                          <p style={{ color: '#666' }}>IP Address</p>
+                          <p style={{ color: '#fff' }}>{log.ip_address}</p>
+                        </div>
+                      )}
+                      {log.details && Object.keys(log.details).length > 0 && (
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <p style={{ color: '#666', marginBottom: '0.5rem' }}>Details</p>
+                          <pre style={{ color: '#fff', background: 'rgba(0,0,0,0.4)', padding: '0.5rem', borderRadius: '4px', fontSize: '0.75rem', overflow: 'auto' }}>
+                            {JSON.stringify(log.details, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      {log.error_message && (
+                        <div style={{ gridColumn: 'span 2' }}>
+                          <p style={{ color: '#666' }}>Error</p>
+                          <p style={{ color: '#ef4444' }}>{log.error_message}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 
   const renderBackupTab = () => (
-    <div className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Database Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#D4AF37]/20">
-                <Database className="h-5 w-5 text-[#D4AF37]" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Total Documents</p>
-                <p className="text-xl font-bold text-white">{dbStats?.total_documents?.toLocaleString() || 0}</p>
-              </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+        <div style={tileStyles.statGold}>
+          <GoldAccentLine />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(212, 175, 55, 0.2)' }}>
+              <Database style={{ width: 20, height: 20, color: '#D4AF37' }} />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: '#666' }}>Total Documents</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{dbStats?.total_documents?.toLocaleString() || 0}</p>
+            </div>
+          </div>
+        </div>
 
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-500/20">
-                <HardDrive className="h-5 w-5 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Estimated Size</p>
-                <p className="text-xl font-bold text-white">{formatBytes(dbStats?.total_size_estimate)}</p>
-              </div>
+        <div style={tileStyles.stat}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.2)' }}>
+              <HardDrive style={{ width: 20, height: 20, color: '#3b82f6' }} />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: '#666' }}>Estimated Size</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{formatBytes(dbStats?.total_size_estimate)}</p>
+            </div>
+          </div>
+        </div>
 
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-500/20">
-                <FileText className="h-5 w-5 text-green-400" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">Available Backups</p>
-                <p className="text-xl font-bold text-white">{backups.length}</p>
-              </div>
+        <div style={tileStyles.statGreen}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(34, 197, 94, 0.2)' }}>
+              <FileText style={{ width: 20, height: 20, color: '#22c55e' }} />
             </div>
-          </CardContent>
-        </Card>
+            <div>
+              <p style={{ fontSize: '0.75rem', color: '#666' }}>Available Backups</p>
+              <p style={{ fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{backups.length}</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Backup Actions */}
-      <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-        <CardHeader className="border-b border-[#1a1a1a]">
-          <CardTitle className="text-lg text-white">Backup Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="p-4">
-          <div className="flex flex-wrap gap-4">
-            <Button
-              onClick={() => handleCreateBackup('full')}
-              disabled={loading}
-              className="bg-[#D4AF37] hover:bg-[#C4A030] text-black"
-            >
-              <Database className="h-4 w-4 mr-2" />
-              Full Backup
-            </Button>
-            <Button
-              onClick={() => handleCreateBackup('critical')}
-              disabled={loading}
-              variant="outline"
-              className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/10"
-            >
-              <Shield className="h-4 w-4 mr-2" />
-              Critical Data Only
-            </Button>
-            <Button
-              onClick={handleCleanup}
-              disabled={loading}
-              variant="outline"
-              className="border-gray-600 text-gray-400 hover:bg-gray-800"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Cleanup Old
-            </Button>
-            <Button
-              onClick={loadBackupData}
-              variant="ghost"
-              className="text-gray-400"
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <div style={tileStyles.content}>
+        <div style={{ ...headerStyles.section, marginBottom: '1rem' }}>
+          <span>Backup Actions</span>
+        </div>
+        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => createBackupMutation.mutate('full')}
+            disabled={createBackupMutation.isPending}
+            style={buttonStyles.primary}
+          >
+            {createBackupMutation.isPending ? (
+              <Loader2 style={{ width: 16, height: 16, animation: 'spin 1s linear infinite' }} />
+            ) : (
+              <Database style={{ width: 16, height: 16 }} />
+            )}
+            Full Backup
+          </button>
+          <button
+            onClick={() => createBackupMutation.mutate('critical')}
+            disabled={createBackupMutation.isPending}
+            style={buttonStyles.secondary}
+          >
+            <Shield style={{ width: 16, height: 16 }} />
+            Critical Data Only
+          </button>
+          <button
+            onClick={() => {
+              if (window.confirm('Clean up backups older than 30 days?')) {
+                cleanupMutation.mutate();
+              }
+            }}
+            disabled={cleanupMutation.isPending}
+            style={{ ...buttonStyles.ghost, color: '#666' }}
+          >
+            <Trash2 style={{ width: 16, height: 16 }} />
+            Cleanup Old
+          </button>
+          <button onClick={() => refetchBackups()} style={buttonStyles.ghost}>
+            <RefreshCw style={{ width: 16, height: 16, animation: backupsLoading ? 'spin 1s linear infinite' : 'none' }} />
+          </button>
+        </div>
+      </div>
 
       {/* Backups List */}
-      <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-        <CardHeader className="border-b border-[#1a1a1a]">
-          <CardTitle className="text-lg text-white flex items-center gap-2">
-            <HardDrive className="h-5 w-5 text-[#D4AF37]" />
-            Available Backups
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {backups.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">
-              <Database className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No backups available</p>
-              <p className="text-sm mt-2">Create your first backup to get started</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[#1a1a1a]">
-              {backups.map((backup) => (
-                <div key={backup.name} className="p-4 hover:bg-[#111]">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="p-2 rounded-lg bg-[#111]">
-                        {backup.compressed ? (
-                          <Database className="h-5 w-5 text-[#D4AF37]" />
-                        ) : (
-                          <FileText className="h-5 w-5 text-blue-400" />
+      <div style={tileStyles.content}>
+        <div style={{ ...headerStyles.section, marginBottom: '1rem' }}>
+          <HardDrive style={{ width: 20, height: 20, color: '#D4AF37' }} />
+          <span>Available Backups</span>
+        </div>
+
+        {backupsLoading ? (
+          <div style={{ textAlign: 'center', padding: '2rem' }}>
+            <Loader2 style={{ width: 32, height: 32, color: '#D4AF37', margin: '0 auto', animation: 'spin 1s linear infinite' }} />
+          </div>
+        ) : backups.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: '#666' }}>
+            <Database style={{ width: 48, height: 48, margin: '0 auto 1rem', opacity: 0.5 }} />
+            <p>No backups available</p>
+            <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>Create your first backup to get started</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {backups.map((backup) => (
+              <div key={backup.name} style={{ ...tileStyles.inner, padding: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ padding: '0.5rem', borderRadius: '8px', background: 'rgba(212, 175, 55, 0.1)' }}>
+                      <Database style={{ width: 20, height: 20, color: '#D4AF37' }} />
+                    </div>
+                    <div>
+                      <p style={{ color: '#fff', fontWeight: '500' }}>{backup.name}</p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.25rem' }}>
+                        <span style={{ color: '#666', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          <Clock style={{ width: 12, height: 12 }} />
+                          {formatDate(backup.created)}
+                        </span>
+                        <span style={{ color: '#666', fontSize: '0.8rem' }}>{formatBytes(backup.size_bytes)}</span>
+                        {backup.type && (
+                          <span style={{ 
+                            padding: '0.125rem 0.5rem', 
+                            borderRadius: '4px', 
+                            fontSize: '0.7rem',
+                            background: backup.type === 'full' ? 'rgba(212, 175, 55, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                            color: backup.type === 'full' ? '#D4AF37' : '#3b82f6',
+                          }}>
+                            {backup.type}
+                          </span>
                         )}
                       </div>
-                      <div>
-                        <p className="text-white font-medium">{backup.name}</p>
-                        <div className="flex items-center gap-4 mt-1">
-                          <span className="text-gray-500 text-sm flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {formatDate(backup.created)}
-                          </span>
-                          <span className="text-gray-500 text-sm">
-                            {formatBytes(backup.size_bytes)}
-                          </span>
-                          {backup.type && (
-                            <span className={`px-2 py-0.5 rounded text-xs ${
-                              backup.type === 'full' 
-                                ? 'bg-[#D4AF37]/20 text-[#D4AF37]'
-                                : 'bg-blue-500/20 text-blue-400'
-                            }`}>
-                              {backup.type}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={() => window.open(api.getBackupDownloadUrl(backup.name), '_blank')}
-                        variant="ghost"
-                        size="sm"
-                        className="text-blue-400 hover:text-blue-300"
-                      >
-                        <Download className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        onClick={() => handleDeleteBackup(backup.name)}
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-400 hover:text-red-300"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <button
+                      onClick={() => window.open(api.getBackupDownloadUrl(backup.name), '_blank')}
+                      style={{ ...buttonStyles.ghost, padding: '0.5rem' }}
+                    >
+                      <Download style={{ width: 16, height: 16, color: '#3b82f6' }} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (window.confirm(`Delete backup "${backup.name}"?`)) {
+                          deleteBackupMutation.mutate(backup.name);
+                        }
+                      }}
+                      style={{ ...buttonStyles.ghost, padding: '0.5rem' }}
+                    >
+                      <Trash2 style={{ width: 16, height: 16, color: '#ef4444' }} />
+                    </button>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Collections Breakdown */}
       {dbStats?.collections && Object.keys(dbStats.collections).length > 0 && (
-        <Card className="bg-[#0a0a0a] border-[#1a1a1a]">
-          <CardHeader className="border-b border-[#1a1a1a]">
-            <CardTitle className="text-lg text-white">Collections Breakdown</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(dbStats.collections)
-                .sort((a, b) => b[1].documents - a[1].documents)
-                .slice(0, 12)
-                .map(([name, stats]) => (
-                  <div key={name} className="p-3 bg-[#111] rounded-lg">
-                    <p className="text-gray-400 text-xs truncate">{name}</p>
-                    <p className="text-white font-bold">{stats.documents?.toLocaleString() || 0}</p>
-                    <p className="text-gray-500 text-xs">{formatBytes(stats.estimated_size_bytes)}</p>
-                  </div>
-                ))}
-            </div>
-          </CardContent>
-        </Card>
+        <div style={tileStyles.content}>
+          <div style={{ ...headerStyles.section, marginBottom: '1rem' }}>
+            <span>Collections Breakdown</span>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+            {Object.entries(dbStats.collections)
+              .sort((a, b) => (b[1].documents || 0) - (a[1].documents || 0))
+              .slice(0, 12)
+              .map(([name, stats]) => (
+                <div key={name} style={{ padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
+                  <p style={{ color: '#666', fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
+                  <p style={{ color: '#fff', fontWeight: '700' }}>{(stats.documents || 0).toLocaleString()}</p>
+                  <p style={{ color: '#666', fontSize: '0.7rem' }}>{formatBytes(stats.estimated_size_bytes)}</p>
+                </div>
+              ))}
+          </div>
+        </div>
       )}
     </div>
   );
 
   return (
-    <div className="space-y-6" data-testid="system-admin-page">
+    <div data-testid="system-admin-page">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-white">System Administration</h1>
-          <p className="text-gray-500">Audit logs, backups, and system monitoring</p>
-        </div>
+      <div style={{ marginBottom: '1.5rem' }}>
+        <h1 style={{ ...headerStyles.page, marginBottom: '0.25rem' }}>System Administration</h1>
+        <p style={{ color: '#666' }}>Audit logs, backups, and system monitoring</p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-2 border-b border-[#1a1a1a] pb-2">
-        <Button
+      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem', marginBottom: '1.5rem' }}>
+        <button
           onClick={() => setActiveTab('audit')}
-          variant={activeTab === 'audit' ? 'default' : 'ghost'}
-          className={activeTab === 'audit' 
-            ? 'bg-[#D4AF37] text-black hover:bg-[#C4A030]' 
-            : 'text-gray-400 hover:text-white'}
+          style={activeTab === 'audit' ? buttonStyles.primary : { ...buttonStyles.ghost, color: '#666' }}
           data-testid="tab-audit"
         >
-          <Shield className="h-4 w-4 mr-2" />
+          <Shield style={{ width: 16, height: 16 }} />
           Audit Logs
-        </Button>
-        <Button
+        </button>
+        <button
           onClick={() => setActiveTab('backup')}
-          variant={activeTab === 'backup' ? 'default' : 'ghost'}
-          className={activeTab === 'backup' 
-            ? 'bg-[#D4AF37] text-black hover:bg-[#C4A030]' 
-            : 'text-gray-400 hover:text-white'}
+          style={activeTab === 'backup' ? buttonStyles.primary : { ...buttonStyles.ghost, color: '#666' }}
           data-testid="tab-backup"
         >
-          <Database className="h-4 w-4 mr-2" />
+          <Database style={{ width: 16, height: 16 }} />
           Backup & Recovery
-        </Button>
+        </button>
       </div>
 
       {/* Tab Content */}
       {activeTab === 'audit' && renderAuditTab()}
       {activeTab === 'backup' && renderBackupTab()}
+
+      {/* CSS for spinner animation */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 };
