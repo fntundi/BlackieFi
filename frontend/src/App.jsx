@@ -101,6 +101,7 @@ function AppRoutes() {
                 <Route path="/financial-settings" element={<FinancialSettings />} />
                 <Route path="/notifications" element={<Notifications />} />
                 <Route path="/ai-copilot" element={<AICoPilot />} />
+                <Route path="/system-admin" element={<SystemAdmin />} />
               </Routes>
             </Layout>
           </PrivateRoute>
