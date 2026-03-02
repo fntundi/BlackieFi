@@ -428,6 +428,7 @@ const SystemAdmin = () => {
           </button>
           <button onClick={() => refetchBackups()} style={buttonStyles.ghost}>
             <RefreshCw style={{ width: 16, height: 16, animation: backupsLoading ? 'spin 1s linear infinite' : 'none' }} />
+            Refresh
           </button>
         </div>
       </div>
