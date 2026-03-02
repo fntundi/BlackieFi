@@ -817,6 +817,162 @@ class ApiClient {
   async getKnowledgeStats() {
     return this.request('/knowledge/stats');
   }
+
+  async chatWithKnowledgeBase(message) {
+    const formData = new FormData();
+    formData.append('message', message);
+
+    const response = await fetch(`${API_URL}/knowledge/chat`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Chat failed' }));
+      throw new Error(error.detail || 'Chat failed');
+    }
+
+    return response.json();
+  }
+
+  // ==========================================================================
+  // Strategy Studio
+  // ==========================================================================
+
+  async getStrategyFrameworks() {
+    return this.request('/strategy/frameworks');
+  }
+
+  async createStrategyFramework(framework) {
+    return this.request('/strategy/frameworks', {
+      method: 'POST',
+      body: JSON.stringify(framework),
+    });
+  }
+
+  async deleteStrategyFramework(frameworkId) {
+    return this.request(`/strategy/frameworks/${frameworkId}`, { method: 'DELETE' });
+  }
+
+  async analyzeWithStrategy(frameworkId, assetType, tickerOrName, additionalContext = null) {
+    return this.request('/strategy/analyze', {
+      method: 'POST',
+      body: JSON.stringify({
+        framework_id: frameworkId,
+        asset_type: assetType,
+        ticker_or_name: tickerOrName,
+        additional_context: additionalContext,
+      }),
+    });
+  }
+
+  async compareStrategies(assetType, tickerOrName, frameworkIds) {
+    return this.request('/strategy/compare', {
+      method: 'POST',
+      body: JSON.stringify({
+        asset_type: assetType,
+        ticker_or_name: tickerOrName,
+        framework_ids: frameworkIds,
+      }),
+    });
+  }
+
+  async getStrategyHistory(limit = 20) {
+    return this.request(`/strategy/history?limit=${limit}`);
+  }
+
+  async getStrategyAnalysisDetail(analysisId) {
+    return this.request(`/strategy/history/${analysisId}`);
+  }
+
+  // ==========================================================================
+  // Analysis Lab
+  // ==========================================================================
+
+  async comprehensiveAnalysis(assetType, identifier, depth = 'standard', includeSections = []) {
+    return this.request('/analysis/comprehensive', {
+      method: 'POST',
+      body: JSON.stringify({
+        asset_type: assetType,
+        identifier: identifier,
+        analysis_depth: depth,
+        include_sections: includeSections,
+      }),
+    });
+  }
+
+  async riskAssessment(assetType, identifier, investmentAmount, timeHorizon) {
+    return this.request('/analysis/risk-assessment', {
+      method: 'POST',
+      body: JSON.stringify({
+        asset_type: assetType,
+        identifier: identifier,
+        investment_amount: investmentAmount,
+        time_horizon: timeHorizon,
+      }),
+    });
+  }
+
+  async dueDiligence(assetType, identifier, dealSize = null) {
+    return this.request('/analysis/due-diligence', {
+      method: 'POST',
+      body: JSON.stringify({
+        asset_type: assetType,
+        identifier: identifier,
+        deal_size: dealSize,
+      }),
+    });
+  }
+
+  async marketResearch(sector, focusArea = null) {
+    const formData = new FormData();
+    formData.append('sector', sector);
+    if (focusArea) formData.append('focus_area', focusArea);
+
+    const response = await fetch(`${API_URL}/analysis/market-research`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Research failed' }));
+      throw new Error(error.detail || 'Research failed');
+    }
+
+    return response.json();
+  }
+
+  async portfolioAnalysis(entityId) {
+    const formData = new FormData();
+    formData.append('entity_id', entityId);
+
+    const response = await fetch(`${API_URL}/analysis/portfolio-analysis`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${this.token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Analysis failed' }));
+      throw new Error(error.detail || 'Analysis failed');
+    }
+
+    return response.json();
+  }
+
+  async getAnalysisHistory(analysisType = null, limit = 20) {
+    let query = `limit=${limit}`;
+    if (analysisType) query += `&analysis_type=${analysisType}`;
+    return this.request(`/analysis/history?${query}`);
+  }
 }
 
 export const api = new ApiClient();
