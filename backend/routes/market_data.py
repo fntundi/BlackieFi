@@ -146,7 +146,7 @@ async def get_stock_quote(
     result = await service.get_stock_quote(symbol)
     
     if "error" in result:
-        if result.get("enabled") == False:
+        if not result.get("enabled") and result.get("enabled") is not None:
             raise HTTPException(status_code=503, detail="Stock market data is not enabled. Please configure Alpha Vantage in settings.")
         # Pass through API key or other errors
         return result
