@@ -749,6 +749,76 @@ class ApiClient {
       body: JSON.stringify({ email, subject }),
     });
   }
+
+  // ==========================================================================
+  // Knowledge Lab
+  // ==========================================================================
+
+  async uploadKnowledgeDocument(file, description = null, tags = null, entityId = null) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (description) formData.append('description', description);
+    if (tags) formData.append('tags', tags);
+    if (entityId) formData.append('entity_id', entityId);
+
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/knowledge/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new Error(error.detail || 'Upload failed');
+    }
+
+    return response.json();
+  }
+
+  async getKnowledgeDocuments(params = {}) {
+    const query = new URLSearchParams();
+    if (params.entity_id) query.append('entity_id', params.entity_id);
+    if (params.file_type) query.append('file_type', params.file_type);
+    if (params.tag) query.append('tag', params.tag);
+    const queryStr = query.toString() ? `?${query.toString()}` : '';
+    return this.request(`/knowledge/documents${queryStr}`);
+  }
+
+  async getKnowledgeDocument(docId) {
+    return this.request(`/knowledge/documents/${docId}`);
+  }
+
+  async deleteKnowledgeDocument(docId) {
+    return this.request(`/knowledge/documents/${docId}`, { method: 'DELETE' });
+  }
+
+  async analyzeKnowledgeDocument(docId, query = null) {
+    const formData = new FormData();
+    if (query) formData.append('query', query);
+
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${this.baseUrl}/knowledge/analyze/${docId}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Analysis failed' }));
+      throw new Error(error.detail || 'Analysis failed');
+    }
+
+    return response.json();
+  }
+
+  async getKnowledgeStats() {
+    return this.request('/knowledge/stats');
+  }
 }
 
 export const api = new ApiClient();
