@@ -84,6 +84,9 @@ services:
       - PORT=8080
       - AUTH_SERVICE_URL=http://auth-service:8001
       - CORE_SERVICE_URL=http://core-service:8002
+      - ENTITY_SERVICE_URL=http://entity-service:8003
+      - PORTFOLIO_SERVICE_URL=http://portfolio-service:8004
+      - ASSET_SERVICE_URL=http://asset-service:8005
       - REDIS_URL=redis://:${REDIS_PASSWORD:-blackiefi_redis_secret}@redis:6379/0
       - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-jwt-key-change-in-production}
       - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
@@ -98,6 +101,12 @@ services:
       auth-service:
         condition: service_started
       core-service:
+        condition: service_started
+      entity-service:
+        condition: service_started
+      portfolio-service:
+        condition: service_started
+      asset-service:
         condition: service_started
     networks:
       - blackiefi-public
