@@ -27,6 +27,7 @@ import TaxPlanning from './pages/TaxPlanning';
 import Groups from './pages/Groups';
 import FinancialSettings from './pages/FinancialSettings';
 import Notifications from './pages/Notifications';
+import AICoPilot from './pages/AICoPilot';
 
 import './App.css';
 
