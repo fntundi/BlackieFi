@@ -299,8 +299,8 @@ Focus on:
 - Tags: {', '.join(doc_metadata.get('tags', []))}"""
         
         # Route to appropriate analysis method
-        if file_type in ['image', 'video'] or extension in self.SUPPORTED_DOC_EXTENSIONS:
-            # Use Gemini for images, videos, and complex documents (PDF, DOCX)
+        if file_type in ['image', 'video']:
+            # Use Gemini for images and videos (visual analysis required)
             return await self.analyze_document_with_gemini(
                 file_path=file_path,
                 query=query,
@@ -308,8 +308,9 @@ Focus on:
                 file_type=file_type,
                 system_context=system_context
             )
-        elif extension in self.SUPPORTED_TEXT_EXTENSIONS:
-            # Use GPT for simple text files
+        elif extension in ['pdf', 'docx', 'xlsx'] + self.SUPPORTED_TEXT_EXTENSIONS:
+            # Use text extraction + GPT for documents with extractable text
+            # This provides more reliable parsing than Gemini for complex documents
             return await self.analyze_text_document(
                 file_path=file_path,
                 query=query,
