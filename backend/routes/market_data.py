@@ -166,7 +166,7 @@ async def get_stock_historical(
     result = await service.get_stock_historical(symbol, outputsize)
     
     if "error" in result:
-        if result.get("enabled") == False:
+        if not result.get("enabled") and result.get("enabled") is not None:
             raise HTTPException(status_code=503, detail="Stock market data is not enabled")
         # Pass through API key or other errors
         return result
@@ -185,7 +185,7 @@ async def search_stocks(
     result = await service.search_stocks(q)
     
     if "error" in result:
-        if result.get("enabled") == False:
+        if not result.get("enabled") and result.get("enabled") is not None:
             raise HTTPException(status_code=503, detail="Stock market data is not enabled")
         # Pass through API key or other errors
         return result
