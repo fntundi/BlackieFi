@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/client';
 import { useEntity } from '../contexts/EntityContext';
@@ -18,7 +18,16 @@ import {
   Target,
   DollarSign,
   BarChart3,
-  Loader2
+  Loader2,
+  Upload,
+  File,
+  Image,
+  Video,
+  X,
+  Search,
+  Trash2,
+  Eye,
+  FolderOpen
 } from 'lucide-react';
 import { tileStyles, headerStyles, buttonStyles, GoldAccentLine, formatCurrency } from '../styles/tileStyles';
 
