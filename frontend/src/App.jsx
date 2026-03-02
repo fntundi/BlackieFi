@@ -99,6 +99,7 @@ function AppRoutes() {
                 <Route path="/groups" element={<Groups />} />
                 <Route path="/financial-settings" element={<FinancialSettings />} />
                 <Route path="/notifications" element={<Notifications />} />
+                <Route path="/ai-copilot" element={<AICoPilot />} />
               </Routes>
             </Layout>
           </PrivateRoute>
