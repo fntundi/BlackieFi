@@ -1,14 +1,53 @@
-# BlackieFi - Premium Personal Finance Management Platform
+# BlackieFi 3.0 - Institutional-Grade Wealth Management Platform
+
+## Vision Statement
+BlackieFi 3.0 is a secure, institutional-grade wealth management and research platform built on a microservices architecture with an AI Investment Co-Pilot to support rigorous research, analysis, monitoring, and governance of multi-asset portfolios.
 
 ## Original Problem Statement
 Migrate an existing application from the `base44` platform to a new technology stack (Python/FastAPI, React, MongoDB). Build a premium personal finance management app with a luxury dark theme featuring 18K gold (#D4AF37), silver/chrome, and obsidian black (#050505).
 
 ## Product Requirements
-1. **Complete Feature Parity with Base44:** All original features must be replicated
-2. **AI Integration:** System-wide and per-account toggles. Support for multiple LLM providers: OpenRouter, Emergent (Universal Key), Ollama (local). AI off by default.
-3. **Authentication:** Username/password based with email for password recovery
-4. **Theme:** Luxury gold/black dark theme applied consistently
-5. **Notifications:** Real-time budget alerts, email notifications, and push notifications
+1. **Microservices Architecture:** Containerized services with API Gateway, Auth, Core Domain services
+2. **Institutional Security:** MFA, RBAC, encrypted secrets, audit logging, rate limiting
+3. **AI Co-Pilot:** Multi-provider LLM support (Emergent, OpenRouter), Knowledge Lab, Strategy Studio
+4. **Entity-Centric:** All data scoped to legal/organizational entities (LLCs, LPs)
+5. **Multi-Asset Support:** Real Estate, Tax Liens, Private Equity, Precious Metals, Stocks
+6. **Theme:** Luxury gold/black dark theme applied consistently
+
+---
+
+## Architecture (Phase 1 Implemented)
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│                    API GATEWAY (8080)                         │
+│  Rate Limiting • Auth Enforcement • Request Routing           │
+└──────────────────────────────────────────────────────────────┘
+                           │
+           ┌───────────────┼───────────────┐
+           ▼               ▼               ▼
+    ┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+    │ AUTH (8001) │  │ CORE (8002) │  │  FRONTEND   │
+    │   MFA/JWT   │  │  Business   │  │   React     │
+    └─────────────┘  └─────────────┘  └─────────────┘
+           │               │
+           ▼               ▼
+    ┌─────────────────────────────────────────────────────────┐
+    │  MongoDB (27017)  │  Redis (6379)  │  ChromaDB (8000)   │
+    └─────────────────────────────────────────────────────────┘
+```
+
+### Services Created (Phase 1)
+- **API Gateway** (`/app/services/gateway/`) - Centralized routing, auth, rate limiting
+- **Auth Service** (`/app/services/auth/`) - MFA (TOTP), JWT tokens, RBAC foundation
+- **Core Service** (`/app/services/core/`) - Domain logic (entities, portfolios, assets)
+- **Shared Config** (`/app/services/shared/`) - Secrets management pattern
+
+### Infrastructure
+- **docker-compose.microservices.yml** - Full containerized deployment
+- **MongoDB** - Primary database (keeping existing for Phase 1)
+- **Redis** - Caching, sessions, rate limiting
+- **ChromaDB** - Vector store for AI/RAG
 
 ---
 
