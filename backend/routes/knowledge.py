@@ -354,7 +354,7 @@ async def analyze_document(
     """
     doc = await db.knowledge_documents.find_one({
         "_id": doc_id,
-        "user_id": current_user["id"]
+        "user_id": get_user_id(current_user)
     })
     
     if not doc:
