@@ -6,7 +6,7 @@ import pytest
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://institutional-invest-1.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://happy-bohr-3.preview.emergentagent.com')
 
 class TestNotificationsAPI:
     """Test notification-related API endpoints"""
