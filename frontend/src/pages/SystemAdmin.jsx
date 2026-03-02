@@ -86,6 +86,22 @@ const SystemAdmin = () => {
     onError: () => toast.error('Failed to cleanup backups'),
   });
 
+  // Backup schedule queries and mutations
+  const { data: backupSchedule } = useQuery({
+    queryKey: ['backup-schedule'],
+    queryFn: () => api.getBackupSchedule(),
+    enabled: isAdmin && activeTab === 'backup',
+  });
+
+  const updateScheduleMutation = useMutation({
+    mutationFn: (settings) => api.updateBackupSchedule(settings),
+    onSuccess: () => {
+      toast.success('Backup schedule updated');
+      queryClient.invalidateQueries(['backup-schedule']);
+    },
+    onError: () => toast.error('Failed to update schedule'),
+  });
+
   // Check if user is admin - now after all hooks
   if (!isAdmin) {
     return (
