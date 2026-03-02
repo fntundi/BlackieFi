@@ -198,8 +198,11 @@ async def get_crypto_price(
     service = get_market_data_service(db)
     result = await service.get_crypto_price(coin_id)
     
-    if "error" in result and not result.get("enabled"):
-        raise HTTPException(status_code=503, detail="Crypto market data is not enabled. Please configure CoinGecko in settings.")
+    if "error" in result:
+        if result.get("enabled") == False:
+            raise HTTPException(status_code=503, detail="Crypto market data is not enabled. Please configure CoinGecko in settings.")
+        if result.get("requires_api_key"):
+            raise HTTPException(status_code=503, detail=result["error"])
     
     return result
 
