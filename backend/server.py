@@ -35,9 +35,11 @@ from routes.analysis_lab import router as analysis_router
 from routes.audit import router as audit_router
 from routes.metrics import router as metrics_router
 from routes.backup import router as backup_router
-from database import init_db, close_db
+from routes.market_data import router as market_data_router
+from database import init_db, close_db, get_db
 from services.metrics_service import get_metrics_service
 from services.audit_service import get_audit_service
+from services.backup_scheduler_service import get_backup_scheduler_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -47,6 +49,11 @@ async def lifespan(app: FastAPI):
     # Initialize metrics service
     metrics = get_metrics_service()
     metrics.initialize("blackiefi-api", "3.0.0")
+    
+    # Initialize backup scheduler
+    db = get_db()
+    scheduler = get_backup_scheduler_service(db)
+    await scheduler.initialize()
     
     yield
     # Shutdown
