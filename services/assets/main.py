@@ -921,7 +921,7 @@ async def list_tax_liens(
         query["entity_id"] = {"$in": [e["_id"] for e in entities]}
     
     liens = await db.tax_liens.find(query).sort("purchase_date", -1).to_list(500)
-    return [serialize_tax_lien(l) for l in liens]
+    return [serialize_tax_lien(lien) for lien in liens]
 
 
 @app.post("/api/tax-liens", response_model=TaxLienResponse, status_code=status.HTTP_201_CREATED)
@@ -1224,7 +1224,7 @@ async def get_assets_summary(
     
     # Tax liens
     liens = await db.tax_liens.find({**base_query, "status": "active"}).to_list(500)
-    liens_value = sum(serialize_tax_lien(l)["current_value"] for l in liens)
+    liens_value = sum(serialize_tax_lien(lien)["current_value"] for lien in liens)
     
     # Private equity
     pe_investments = await db.private_equity.find(base_query).to_list(500)
