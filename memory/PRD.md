@@ -371,6 +371,8 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 - [x] **Notification bell with unread count in sidebar**
 - [x] **Phase 1: Microservices Foundation** (Gateway, Auth, Core services)
 - [x] **Phase 2: Entity-Centric Refactor** (Entity, Portfolio, Asset Management services)
+- [x] **UI "Tile" Styling Update** (Accounts, Goals, Debts, Investments, Assets pages)
+- [x] **AI Co-Pilot Page** (Quick Insights, Chat, Deep Analysis tabs)
 
 ## Remaining Tasks
 
@@ -380,11 +382,10 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 - [ ] Integration testing of new microservices
 
 ### P1 - High Priority
-- [ ] Phase 3: AI Co-Pilot Implementation
-  - [ ] Knowledge Lab (document upload, RAG)
+- [ ] Phase 3: AI Co-Pilot Enhancement
+  - [ ] Knowledge Lab (document upload for RAG)
   - [ ] Strategy Studio (investment frameworks)
   - [ ] Analysis Lab (AI-powered asset analysis)
-- [ ] Wire up AI Insights to fetch real data when AI is enabled
 - [ ] Configure Resend API key for actual email delivery
 
 ### P2 - Medium Priority
@@ -393,7 +394,6 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
   - [ ] Audit logging
   - [ ] DR & backup procedures
 - [ ] Frontend migration to Next.js
-- [ ] Apply "tile" UI style to remaining pages
 - [ ] Implement scheduled job for weekly/monthly summary emails
 
 ### P3 - Future Enhancements
