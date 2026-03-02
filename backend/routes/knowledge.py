@@ -113,6 +113,11 @@ def calculate_file_hash(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
+def get_user_id(current_user: dict) -> str:
+    """Get user ID from current_user dict (handles both 'id' and '_id')"""
+    return current_user.get("id") or current_user.get("_id")
+
+
 async def get_db():
     """Get database instance"""
     from database import get_db as db_getter
