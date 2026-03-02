@@ -393,7 +393,7 @@ async def analyze_document(
                 response = await get_llm_response(
                     system_prompt=system_prompt,
                     user_message=f"Document content:\n{content}\n\nQuestion: {analysis_prompt}",
-                    user_id=current_user["id"],
+                    user_id=get_user_id(current_user),
                 )
             else:
                 response = {
