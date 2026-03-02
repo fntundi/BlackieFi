@@ -287,7 +287,7 @@ export default function Layout({ children }) {
                   padding: '0.75rem 1rem',
                   borderRadius: '8px',
                   textDecoration: 'none',
-                  marginBottom: '0.5rem',
+                  marginBottom: '0.25rem',
                   background: location.pathname === '/financial-settings' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
                   borderLeft: location.pathname === '/financial-settings' ? '2px solid #D4AF37' : '2px solid transparent',
                   color: location.pathname === '/financial-settings' ? '#D4AF37' : '#A3A3A3'
@@ -296,6 +296,25 @@ export default function Layout({ children }) {
               >
                 <Sliders style={{ width: '18px', height: '18px', color: location.pathname === '/financial-settings' ? '#D4AF37' : '#525252' }} />
                 <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>Fin. Settings</span>
+              </Link>
+              <Link
+                to="/system-admin"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  padding: '0.75rem 1rem',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  marginBottom: '0.5rem',
+                  background: location.pathname === '/system-admin' ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                  borderLeft: location.pathname === '/system-admin' ? '2px solid #D4AF37' : '2px solid transparent',
+                  color: location.pathname === '/system-admin' ? '#D4AF37' : '#A3A3A3'
+                }}
+                data-testid="nav-system-admin"
+              >
+                <Shield style={{ width: '18px', height: '18px', color: location.pathname === '/system-admin' ? '#D4AF37' : '#525252' }} />
+                <span style={{ fontWeight: '500', fontSize: '0.875rem' }}>System Admin</span>
               </Link>
             </>
           )}
