@@ -191,7 +191,7 @@ async def upload_document(
     now = datetime.now(timezone.utc).isoformat()
     doc = {
         "_id": unique_id,
-        "user_id": current_user["id"],
+        "user_id": get_user_id(current_user),
         "entity_id": entity_id,
         "filename": safe_filename,
         "original_filename": file.filename,
