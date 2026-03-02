@@ -36,7 +36,8 @@ export default function AICoPilot() {
     queryFn: () => api.getAIStatus(),
   });
 
-  const aiEnabled = aiStatus?.ai_enabled;
+  // AI is enabled if either system or user has it enabled
+  const aiEnabled = aiStatus?.system_ai_enabled || aiStatus?.user_ai_enabled;
 
   // AI Analysis Results State
   const [analysisResults, setAnalysisResults] = useState({
