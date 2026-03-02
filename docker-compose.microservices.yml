@@ -1,0 +1,232 @@
+# BlackieFi 3.0 - Institutional-Grade Microservices Architecture
+# Docker Compose for development environment
+
+version: '3.8'
+
+services:
+  # =============================================================================
+  # INFRASTRUCTURE SERVICES
+  # =============================================================================
+  
+  # MongoDB - Primary Database (keeping existing for Phase 1)
+  mongodb:
+    image: mongo:7.0
+    container_name: blackiefi-mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-blackiefi}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-blackiefi_secret}
+      MONGO_INITDB_DATABASE: ${MONGO_DB:-blackiefi}
+    volumes:
+      - mongodb_data:/data/db
+      - ./infrastructure/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blackiefi-internal
+    restart: unless-stopped
+
+  # Redis - Caching, Sessions, Rate Limiting, Message Queue
+  redis:
+    image: redis:7-alpine
+    container_name: blackiefi-redis
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-blackiefi_redis_secret}
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-blackiefi_redis_secret}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blackiefi-internal
+    restart: unless-stopped
+
+  # ChromaDB - Vector Store for AI/RAG
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: blackiefi-chromadb
+    environment:
+      - CHROMA_SERVER_AUTH_CREDENTIALS=${CHROMA_AUTH_TOKEN:-blackiefi_chroma_secret}
+      - CHROMA_SERVER_AUTH_PROVIDER=chromadb.auth.token.TokenAuthServerProvider
+      - IS_PERSISTENT=TRUE
+      - ANONYMIZED_TELEMETRY=FALSE
+    volumes:
+      - chromadb_data:/chroma/chroma
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blackiefi-internal
+    restart: unless-stopped
+
+  # =============================================================================
+  # API GATEWAY - Public Entry Point
+  # =============================================================================
+  
+  gateway:
+    build:
+      context: ./services/gateway
+      dockerfile: Dockerfile
+    container_name: blackiefi-gateway
+    environment:
+      - SERVICE_NAME=gateway
+      - PORT=8080
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - CORE_SERVICE_URL=http://core-service:8002
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-blackiefi_redis_secret}@redis:6379/0
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-jwt-key-change-in-production}
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
+      - RATE_LIMIT_WINDOW=${RATE_LIMIT_WINDOW:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - CORS_ORIGINS=${CORS_ORIGINS:-*}
+    ports:
+      - "8080:8080"
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      core-service:
+        condition: service_started
+    networks:
+      - blackiefi-public
+      - blackiefi-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =============================================================================
+  # CORE MICROSERVICES (Internal Only)
+  # =============================================================================
+  
+  # Auth & Identity Service
+  auth-service:
+    build:
+      context: ./services/auth
+      dockerfile: Dockerfile
+    container_name: blackiefi-auth-service
+    environment:
+      - SERVICE_NAME=auth-service
+      - PORT=8001
+      - MONGO_URL=mongodb://${MONGO_ROOT_USER:-blackiefi}:${MONGO_ROOT_PASSWORD:-blackiefi_secret}@mongodb:27017/${MONGO_DB:-blackiefi}?authSource=admin
+      - DB_NAME=${MONGO_DB:-blackiefi}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-blackiefi_redis_secret}@redis:6379/1
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-jwt-key-change-in-production}
+      - JWT_ACCESS_EXPIRY_HOURS=${JWT_ACCESS_EXPIRY_HOURS:-24}
+      - JWT_REFRESH_EXPIRY_DAYS=${JWT_REFRESH_EXPIRY_DAYS:-30}
+      - MFA_ISSUER=${MFA_ISSUER:-BlackieFi}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - blackiefi-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Core Domain Service (Portfolio, Transactions, Budgets, etc.)
+  core-service:
+    build:
+      context: ./services/core
+      dockerfile: Dockerfile
+    container_name: blackiefi-core-service
+    environment:
+      - SERVICE_NAME=core-service
+      - PORT=8002
+      - MONGO_URL=mongodb://${MONGO_ROOT_USER:-blackiefi}:${MONGO_ROOT_PASSWORD:-blackiefi_secret}@mongodb:27017/${MONGO_DB:-blackiefi}?authSource=admin
+      - DB_NAME=${MONGO_DB:-blackiefi}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-blackiefi_redis_secret}@redis:6379/2
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # LLM Configuration
+      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER:-emergent}
+      # Market Data APIs
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-}
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
+      # ChromaDB
+      - CHROMADB_URL=http://chromadb:8000
+      - CHROMADB_AUTH_TOKEN=${CHROMA_AUTH_TOKEN:-blackiefi_chroma_secret}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      chromadb:
+        condition: service_healthy
+    networks:
+      - blackiefi-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # =============================================================================
+  # FRONTEND
+  # =============================================================================
+  
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: blackiefi-frontend
+    environment:
+      - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL:-http://localhost:8080}
+      - REACT_APP_API_VERSION=v1
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    depends_on:
+      - gateway
+    networks:
+      - blackiefi-public
+    restart: unless-stopped
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  chromadb_data:
+    driver: local
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  # Public network - Gateway and Frontend only
+  blackiefi-public:
+    driver: bridge
+  
+  # Internal network - All services communicate here
+  blackiefi-internal:
+    driver: bridge
+    internal: false  # Set to true in production for full isolation
