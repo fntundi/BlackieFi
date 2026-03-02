@@ -144,7 +144,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Core Domain Service (Portfolio, Transactions, Budgets, etc.)
+  # Core Domain Service (Transactions, Budgets, etc.)
   core-service:
     build:
       context: ./services/core
@@ -180,6 +180,87 @@ services:
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Entity Service (LLCs, LPs, Trusts, Personal entities)
+  entity-service:
+    build:
+      context: ./services/entity
+      dockerfile: Dockerfile
+    container_name: blackiefi-entity-service
+    environment:
+      - SERVICE_NAME=entity-service
+      - PORT=8003
+      - MONGO_URL=mongodb://${MONGO_ROOT_USER:-blackiefi}:${MONGO_ROOT_PASSWORD:-blackiefi_secret}@mongodb:27017/${MONGO_DB:-blackiefi}?authSource=admin
+      - DB_NAME=${MONGO_DB:-blackiefi}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-blackiefi_redis_secret}@redis:6379/3
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - blackiefi-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Portfolio Service (Accounts, Investment Vehicles, Holdings)
+  portfolio-service:
+    build:
+      context: ./services/portfolio
+      dockerfile: Dockerfile
+    container_name: blackiefi-portfolio-service
+    environment:
+      - SERVICE_NAME=portfolio-service
+      - PORT=8004
+      - MONGO_URL=mongodb://${MONGO_ROOT_USER:-blackiefi}:${MONGO_ROOT_PASSWORD:-blackiefi_secret}@mongodb:27017/${MONGO_DB:-blackiefi}?authSource=admin
+      - DB_NAME=${MONGO_DB:-blackiefi}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-blackiefi_redis_secret}@redis:6379/4
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - blackiefi-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Asset Management Service (Real Estate, Tax Liens, Private Equity, Precious Metals)
+  asset-service:
+    build:
+      context: ./services/assets
+      dockerfile: Dockerfile
+    container_name: blackiefi-asset-service
+    environment:
+      - SERVICE_NAME=asset-service
+      - PORT=8005
+      - MONGO_URL=mongodb://${MONGO_ROOT_USER:-blackiefi}:${MONGO_ROOT_PASSWORD:-blackiefi_secret}@mongodb:27017/${MONGO_DB:-blackiefi}?authSource=admin
+      - DB_NAME=${MONGO_DB:-blackiefi}
+      - REDIS_URL=redis://:${REDIS_PASSWORD:-blackiefi_redis_secret}@redis:6379/5
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - blackiefi-internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8005/health"]
       interval: 10s
       timeout: 5s
       retries: 5
