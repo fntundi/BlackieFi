@@ -167,6 +167,7 @@ export default function Layout({ children }) {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
               const showBadge = item.showBadge && unreadCount > 0;
+              const isHighlight = item.highlight;
               return (
                 <Link
                   key={item.path}
@@ -179,14 +180,24 @@ export default function Layout({ children }) {
                     borderRadius: '8px',
                     textDecoration: 'none',
                     transition: 'all 0.2s',
-                    background: isActive ? 'rgba(212, 175, 55, 0.1)' : 'transparent',
+                    background: isActive 
+                      ? 'rgba(212, 175, 55, 0.1)' 
+                      : isHighlight 
+                        ? 'linear-gradient(135deg, rgba(212, 175, 55, 0.08) 0%, rgba(212, 175, 55, 0.03) 100%)'
+                        : 'transparent',
                     borderLeft: isActive ? '2px solid #D4AF37' : '2px solid transparent',
-                    color: isActive ? '#D4AF37' : '#A3A3A3'
+                    color: isActive ? '#D4AF37' : isHighlight ? '#D4AF37' : '#A3A3A3',
+                    border: isHighlight && !isActive ? '1px solid rgba(212, 175, 55, 0.15)' : undefined,
                   }}
-                  data-testid={`nav-${item.label.toLowerCase()}`}
+                  data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <div style={{ position: 'relative' }}>
-                    <Icon style={{ width: '18px', height: '18px', color: isActive ? '#D4AF37' : '#525252' }} />
+                    <Icon style={{ 
+                      width: '18px', 
+                      height: '18px', 
+                      color: isActive ? '#D4AF37' : isHighlight ? '#D4AF37' : '#525252',
+                      filter: isHighlight ? 'drop-shadow(0 0 4px rgba(212, 175, 55, 0.4))' : undefined
+                    }} />
                     {showBadge && (
                       <span style={{
                         position: 'absolute',
@@ -200,7 +211,7 @@ export default function Layout({ children }) {
                       }} />
                     )}
                   </div>
-                  <span style={{ fontWeight: '500', fontSize: '0.875rem', flex: 1 }}>{item.label}</span>
+                  <span style={{ fontWeight: isHighlight ? '600' : '500', fontSize: '0.875rem', flex: 1 }}>{item.label}</span>
                   {showBadge && (
                     <span style={{
                       fontSize: '0.625rem',
