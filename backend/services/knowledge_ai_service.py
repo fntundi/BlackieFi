@@ -58,12 +58,74 @@ class KnowledgeAIService:
         return self.MIME_TYPES.get(extension, 'application/octet-stream')
     
     async def _extract_text_content(self, file_path: Path, extension: str) -> str:
-        """Extract text content from supported text files"""
+        """Extract text content from supported files including PDF, DOCX, XLSX"""
         try:
+            # Plain text files
             if extension in self.SUPPORTED_TEXT_EXTENSIONS:
                 with open(file_path, 'r', errors='ignore') as f:
                     content = f.read()
                 return content[:50000]  # Limit to 50k chars
+            
+            # PDF files using PyMuPDF
+            elif extension == 'pdf':
+                try:
+                    import fitz  # PyMuPDF
+                    doc = fitz.open(str(file_path))
+                    text_parts = []
+                    for page_num, page in enumerate(doc):
+                        text = page.get_text()
+                        if text.strip():
+                            text_parts.append(f"[Page {page_num + 1}]\n{text}")
+                    doc.close()
+                    full_text = "\n\n".join(text_parts)
+                    return full_text[:50000] if full_text else "No text content found in PDF"
+                except Exception as e:
+                    return f"PDF extraction error: {str(e)}"
+            
+            # DOCX files using python-docx
+            elif extension == 'docx':
+                try:
+                    from docx import Document
+                    doc = Document(str(file_path))
+                    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+                    
+                    # Also extract text from tables
+                    for table in doc.tables:
+                        for row in table.rows:
+                            row_text = ' | '.join(cell.text.strip() for cell in row.cells if cell.text.strip())
+                            if row_text:
+                                paragraphs.append(row_text)
+                    
+                    full_text = "\n".join(paragraphs)
+                    return full_text[:50000] if full_text else "No text content found in DOCX"
+                except Exception as e:
+                    return f"DOCX extraction error: {str(e)}"
+            
+            # XLSX files using openpyxl
+            elif extension == 'xlsx':
+                try:
+                    from openpyxl import load_workbook
+                    wb = load_workbook(str(file_path), data_only=True)
+                    text_parts = []
+                    
+                    for sheet_name in wb.sheetnames:
+                        sheet = wb[sheet_name]
+                        sheet_data = [f"[Sheet: {sheet_name}]"]
+                        
+                        for row in sheet.iter_rows(values_only=True):
+                            row_values = [str(cell) if cell is not None else '' for cell in row]
+                            if any(v.strip() for v in row_values):
+                                sheet_data.append(' | '.join(row_values))
+                        
+                        if len(sheet_data) > 1:  # Has data beyond header
+                            text_parts.append("\n".join(sheet_data))
+                    
+                    wb.close()
+                    full_text = "\n\n".join(text_parts)
+                    return full_text[:50000] if full_text else "No data found in XLSX"
+                except Exception as e:
+                    return f"XLSX extraction error: {str(e)}"
+            
             return ""
         except Exception as e:
             return f"Error extracting text: {str(e)}"
