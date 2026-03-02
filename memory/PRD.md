@@ -375,6 +375,12 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 - [x] **AI Co-Pilot Page** (Quick Insights, Chat, Deep Analysis tabs)
 - [x] **Knowledge Lab** (Document, image, video upload with AI analysis)
 - [x] **Deployment Scripts** (deploy.sh + DEPLOYMENT.md for Docker microservices)
+- [x] **Phase 3: AI Co-Pilot Enhancement** (March 2026)
+  - [x] Knowledge Lab RAG Analysis (GPT-5.2 for text, Gemini-2.5-flash for images/PDFs)
+  - [x] Knowledge Lab Chat with document context
+  - [x] Strategy Studio with 5 investment frameworks (Value, Growth, Dividend, Momentum, Real Estate)
+  - [x] Strategy analysis and comparison endpoints
+  - [x] Analysis Lab with 5 analysis types (Comprehensive, Risk, Due Diligence, Market Research, Portfolio)
 
 ## Remaining Tasks
 
@@ -384,11 +390,9 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 - [ ] Integration testing of new microservices
 
 ### P1 - High Priority
-- [ ] Phase 3: AI Co-Pilot Enhancement
-  - [ ] Knowledge Lab (document upload for RAG)
-  - [ ] Strategy Studio (investment frameworks)
-  - [ ] Analysis Lab (AI-powered asset analysis)
 - [ ] Configure Resend API key for actual email delivery
+- [ ] Add market data integration for real-time stock/crypto prices in Analysis Lab
+- [ ] Implement document text extraction for PDF/DOCX (currently relies on Gemini multimodal)
 
 ### P2 - Medium Priority
 - [ ] Phase 4: Institutional Hardening
