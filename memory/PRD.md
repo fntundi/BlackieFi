@@ -432,6 +432,25 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
   - [x] System Admin frontend page (Audit Logs + Backup & Recovery tabs)
   - [x] Authentication events automatically logged to audit trail
   - [x] GDPR-compliant user data export functionality
+- [x] **Market Data Integrations** (March 2026)
+  - [x] Alpha Vantage integration for stock market data (quotes, historical, search)
+  - [x] CoinGecko integration for crypto market data (prices, top coins, trending)
+  - [x] Toggle-based configuration (enable/disable providers via admin UI)
+  - [x] API key management with secure storage
+  - [x] Market Data Settings admin page
+  - [x] Built-in caching with configurable TTLs
+- [x] **Automated Backup Scheduling** (March 2026)
+  - [x] Configurable backup frequency (daily/weekly/monthly)
+  - [x] Backup type selection (full/critical)
+  - [x] Retention policy with automatic cleanup
+  - [x] APScheduler integration for background jobs
+  - [x] Schedule status display with next backup time
+- [x] **PWA Mobile Support** (March 2026)
+  - [x] Web App Manifest for installable app
+  - [x] Service Worker for offline caching
+  - [x] Mobile-optimized viewport and touch handling
+  - [x] Offline fallback page
+  - [x] App install prompt handling
 
 ## Remaining Tasks
 
@@ -442,16 +461,16 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
 
 ### P1 - High Priority
 - [ ] Configure Resend API key for actual email delivery
-- [ ] Add market data integration for real-time stock/crypto prices in Analysis Lab
 - [ ] Set up Grafana dashboards for Prometheus metrics visualization
+- [ ] Generate PWA icons (currently placeholder)
 
 ### P2 - Medium Priority
 - [ ] Frontend migration to Next.js
 - [ ] Implement scheduled job for weekly/monthly summary emails
-- [ ] Add backup scheduling (automated daily/weekly backups)
+- [ ] Add CoinGecko Pro API key for higher rate limits
 
 ### P3 - Future Enhancements
 - [ ] Multi-currency support
-- [ ] Market data integrations (Alpha Vantage, CoinGecko, Zillow)
-- [ ] Mobile app version
+- [ ] Zillow/ATTOM integration for real estate data
+- [ ] Push notifications via service worker
 - [ ] Decommission legacy monolith
