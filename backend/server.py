@@ -116,6 +116,7 @@ app.include_router(analysis_router, tags=["Analysis Lab"])
 app.include_router(audit_router, tags=["Audit Logs"])
 app.include_router(metrics_router, tags=["Observability"])
 app.include_router(backup_router, tags=["Backup & Recovery"])
+app.include_router(market_data_router, tags=["Market Data"])
 
 if __name__ == "__main__":
     import uvicorn
