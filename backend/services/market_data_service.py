@@ -437,8 +437,14 @@ class MarketDataService:
             )
             data = response.json()
             
-            if isinstance(data, dict) and "error" in data:
-                return {"error": data["error"]}
+            # Handle error response from CoinGecko
+            if isinstance(data, dict) and ("error" in data or "status" in data):
+                error_msg = data.get("error") or data.get("status", {}).get("error_message", "Unknown error")
+                return {"error": error_msg}
+            
+            # Handle unexpected response type
+            if not isinstance(data, list):
+                return {"error": f"Unexpected response format: {type(data).__name__}"}
             
             coins = []
             for coin in data:
