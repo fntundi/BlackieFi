@@ -27,11 +27,13 @@ import {
   Calculator,
   Users,
   Sliders,
-  Bell
+  Bell,
+  Brain
 } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/ai-copilot', icon: Brain, label: 'AI Co-Pilot', highlight: true },
   { path: '/transactions', icon: ArrowLeftRight, label: 'Transactions' },
   { path: '/accounts', icon: Wallet, label: 'Accounts' },
   { path: '/categories', icon: Tags, label: 'Categories' },
