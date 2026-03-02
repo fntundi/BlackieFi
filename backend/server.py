@@ -54,10 +54,17 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="BlackieFi API",
-    description="Personal Finance Management System",
-    version="1.0.0",
+    description="Institutional-Grade Wealth Management Platform",
+    version="3.0.0",
     lifespan=lifespan
 )
+
+# Import middleware
+from middleware.observability import MetricsMiddleware, RequestContextMiddleware
+
+# Add observability middleware (order matters - metrics should be outer)
+app.add_middleware(MetricsMiddleware)
+app.add_middleware(RequestContextMiddleware)
 
 # CORS middleware
 app.add_middleware(
