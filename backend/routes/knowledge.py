@@ -455,10 +455,11 @@ async def chat_with_knowledge_base(
         
         ai_service = get_knowledge_ai_service()
         
-        # Convert docs to proper format
+        # Convert docs to proper format - include filename for content extraction
         doc_list = [
             {
                 "id": doc["_id"],
+                "filename": doc["filename"],  # Include for content extraction
                 "original_filename": doc["original_filename"],
                 "file_type": doc["file_type"],
                 "description": doc.get("description"),
