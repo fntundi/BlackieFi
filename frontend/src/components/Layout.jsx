@@ -28,7 +28,8 @@ import {
   Users,
   Sliders,
   Bell,
-  Brain
+  Brain,
+  Shield
 } from 'lucide-react';
 
 const navItems = [
