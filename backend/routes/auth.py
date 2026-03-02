@@ -1,7 +1,7 @@
 """
 Authentication routes
 """
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from datetime import datetime, timedelta, timezone
 from bson import ObjectId
 
@@ -14,6 +14,7 @@ from auth import (
     hash_password, verify_password, create_access_token,
     generate_reset_token, get_current_user, get_user_id
 )
+from services.audit_service import get_audit_service, AuditAction
 
 router = APIRouter()
 
