@@ -87,6 +87,8 @@ app.include_router(imports_router, prefix="/api/imports", tags=["Imports"])
 app.include_router(ai_functions_router, prefix="/api/ai", tags=["AI Functions"])
 app.include_router(notifications_router, prefix="/api/notifications", tags=["Notifications"])
 app.include_router(knowledge_router, tags=["Knowledge Lab"])
+app.include_router(strategy_router, tags=["Strategy Studio"])
+app.include_router(analysis_router, tags=["Analysis Lab"])
 
 if __name__ == "__main__":
     import uvicorn
