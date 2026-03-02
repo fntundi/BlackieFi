@@ -33,7 +33,7 @@ export default function AICoPilot() {
   // Check AI status
   const { data: aiStatus } = useQuery({
     queryKey: ['ai-status'],
-    queryFn: () => api.getSystemSettings(),
+    queryFn: () => api.getAIStatus(),
   });
 
   const aiEnabled = aiStatus?.ai_enabled;
