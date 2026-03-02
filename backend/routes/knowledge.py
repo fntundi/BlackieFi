@@ -319,7 +319,7 @@ async def delete_document(
     """Delete a document from the Knowledge Lab"""
     doc = await db.knowledge_documents.find_one({
         "_id": doc_id,
-        "user_id": current_user["id"]
+        "user_id": get_user_id(current_user)
     })
     
     if not doc:
