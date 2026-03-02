@@ -37,6 +37,17 @@ class CleanupRequest(BaseModel):
     keep_minimum: int = 5
 
 
+class ScheduleUpdateRequest(BaseModel):
+    """Request to update backup schedule"""
+    enabled: bool = True
+    frequency: str = "daily"  # disabled, daily, weekly, monthly
+    backup_type: str = "full"
+    retention_days: int = 30
+    keep_minimum: int = 5
+    custom_hour: Optional[int] = None
+    custom_minute: Optional[int] = None
+
+
 def is_admin(current_user: dict) -> bool:
     """Check if user is admin"""
     return current_user.get("role") == "admin"
@@ -45,6 +56,89 @@ def is_admin(current_user: dict) -> bool:
 def get_user_id(current_user: dict) -> str:
     """Get user ID from current_user dict"""
     return current_user.get("id") or current_user.get("_id") or current_user.get("user_id")
+
+
+# =============================================================================
+# BACKUP SCHEDULE ENDPOINTS
+# =============================================================================
+
+@router.get("/schedule")
+async def get_backup_schedule(
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db),
+):
+    """
+    Get current backup schedule settings.
+    Admin only.
+    """
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    scheduler_service = get_backup_scheduler_service(db)
+    settings = await scheduler_service.get_schedule_settings()
+    
+    return settings
+
+
+@router.put("/schedule")
+async def update_backup_schedule(
+    request: ScheduleUpdateRequest,
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db),
+):
+    """
+    Update backup schedule settings.
+    Admin only.
+    """
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    scheduler_service = get_backup_scheduler_service(db)
+    audit_service = get_audit_service(db)
+    
+    result = await scheduler_service.update_schedule(
+        enabled=request.enabled,
+        frequency=request.frequency,
+        backup_type=request.backup_type,
+        retention_days=request.retention_days,
+        keep_minimum=request.keep_minimum,
+        custom_hour=request.custom_hour,
+        custom_minute=request.custom_minute,
+    )
+    
+    # Log the change
+    await audit_service.log(
+        action=AuditAction.SETTINGS_UPDATED,
+        user_id=get_user_id(current_user),
+        user_email=current_user.get("email"),
+        resource_type="backup_schedule",
+        details={
+            "enabled": request.enabled,
+            "frequency": request.frequency,
+            "retention_days": request.retention_days,
+        },
+    )
+    
+    return result
+
+
+@router.get("/schedule/history")
+async def get_backup_history(
+    limit: int = Query(10, le=50),
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db),
+):
+    """
+    Get backup history.
+    Admin only.
+    """
+    if not is_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    scheduler_service = get_backup_scheduler_service(db)
+    history = await scheduler_service.get_backup_history(limit)
+    
+    return {"history": history}
 
 
 # =============================================================================
