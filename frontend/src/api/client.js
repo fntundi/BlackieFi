@@ -973,6 +973,113 @@ class ApiClient {
     if (analysisType) query += `&analysis_type=${analysisType}`;
     return this.request(`/analysis/history?${query}`);
   }
+
+  // =============================================================================
+  // AUDIT LOG ENDPOINTS
+  // =============================================================================
+
+  async getAuditLogs(params = {}) {
+    const query = new URLSearchParams();
+    if (params.userId) query.append('user_id', params.userId);
+    if (params.entityId) query.append('entity_id', params.entityId);
+    if (params.action) query.append('action', params.action);
+    if (params.resourceType) query.append('resource_type', params.resourceType);
+    if (params.severity) query.append('severity', params.severity);
+    if (params.startDate) query.append('start_date', params.startDate);
+    if (params.endDate) query.append('end_date', params.endDate);
+    if (params.limit) query.append('limit', params.limit);
+    if (params.offset) query.append('offset', params.offset);
+    return this.request(`/audit/logs?${query.toString()}`);
+  }
+
+  async getAuditLogEntry(entryId) {
+    return this.request(`/audit/logs/${entryId}`);
+  }
+
+  async verifyAuditLogIntegrity(entryId) {
+    return this.request(`/audit/logs/${entryId}/verify`);
+  }
+
+  async getMyActivity(days = 30, limit = 50) {
+    return this.request(`/audit/my-activity?days=${days}&limit=${limit}`);
+  }
+
+  async getSecurityEvents(hours = 24, limit = 100) {
+    return this.request(`/audit/security-events?hours=${hours}&limit=${limit}`);
+  }
+
+  async getEntityAuditTrail(entityId, limit = 100) {
+    return this.request(`/audit/entity/${entityId}/trail?limit=${limit}`);
+  }
+
+  async getAuditStatistics(days = 7) {
+    return this.request(`/audit/statistics?days=${days}`);
+  }
+
+  async getAuditActions() {
+    return this.request('/audit/actions');
+  }
+
+  // =============================================================================
+  // BACKUP & RECOVERY ENDPOINTS
+  // =============================================================================
+
+  async listBackups() {
+    return this.request('/admin/backup/list');
+  }
+
+  async createBackup(backupType = 'full', compress = true, includeAudit = true) {
+    return this.request('/admin/backup/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        backup_type: backupType,
+        compress,
+        include_audit: includeAudit,
+      }),
+    });
+  }
+
+  async restoreBackup(backupName, collections = null, dropExisting = false) {
+    return this.request('/admin/backup/restore', {
+      method: 'POST',
+      body: JSON.stringify({
+        backup_name: backupName,
+        collections,
+        drop_existing: dropExisting,
+      }),
+    });
+  }
+
+  async deleteBackup(backupName) {
+    return this.request(`/admin/backup/${backupName}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async cleanupBackups(retentionDays = 30, keepMinimum = 5) {
+    return this.request('/admin/backup/cleanup', {
+      method: 'POST',
+      body: JSON.stringify({
+        retention_days: retentionDays,
+        keep_minimum: keepMinimum,
+      }),
+    });
+  }
+
+  async getDatabaseStats() {
+    return this.request('/admin/backup/stats');
+  }
+
+  async exportMyData(includeAiData = true) {
+    return this.request(`/admin/backup/export-my-data?include_ai_data=${includeAiData}`, {
+      method: 'POST',
+    });
+  }
+
+  getBackupDownloadUrl(backupName) {
+    const token = this.getToken();
+    return `${API_URL}/admin/backup/download/${backupName}?token=${token}`;
+  }
 }
 
 export const api = new ApiClient();
