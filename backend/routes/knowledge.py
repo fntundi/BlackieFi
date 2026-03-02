@@ -346,11 +346,13 @@ async def analyze_document(
     db = Depends(get_db),
 ):
     """
-    Analyze a document using AI.
+    Analyze a document using AI with RAG capabilities.
     
-    For documents: Extract text and answer questions
-    For images: Describe content and answer questions
-    For videos: Extract frames and describe content
+    For documents: Extract text and analyze with GPT-5.2 or Gemini
+    For images: Analyze with Gemini vision capabilities
+    For videos: Analyze with Gemini multimodal capabilities
+    
+    Uses Emergent LLM Key (Universal Key) for all AI operations.
     """
     doc = await db.knowledge_documents.find_one({
         "_id": doc_id,
@@ -363,71 +365,123 @@ async def analyze_document(
     if doc["status"] != "ready":
         raise HTTPException(status_code=400, detail="Document is not ready for analysis")
     
-    # Get AI status
-    settings = await db.settings.find_one({"type": "system"}) or {}
-    if not settings.get("ai_enabled", False):
-        raise HTTPException(status_code=400, detail="AI is not enabled")
+    # Check AI status
+    system_settings = await db.system_settings.find_one({"_id": "system"}) or {}
+    if not system_settings.get("ai_enabled", True):
+        raise HTTPException(status_code=400, detail="AI is not enabled. Enable AI in Admin Settings.")
     
     file_path = UPLOAD_DIR / doc["filename"]
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found on disk")
     
-    # Prepare analysis based on file type
-    file_type = doc["file_type"]
-    analysis_prompt = query or f"Analyze this {file_type} and provide key insights."
-    
     try:
-        from .ai_functions import get_llm_response
+        from services.knowledge_ai_service import get_knowledge_ai_service
         
-        # For now, provide a basic analysis response
-        # In production, this would use vision models for images/videos
-        if file_type == "document":
-            # Read document content for text files
-            if doc["mime_type"] in ["text/plain", "text/csv", "text/markdown"]:
-                with open(file_path, 'r', errors='ignore') as f:
-                    content = f.read()[:10000]  # Limit content
-                
-                system_prompt = """You are a financial document analyst. Analyze the provided document 
-                and extract key financial insights, numbers, and recommendations."""
-                
-                response = await get_llm_response(
-                    system_prompt=system_prompt,
-                    user_message=f"Document content:\n{content}\n\nQuestion: {analysis_prompt}",
-                    user_id=get_user_id(current_user),
-                )
-            else:
-                response = {
-                    "response": f"Document '{doc['original_filename']}' has been uploaded. "
-                               f"For PDF and DOCX analysis, text extraction would be performed. "
-                               f"Ask me specific questions about your financial documents."
-                }
+        ai_service = get_knowledge_ai_service()
         
-        elif file_type == "image":
-            response = {
-                "response": f"Image '{doc['original_filename']}' has been uploaded. "
-                           f"For full image analysis, a vision model would analyze the content. "
-                           f"This could identify charts, tables, receipts, or financial statements."
-            }
+        # Prepare document metadata for analysis
+        doc_metadata = {
+            "id": doc["_id"],
+            "filename": doc["filename"],
+            "original_filename": doc["original_filename"],
+            "file_type": doc["file_type"],
+            "mime_type": doc["mime_type"],
+            "file_size": doc["file_size"],
+            "description": doc.get("description"),
+            "tags": doc.get("tags", [])
+        }
         
-        elif file_type == "video":
-            response = {
-                "response": f"Video '{doc['original_filename']}' has been uploaded. "
-                           f"For full video analysis, key frames would be extracted and analyzed. "
-                           f"This could identify presentations, financial reports, or meeting content."
-            }
-        else:
-            response = {"response": "Unknown file type"}
+        # Perform AI analysis
+        result = await ai_service.analyze_document(
+            doc_metadata=doc_metadata,
+            query=query,
+            user_id=get_user_id(current_user)
+        )
+        
+        # Update document with analysis timestamp
+        await db.knowledge_documents.update_one(
+            {"_id": doc_id},
+            {"$set": {
+                "last_analyzed": datetime.now(timezone.utc).isoformat(),
+                "analysis_count": doc.get("analysis_count", 0) + 1
+            }}
+        )
         
         return {
             "document_id": doc_id,
             "filename": doc["original_filename"],
-            "file_type": file_type,
-            "query": analysis_prompt,
-            "analysis": response.get("response", "Analysis failed"),
+            "file_type": doc["file_type"],
+            "query": query or "General analysis",
+            "analysis": result.get("analysis", "Analysis failed"),
+            "model_used": result.get("model_used", "unknown"),
+            "success": result.get("success", False)
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+@router.post("/chat")
+async def chat_with_knowledge_base(
+    message: str = Form(...),
+    current_user: dict = Depends(get_current_user),
+    db = Depends(get_db),
+):
+    """
+    Chat with your knowledge base - ask questions about uploaded documents.
+    Uses RAG to provide context-aware responses based on your uploaded files.
+    """
+    user_id = get_user_id(current_user)
+    
+    # Check AI status
+    system_settings = await db.system_settings.find_one({"_id": "system"}) or {}
+    if not system_settings.get("ai_enabled", True):
+        raise HTTPException(status_code=400, detail="AI is not enabled")
+    
+    # Get user's documents
+    docs = await db.knowledge_documents.find(
+        {"user_id": user_id, "status": "ready"}
+    ).sort("created_at", -1).to_list(20)
+    
+    if not docs:
+        return {
+            "response": "You haven't uploaded any documents yet. Upload documents to your Knowledge Lab to chat with them.",
+            "documents_referenced": 0,
+            "success": True
+        }
+    
+    try:
+        from services.knowledge_ai_service import get_knowledge_ai_service
+        
+        ai_service = get_knowledge_ai_service()
+        
+        # Convert docs to proper format
+        doc_list = [
+            {
+                "id": doc["_id"],
+                "original_filename": doc["original_filename"],
+                "file_type": doc["file_type"],
+                "description": doc.get("description"),
+                "tags": doc.get("tags", [])
+            }
+            for doc in docs
+        ]
+        
+        result = await ai_service.chat_with_knowledge_base(
+            documents=doc_list,
+            query=message,
+            user_id=user_id
+        )
+        
+        return {
+            "response": result.get("response", "Chat failed"),
+            "documents_referenced": result.get("documents_referenced", 0),
+            "model_used": result.get("model_used", "unknown"),
+            "success": result.get("success", False)
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
 
 
 @router.get("/stats")
