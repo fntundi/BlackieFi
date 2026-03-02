@@ -322,12 +322,32 @@ curl http://localhost:8080/api/entities \
 - [ ] Full testing
 - [ ] Documentation
 
-## 🔜 Next Phases
+## 📝 Phase 2 Checklist (COMPLETE!)
 
-### Phase 2: Entity-Centric Refactor
-- Entity Service extraction
-- Portfolio Service extraction
-- Asset Management Service
+- [x] Entity Service extraction
+  - [x] Full CRUD for entities
+  - [x] Entity types (LLC, LP, Personal, Trust, Corporation)
+  - [x] Jurisdiction tracking
+  - [x] Entity archiving (soft delete preserving history)
+  - [x] Default entity per user
+  - [x] Entity summary endpoint
+- [x] Portfolio Service extraction
+  - [x] Accounts (checking, savings, credit cards)
+  - [x] Investment vehicles (401k, IRA, brokerage, crypto)
+  - [x] Investment holdings with cost basis tracking
+  - [x] Portfolio performance metrics
+  - [x] Entity-scoped data access
+- [x] Asset Management Service
+  - [x] General assets with depreciation
+  - [x] Real estate properties with rental income tracking
+  - [x] Property tax liens with ROI calculation
+  - [x] Private equity investments with MOIC
+  - [x] Precious metals (gold, silver, platinum)
+  - [x] Assets summary endpoint
+- [x] Gateway routing updates for new services
+- [x] Docker Compose updates
+
+## 🔜 Next Phases
 
 ### Phase 3: AI Co-Pilot
 - Knowledge Lab implementation
