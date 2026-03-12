@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # The Backend API Service
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: blackiefi_api
+    restart: unless-stopped
+    volumes:
+      # Mount a named volume to persist the SQLite database file
+      - sqlite_data:/app/prisma
+    env_file:
+      # Load environment variables from a .env file
+      - .env
+    networks:
+      - app-network
+
+  # The Frontend/Web Proxy Service
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    container_name: blackiefi_web
+    restart: unless-stopped
+    ports:
+      # Map host port 80 to the container's port 80
+      - "80:80"
+      # You could also add "443:443" if you configure SSL inside Nginx
+    depends_on:
+      - api
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  # Define the named volume for data persistence
+  sqlite_data:
