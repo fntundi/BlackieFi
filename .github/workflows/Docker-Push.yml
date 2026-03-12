@@ -1,0 +1,63 @@
+# .github/workflows/deploy-to-dockerhub.yml
+
+name: Build and Push to Docker Hub
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata for API image
+        id: meta_api
+        uses: docker/metadata-action@v5
+        with:
+          # Use a distinct image name for the API service
+          images: ppenguin2021/chan_clan_find_api 
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./server
+          file: ./server/Dockerfile
+          push: true
+          tags: ${{ steps.meta_api.outputs.tags }}
+          labels: ${{ steps.meta_api.outputs.labels }}
+
+      - name: Extract metadata for Web image
+        id: meta_web
+        uses: docker/metadata-action@v5
+        with:
+          # Use a distinct image name for the Web service
+          images: ppenguin2021/chan_clan_find_web
+          tags: |
+            type=sha,prefix=
+            type=raw,value=latest
+
+      - name: Build and push Web (Nginx) image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.web
+          push: true
+          tags: ${{ steps.meta_web.outputs.tags }}
+          labels: ${{ steps.meta_web.outputs.labels }}
