@@ -27,4 +27,72 @@ dist-ssr
 *.sln
 *.sw?
 
+.env-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+-e 
+# Environment files
+*.env
+*.env.*
+
+
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log
+
+# Docker
+Dockerfile*
+docker-compose.yml
+
+# Env
 .env
+
+# IDE / OS specific
+.vscode
+.idea
+README.md

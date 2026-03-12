@@ -1,39 +1,128 @@
-**Welcome to your Base44 project** 
+# BlackieFi - Premium Personal Finance Management
 
-**About**
+A comprehensive personal finance management platform with AI-powered insights, built with React, FastAPI, and MongoDB.
 
-View and Edit  your app on [Base44.com](http://Base44.com) 
+## 🚀 Features
 
-This project contains everything you need to run your app locally.
+### Core Features
+- **Dashboard** - Financial overview with AI insights (when enabled)
+- **Transactions** - Track income and expenses with auto-categorization
+- **Accounts** - Manage multiple bank accounts and wallets
+- **Budgets** - Create and track budgets with AI forecasting
+- **Debts** - Track loans, credit cards, and payment schedules
+- **Investments** - Monitor investment portfolio
+- **Assets** - Track physical and digital assets
+- **Goals** - Set and track financial goals with AI recommendations
 
-**Edit the code in your local development environment**
+### Advanced Features
+- **Calendar** - Financial calendar with recurring transactions and bill reminders
+- **Reports** - Generate P&L, Balance Sheet, Cash Flow, Budget vs Actual reports
+- **Import/Export** - CSV and PDF bank statement import
+- **Tax Planning** - AI-powered tax estimation and scenario planning
+- **Groups** - Team-based access control (admin only)
+- **Real-time Alerts** - Budget alerts and bill reminders via email/push notifications
 
-Any change pushed to the repo will also be reflected in the Base44 Builder.
+### AI Integration
+Supports multiple LLM providers (off by default):
+- **Emergent** - Universal Key for GPT-5.2, Claude, Gemini
+- **OpenRouter** - Access to 300+ models
+- **Ollama** - Local LLM support for privacy
 
-**Prerequisites:** 
+AI Features include:
+- Anomaly detection in spending
+- Cash flow forecasting
+- Cost savings identification
+- Smart budget generation
+- Transaction auto-categorization
+- Tax liability estimation
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm install`
-4. Create an `.env.local` file and set the right environment variables
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18, TanStack Query, Sonner, Lucide Icons
+- **Backend**: Python 3.11, FastAPI, Pydantic
+- **Database**: MongoDB
+- **AI**: emergentintegrations library, OpenRouter API, Ollama
+
+## 📦 Installation
+
+### Prerequisites
+- Node.js 18+
+- Python 3.11+
+- MongoDB
+
+### Backend Setup
+```bash
+cd backend
+pip install -r requirements.txt
+python server.py
+```
+
+### Frontend Setup
+```bash
+cd frontend
+yarn install
+yarn start
+```
+
+## 🔐 Test Credentials
+
+For development and testing:
+- **Username**: `demo`
+- **Password**: `user123`
+- **Role**: Admin
+
+## 🔧 Environment Variables
+
+### Backend (.env)
+```
+MONGO_URL=mongodb://localhost:27017
+DB_NAME=blackiefi
+JWT_SECRET=your-secret-key
+EMERGENT_LLM_KEY=your-emergent-key  # Optional, for AI features
+OPENROUTER_API_KEY=your-key         # Optional, for OpenRouter
+RESEND_API_KEY=your-key             # Optional, for email notifications
+```
+
+### Frontend (.env)
+```
+REACT_APP_BACKEND_URL=http://localhost:8001
+```
+
+## 📁 Project Structure
 
 ```
-VITE_BASE44_APP_ID=your_app_id
-VITE_BASE44_APP_BASE_URL=your_backend_url
-
-e.g.
-VITE_BASE44_APP_ID=cbef744a8545c389ef439ea6
-VITE_BASE44_APP_BASE_URL=https://my-to-do-list-81bfaad7.base44.app
+/app
+├── backend/
+│   ├── routes/          # API route handlers
+│   ├── services/        # Business logic (LLM, notifications)
+│   ├── server.py        # FastAPI application
+│   ├── models.py        # Pydantic models
+│   ├── database.py      # MongoDB connection
+│   └── auth.py          # Authentication utilities
+├── frontend/
+│   ├── src/
+│   │   ├── pages/       # Page components
+│   │   ├── components/  # Reusable components
+│   │   ├── api/         # API client
+│   │   └── contexts/    # React contexts
+│   └── public/
+└── README.md
 ```
 
-Run the app: `npm run dev`
+## 🎨 Theme
 
-**Publish your changes**
+BlackieFi uses a luxury dark theme:
+- **Primary Gold**: #D4AF37
+- **Background**: #050505, #0A0A0A, #0F0F0F
+- **Text**: #F5F5F5, #A3A3A3, #737373, #525252
+- **Success**: #059669
+- **Error**: #DC2626
+- **Info**: #3B82F6
 
-Open [Base44.com](http://Base44.com) and click on Publish.
+## 📄 License
 
-**Docs & Support**
+Proprietary - All rights reserved.
 
-Documentation: [https://docs.base44.com/Integrations/Using-GitHub](https://docs.base44.com/Integrations/Using-GitHub)
+## 🤝 Support
 
-Support: [https://app.base44.com/support](https://app.base44.com/support)
+For support, contact the development team.

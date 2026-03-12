@@ -1,0 +1,484 @@
+# BlackieFi 3.0 - Institutional-Grade Wealth Management Platform
+
+## Vision Statement
+BlackieFi 3.0 is a secure, institutional-grade wealth management and research platform built on a microservices architecture with an AI Investment Co-Pilot to support rigorous research, analysis, monitoring, and governance of multi-asset portfolios.
+
+## Original Problem Statement
+Migrate an existing application from the `base44` platform to a new technology stack (Python/FastAPI, React, MongoDB). Build a premium personal finance management app with a luxury dark theme featuring 18K gold (#D4AF37), silver/chrome, and obsidian black (#050505).
+
+## Product Requirements
+1. **Microservices Architecture:** Containerized services with API Gateway, Auth, Core Domain services
+2. **Institutional Security:** MFA, RBAC, encrypted secrets, audit logging, rate limiting
+3. **AI Co-Pilot:** Multi-provider LLM support (Emergent, OpenRouter), Knowledge Lab, Strategy Studio
+4. **Entity-Centric:** All data scoped to legal/organizational entities (LLCs, LPs)
+5. **Multi-Asset Support:** Real Estate, Tax Liens, Private Equity, Precious Metals, Stocks
+6. **Theme:** Luxury gold/black dark theme applied consistently
+
+---
+
+## Architecture (Phase 2 Complete)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                              INTERNET                                    │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          API GATEWAY (8080)                              │
+│  • TLS Termination    • Rate Limiting    • Auth Enforcement              │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+        ┌───────────────┬───────────┼───────────┬───────────────┐
+        ▼               ▼           ▼           ▼               ▼
+┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+│    AUTH     │ │   ENTITY    │ │  PORTFOLIO  │ │    ASSET    │ │    CORE     │
+│   (8001)    │ │   (8003)    │ │   (8004)    │ │   (8005)    │ │   (8002)    │
+│             │ │             │ │             │ │             │ │             │
+│ • Login/MFA │ │ • LLCs/LPs  │ │ • Accounts  │ │ • Real Est. │ │ • Budgets   │
+│ • JWT/RBAC  │ │ • Trusts    │ │ • Vehicles  │ │ • Tax Liens │ │ • Trans.    │
+│ • Sessions  │ │ • Corps     │ │ • Holdings  │ │ • PE/Metals │ │ • AI/Reports│
+└─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘
+                                        │
+                                        ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         DATA LAYER                                       │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                      │
+│  │   MongoDB   │  │    Redis    │  │  ChromaDB   │                      │
+│  │   (27017)   │  │   (6379)    │  │   (8000)    │                      │
+│  └─────────────┘  └─────────────┘  └─────────────┘                      │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Services Created (Phase 1 & 2)
+- **API Gateway** (`/app/services/gateway/`) - Centralized routing, auth, rate limiting
+- **Auth Service** (`/app/services/auth/`) - MFA (TOTP), JWT tokens, RBAC foundation
+- **Core Service** (`/app/services/core/`) - Budgets, Transactions, Reports, AI
+- **Entity Service** (`/app/services/entity/`) - LLCs, LPs, Trusts, Corporations (NEW!)
+- **Portfolio Service** (`/app/services/portfolio/`) - Accounts, Vehicles, Holdings (NEW!)
+- **Asset Management Service** (`/app/services/assets/`) - Real Estate, Tax Liens, PE, Metals (NEW!)
+- **Shared Config** (`/app/services/shared/`) - Secrets management pattern
+
+### Infrastructure
+- **docker-compose.microservices.yml** - Full containerized deployment (updated with 3 new services)
+- **MongoDB** - Primary database (keeping existing for Phase 1)
+- **Redis** - Caching, sessions, rate limiting
+- **ChromaDB** - Vector store for AI/RAG
+
+---
+
+## What's Been Implemented
+
+### March 2026 - AI Co-Pilot Enhancements & Refactoring ✅
+
+#### AI Co-Pilot UI Refactoring
+- **AICoPilot.jsx**: Refactored from ~793 lines to ~300 lines with modular components
+- **KnowledgeLab.jsx**: Extracted Knowledge Lab tab (document upload, stats, analysis)
+- **StrategyStudio.jsx**: Extracted Strategy Studio tab (framework selection, asset analysis)
+- **AnalysisLab.jsx**: Extracted Analysis Lab tab (comprehensive, risk, due diligence, market, portfolio)
+- **Component Structure**: `/app/frontend/src/components/ai-copilot/` with index.js export
+
+#### Enhanced Document Parsing (P1 Bug Fix)
+- **PDF Extraction**: Using PyMuPDF (fitz) for reliable PDF text extraction with page markers
+- **DOCX Extraction**: Using python-docx for Word documents including tables
+- **XLSX Extraction**: Using openpyxl for Excel spreadsheets with sheet-by-sheet extraction
+- **RAG Enhancement**: Chat with Knowledge Base now extracts and includes actual document content
+
+#### Backend Service Updates
+- `/app/backend/services/knowledge_ai_service.py`: 
+  - Enhanced `_extract_text_content()` method for PDF, DOCX, XLSX
+  - Improved `chat_with_knowledge_base()` to include actual document content in RAG context
+  - Better routing between Gemini (images/videos) and GPT-5.2 (documents)
+
+#### Dependencies Added
+- PyMuPDF (fitz) - PDF parsing
+- python-docx - DOCX parsing
+- openpyxl - XLSX parsing
+- lxml - XML parsing support
+
+### December 2025 - Phase 2: Entity-Centric Refactor ✅
+
+#### Entity Service (`/app/services/entity/`) - 673 lines
+- **Full CRUD** for entities (LLCs, LPs, Trusts, Corporations, Personal)
+- **Entity types** with jurisdiction tracking
+- **Soft delete** with archive/restore functionality
+- **Default entity** per user management
+- **Entity summary** with aggregate statistics
+- **Audit logging** for all entity operations
+
+#### Portfolio Service (`/app/services/portfolio/`) - 898 lines
+- **Accounts** (checking, savings, credit cards, money market, brokerage)
+- **Investment Vehicles** (401k, IRA, Roth IRA, 403b, SEP IRA, brokerage, crypto, HSA, 529)
+- **Investment Holdings** with cost basis, quantity, and gain/loss tracking
+- **Portfolio summary** with net worth calculation
+- **Entity-scoped access** verification
+
+#### Asset Management Service (`/app/services/assets/`) - 1269 lines
+- **General Assets** with depreciation calculations (straight-line, declining balance)
+- **Real Estate** properties with rental income, cap rate, equity tracking
+- **Property Tax Liens** with interest accrual and ROI calculation
+- **Private Equity** investments with MOIC (Multiple on Invested Capital)
+- **Precious Metals** (gold, silver, platinum, palladium) with price tracking
+- **Assets summary** endpoint aggregating all asset types
+
+#### Gateway Updates
+- **Service routing** updated for all new services
+- **Route mapping** for entity, portfolio, and asset endpoints
+- **Docker Compose** dependencies updated
+
+### March 2, 2026 - Phase 1: Microservices Foundation ✅
+
+#### API Gateway Service (`/app/services/gateway/`)
+- **Centralized routing** to all backend services
+- **Rate limiting** with Redis (configurable requests/window)
+- **JWT authentication enforcement** at the edge
+- **Request correlation** with X-Request-ID headers
+- **Health checks** and graceful error handling
+- **CORS configuration** for frontend access
+
+#### Auth Service (`/app/services/auth/`)
+- **User registration** with password hashing (bcrypt)
+- **Login with MFA** - TOTP support with QR code setup
+- **JWT tokens** - Access (24h) + Refresh (30 days) token pattern
+- **Token refresh** - Seamless session extension
+- **Token blacklisting** - Immediate logout capability via Redis
+- **Password reset** - Secure token-based flow
+- **Backup codes** - 10 one-time codes for MFA recovery
+- **User profile** - Get/update current user
+
+#### Core Service (`/app/services/core/`)
+- **Route migration** - All existing routes imported
+- **Entity-scoped queries** - Ready for entity context
+- **Database indexes** - Optimized for performance
+- **Seed data** - Default categories on startup
+
+#### Infrastructure
+- **docker-compose.microservices.yml** - Full stack definition
+- **MongoDB 7.0** - Primary database with auth
+- **Redis 7** - Sessions, caching, rate limiting, queues
+- **ChromaDB** - Vector store for AI embeddings
+- **Network isolation** - Public/Internal network separation
+- **Health checks** - All services with health endpoints
+
+#### Security Features Implemented
+- [x] JWT-based authentication
+- [x] MFA with TOTP (Google Authenticator compatible)
+- [x] Rate limiting per IP
+- [x] Secrets management pattern
+- [x] Token blacklisting for logout
+- [x] Password hashing with bcrypt
+- [x] Request correlation IDs
+
+### February 28, 2026 - Enhanced Budget Planner ✅
+
+Complete rewrite of the Budgets page with EveryDollar-inspired features for zero-based budgeting:
+
+#### Zero-Based Budgeting Dashboard:
+- **Income Tracking**: Monthly income displayed at top
+- **Total Budgeted**: Sum of all category budgets
+- **Left to Budget**: Income minus budgeted = $0 goal (every dollar has a job)
+- **Visual indicator**: Green when balanced, blue when positive, red when over
+
+#### Category-Based Budget Breakdown:
+- **Grouped Categories**: Housing, Transportation, Food, Utilities, Healthcare, Personal, Entertainment, Debt Payments, Savings & Goals, Business, Other
+- **Expandable Groups**: Click to expand/collapse category details
+- **Progress Bars**: Visual spending vs planned with color coding (green → yellow → red)
+- **Inline Editing**: Click on amount to edit budget directly
+
+#### Drag-and-Drop Transaction Assignment:
+- **Uncategorized Transactions**: "Needs Attention" section shows transactions without categories
+- **Drag to Categorize**: Drag transactions to budget categories to assign them
+- **Real-time Updates**: Spending updates immediately after categorization
+
+#### Linked Data from Other Sections:
+- **Savings Goals**: Shows active goals with monthly contribution amounts
+- **Debt Payments**: Shows debts with minimum payment amounts
+- **Upcoming Bills**: Shows bills with due dates and amounts
+- **Available Funds**: Shows total balance across all accounts
+
+#### Budget Templates:
+- **50/30/20 Rule**: Quick budget based on needs (50%), wants (30%), savings (20%)
+- **Copy Previous Month**: Start from last month's budget
+- **Start Fresh**: Begin with blank budget
+
+#### Modern Tile UI:
+- Elevated cards with layered shadows
+- Gold accent lines on featured elements
+- Collapsible category groups with icons
+- Consistent with Dashboard and Transactions styling
+
+### February 28, 2026 - UI Enhancements ✅
+
+#### Dashboard Enhancements:
+- Elevated stat cards with layered shadows and gradient backgrounds
+- Gold accent lines on featured Net Worth card with corner glow effect
+- Refined pill badges ("This Month", "Positive/Negative")
+- Inner tiles for transactions and goals with inset shadows
+
+#### Transactions Page Enhancements:
+- Added summary stat tiles (Total Income, Expenses, Net Flow)
+- Modernized search and filter bar with consistent styling
+- Transaction rows with raised inner-tile effect
+- Color-coded type selector in modal (Expense/Income/Transfer)
+- Backdrop blur on modal overlay
+
+### December 27, 2025 - Notifications & Alert System ✅
+
+#### New Pages Created:
+- **Notifications** (`/notifications`) - Full notifications management UI with two tabs:
+  - **Notifications Tab:** Lists all notifications with mark read/delete actions
+  - **Settings Tab:** Comprehensive notification preferences
+
+#### Notification Features:
+- **Email Notifications:** Enable/disable toggle, test email functionality
+- **Budget Alerts:** Toggle with configurable threshold slider (50-100%)
+- **Bill Reminders:** Toggle with days-before-due-date dropdown (1/3/7/14/30 days)
+- **Goal Milestones:** Toggle for 25%, 50%, 75%, 100% milestone notifications
+- **Weekly Summary:** Toggle for weekly financial overview (Sundays)
+- **Monthly Report:** Toggle for detailed monthly report (1st of month)
+
+#### Backend Services:
+- **Alert Service** (`/app/backend/services/alert_service.py`):
+  - `check_budget_alerts()` - Monitors budgets vs spending, respects user threshold
+  - `check_bill_reminders()` - Checks upcoming bills, respects user reminder days
+  - `check_goal_milestones()` - Tracks goal progress for milestone notifications
+  - `run_all_checks()` - Runs all alert checks at once
+
+- **Notification Service** (`/app/backend/services/notification_service.py`):
+  - Email templates for budget alerts, bill reminders, goal milestones, welcome
+  - Resend integration for email delivery
+  - Push notification storage in MongoDB
+
+- **Automatic Budget Alerts:** When expense transactions are created, budget alerts automatically trigger in background
+
+#### API Endpoints:
+- `GET /api/notifications` - List notifications with filters
+- `GET /api/notifications/unread-count` - Get unread notification count
+- `GET /api/notifications/preferences` - Get user preferences
+- `PUT /api/notifications/preferences` - Update user preferences
+- `POST /api/notifications/check-alerts` - Manually trigger alert checks
+- `POST /api/notifications/mark-read` - Mark specific notifications as read
+- `POST /api/notifications/mark-all-read` - Mark all notifications as read
+- `DELETE /api/notifications/{id}` - Delete a notification
+- `POST /api/notifications/send-test-email` - Send test email
+
+#### Code Cleanup:
+- ✅ Removed `/app/functions/` directory (old base44 TypeScript functions)
+- ✅ Removed `/app/frontend-new/` empty directory
+- ✅ Previously removed obsolete Go files
+
+### December 27, 2025 - Complete Feature Migration ✅
+
+#### New Pages Created:
+1. **Calendar** (`/calendar`) - Financial calendar showing recurring transactions, debt payments, and bills
+2. **Reports** (`/reports`) - 4 report types: Profit & Loss, Balance Sheet, Cash Flow, Budget vs Actual
+3. **Import** (`/import`) - CSV and PDF bank statement import with auto-categorization
+4. **Tax Planning** (`/tax-planning`) - AI-powered tax estimation and scenario planning
+5. **Groups** (`/groups`) - Admin-only group management with member and entity access control
+6. **Financial Settings** (`/financial-settings`) - Admin-only investment profile configuration
+
+#### Backend Routes Created:
+- `/api/bills` - Bill tracking and reminders
+- `/api/reports` - Report generation and filter presets
+- `/api/tax` - Tax scenario management
+- `/api/groups` - Group-based access control (admin only)
+- `/api/financial-profiles` - Investment settings (admin only)
+- `/api/imports` - CSV/PDF import functionality
+- `/api/ai` - AI functions (anomaly detection, forecasting, cost savings, etc.)
+- `/api/notifications` - Notification management and alerts
+
+#### AI Functions Implemented:
+- `POST /api/ai/detect-anomalies` - Spending anomaly detection
+- `POST /api/ai/forecast-cash-flow` - Cash flow forecasting
+- `POST /api/ai/identify-cost-savings` - Cost saving opportunities
+- `POST /api/ai/generate-budget` - AI budget generation
+- `POST /api/ai/categorize-transaction` - Auto-categorization
+- `POST /api/ai/generate-tags` - Tag generation
+- `POST /api/ai/goal-recommendations` - Financial goal recommendations
+- `POST /api/ai/estimate-tax` - Tax liability estimation
+- `POST /api/ai/forecast-budget` - Budget forecasting
+- `POST /api/ai/detect-bills` - Auto-detect recurring bills
+
+### December 27, 2025 - Multi-LLM Integration System ✅
+- LLM Service supporting OpenRouter, Emergent (Universal Key), Ollama
+- Admin UI for provider configuration
+- AI features use configurable LLM providers
+
+### Previous Implementation
+- ✅ Complete RESTful API with all CRUD operations
+- ✅ JWT-based authentication
+- ✅ 15 default financial categories seeded
+- ✅ Luxury gold/black theme applied to all pages
+- ✅ Modern card-based login page
+
+---
+
+## Testing Status
+- **Backend:** 100% (15/15 notification tests passed)
+- **Frontend:** 100% (all pages load and function correctly)
+- **Test Reports:** `/app/test_reports/iteration_5.json`
+
+---
+
+## LLM Providers Supported
+
+| Provider | Description | API Key Required | Local |
+|----------|-------------|-----------------|-------|
+| **Emergent** | Universal Key - GPT-5.2, Claude, Gemini | Yes (pre-configured) | No |
+| **OpenRouter** | 300+ models via unified API | Yes | No |
+| **Ollama** | Local LLMs, privacy-focused | No | Yes |
+
+---
+
+## Test Credentials
+- **Admin User:** demo / user123 (role: admin)
+- **Email:** demo@example.com
+
+---
+
+## Architecture
+```
+/app/backend/
+├── server.py              # FastAPI main application (v3.0.0)
+├── database.py            # MongoDB connection & seeding
+├── models.py              # Pydantic models
+├── auth.py                # JWT & password utilities
+├── middleware/
+│   └── observability.py   # Request tracking & metrics middleware
+├── services/
+│   ├── llm_service.py     # Multi-provider LLM service
+│   ├── alert_service.py   # Budget/bill/goal alert monitoring
+│   ├── notification_service.py # Email & push notifications
+│   ├── audit_service.py   # Tamper-evident audit logging (Phase 4)
+│   ├── metrics_service.py # Prometheus metrics collection (Phase 4)
+│   ├── backup_service.py  # Backup & disaster recovery (Phase 4)
+│   └── knowledge_ai_service.py # RAG & document analysis
+└── routes/
+    ├── admin_llm.py       # Admin LLM configuration
+    ├── ai_functions.py    # AI-powered features
+    ├── audit.py           # Audit log management (Phase 4)
+    ├── backup.py          # Backup & recovery (Phase 4)
+    ├── metrics.py         # Prometheus metrics endpoint (Phase 4)
+    ├── bills.py           # Bill management
+    ├── reports.py         # Report generation
+    ├── tax.py             # Tax planning
+    ├── groups.py          # Group access control
+    ├── financial_profiles.py # Investment settings
+    ├── imports.py         # CSV/PDF import
+    ├── notifications.py   # Notification management
+    └── ... other routes
+
+/app/frontend/
+├── src/
+│   ├── App.jsx            # Router with all routes
+│   ├── api/client.js      # API client (1000+ lines)
+│   ├── components/
+│   │   ├── Layout.jsx     # Sidebar with notification badge
+│   │   ├── AIInsights.jsx # Conditional AI insights widget
+│   │   └── ai-copilot/    # Modular AI Co-Pilot components
+│   └── pages/
+│       ├── SystemAdmin.jsx    # Audit logs & backup management (Phase 4)
+│       ├── Calendar.jsx       # Financial calendar
+│       ├── Reports.jsx        # Report generation
+│       ├── Import.jsx         # CSV/PDF import
+│       ├── TaxPlanning.jsx    # Tax estimation
+│       ├── Groups.jsx         # Group management
+│       ├── FinancialSettings.jsx # Investment profile
+│       ├── AdminSettings.jsx  # LLM configuration
+│       ├── Notifications.jsx  # Notification management
+│       └── ... 12 other pages
+```
+
+---
+
+## Completed Tasks ✅
+- [x] Multi-LLM Integration (OpenRouter, Emergent, Ollama)
+- [x] Calendar page with recurring transactions/debts/bills
+- [x] Reports page with 4 report types and CSV export
+- [x] Import page with CSV/PDF upload functionality
+- [x] Tax Planning page with AI estimation
+- [x] Groups page for admin access control
+- [x] Financial Settings page for investment profiles
+- [x] All AI function endpoints with LLM integration
+- [x] Complete navigation sidebar with admin section
+- [x] **Notifications UI with full settings management**
+- [x] **Budget alert logic with automatic triggering**
+- [x] **Weekly summary and monthly report preferences**
+- [x] **Goal milestone notification support**
+- [x] **Code cleanup - removed obsolete base44 code**
+- [x] **Notification bell with unread count in sidebar**
+- [x] **Phase 1: Microservices Foundation** (Gateway, Auth, Core services)
+- [x] **Phase 2: Entity-Centric Refactor** (Entity, Portfolio, Asset Management services)
+- [x] **UI "Tile" Styling Update** (Accounts, Goals, Debts, Investments, Assets pages)
+- [x] **AI Co-Pilot Page** (Quick Insights, Chat, Deep Analysis tabs)
+- [x] **Knowledge Lab** (Document, image, video upload with AI analysis)
+- [x] **Deployment Scripts** (deploy.sh + DEPLOYMENT.md for Docker microservices)
+- [x] **Phase 3: AI Co-Pilot Enhancement** (March 2026)
+  - [x] Knowledge Lab RAG Analysis (GPT-5.2 for text, Gemini-2.5-flash for images/PDFs)
+  - [x] Knowledge Lab Chat with document context
+  - [x] Strategy Studio with 5 investment frameworks (Value, Growth, Dividend, Momentum, Real Estate)
+  - [x] Strategy analysis and comparison endpoints
+  - [x] Analysis Lab with 5 analysis types (Comprehensive, Risk, Due Diligence, Market Research, Portfolio)
+- [x] **March 2026 - AI Co-Pilot Refactoring**
+  - [x] AICoPilot.jsx refactored to ~300 lines with modular components
+  - [x] Created KnowledgeLab.jsx, StrategyStudio.jsx, AnalysisLab.jsx components
+  - [x] Fixed document parsing - Added PDF/DOCX/XLSX extraction (PyMuPDF, python-docx, openpyxl)
+  - [x] Enhanced RAG chat with actual document content injection
+- [x] **Phase 4: Institutional Hardening** (March 2026)
+  - [x] Audit Logging Service with tamper-evident SHA-256 checksums
+  - [x] Prometheus metrics integration (/metrics endpoint)
+  - [x] Backup & Disaster Recovery service (full/critical backups with compression)
+  - [x] Request tracking middleware with correlation IDs
+  - [x] System Admin frontend page (Audit Logs + Backup & Recovery tabs)
+  - [x] Authentication events automatically logged to audit trail
+  - [x] GDPR-compliant user data export functionality
+- [x] **Market Data Integrations** (March 2026)
+  - [x] Alpha Vantage integration for stock market data (quotes, historical, search)
+  - [x] CoinGecko integration for crypto market data (prices, top coins, trending)
+  - [x] Toggle-based configuration (enable/disable providers via admin UI)
+  - [x] API key management with secure storage
+  - [x] Market Data Settings admin page
+  - [x] Built-in caching with configurable TTLs
+- [x] **Automated Backup Scheduling** (March 2026)
+  - [x] Configurable backup frequency (daily/weekly/monthly)
+  - [x] Backup type selection (full/critical)
+  - [x] Retention policy with automatic cleanup
+  - [x] APScheduler integration for background jobs
+  - [x] Schedule status display with next backup time
+- [x] **PWA Mobile Support** (March 2026)
+  - [x] Web App Manifest for installable app
+  - [x] Service Worker for offline caching
+  - [x] Mobile-optimized viewport and touch handling
+  - [x] Offline fallback page
+  - [x] App install prompt handling
+- [x] **Integration Scaffolding Enhancement** (March 2026)
+  - [x] Boolean toggle system for all market data providers
+  - [x] API key requirement enforcement when provider is enabled
+  - [x] Clear error messages for missing API keys
+  - [x] CoinGecko now requires API key (prevents rate limiting issues)
+  - [x] UI warning when provider enabled but no API key configured
+
+## Remaining Tasks
+
+### P0 - Critical (For Next Session)
+- [ ] Deploy and test microservices via docker-compose.microservices.yml
+- [ ] Update frontend API client to route through new gateway
+- [ ] Integration testing of new microservices
+
+### P1 - High Priority
+- [ ] Configure Resend API key for actual email delivery
+- [ ] Set up Grafana dashboards for Prometheus metrics visualization (requires Docker)
+- [ ] Generate PWA icons (currently placeholder)
+
+### P2 - Medium Priority
+- [ ] Frontend migration to Next.js (PAUSED per user request)
+- [ ] Implement scheduled job for weekly/monthly summary emails
+- [ ] Financial Modeling Prep integration for additional stock data
+- [ ] Zillow/ATTOM integration for real estate data
+
+### P3 - Future Enhancements
+- [ ] Multi-currency support
+- [ ] ChromaDB integration for RAG vector storage
+- [ ] Push notifications via service worker
+- [ ] Decommission legacy monolith
+- [ ] Database migration to PostgreSQL
