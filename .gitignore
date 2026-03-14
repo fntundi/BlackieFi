@@ -85,10 +85,6 @@ dist-ssr
 node_modules
 npm-debug.log
 
-# Docker
-Dockerfile*
-docker-compose.yml
-
 # Env
 .env
 
