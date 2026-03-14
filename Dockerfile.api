@@ -1,0 +1,43 @@
+# ---- Base Stage: Common setup for pnpm ----
+FROM node:20-slim AS base
+# Install pnpm globally in the container
+RUN npm install -g pnpm
+WORKDIR /app
+
+# ---- Build Stage: Install dependencies and build the server ----
+FROM base AS builder
+# Copy all source files to have the full monorepo context
+COPY . .
+# Install ALL dependencies needed for building the server workspace
+# The --filter flag is a pnpm feature for monorepos
+RUN pnpm install --filter server
+# Build the server code (TypeScript -> JavaScript)
+RUN pnpm --filter server build
+
+# 'pnpm deploy' is the key command here. It copies the server workspace,
+# its production dependencies, and its output files to a new directory.
+RUN pnpm deploy --prod --filter server /prod
+
+# ---- Runtime Stage: Create the final, minimal production image ----
+FROM node:20-slim AS runtime
+WORKDIR /app
+
+# --- Security: Create a non-root user ---
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 appuser
+
+# Copy the pruned production code and node_modules from the 'deploy' folder
+COPY --from=builder /prod .
+
+# --- Security: Ensure the database volume is writeable by the new user ---
+# The volume will be mounted at '/app/prisma'.
+RUN mkdir -p /app/prisma && chown -R appuser:nodejs /app/prisma
+
+# Switch to the non-root user for added security
+USER appuser
+
+EXPOSE 8080
+ENV NODE_ENV=production
+
+# Start the server using the compiled JavaScript file
+CMD [ "node", "dist/index.js" ]
