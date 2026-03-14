@@ -4,39 +4,40 @@ services:
   # The Backend API Service
   api:
     build:
-      context: ./server
-      dockerfile: Dockerfile
+      # Context is the project root, so the Dockerfile can access the whole monorepo
+      context: .
+      dockerfile: Dockerfile.api
     container_name: blackiefi_api
     restart: unless-stopped
     volumes:
-      # Mount a named volume to persist the SQLite database file
+      # Mount a named volume to persist the SQLite database
       - sqlite_data:/app/prisma
     env_file:
-      # Load environment variables from a .env file
       - .env
     networks:
       - app-network
 
-  # The Frontend/Web Proxy Service
+  # The Frontend / Web Proxy Service
   web:
     build:
+      # Context is also the project root
       context: .
       dockerfile: Dockerfile.web
     container_name: blackiefi_web
     restart: unless-stopped
     ports:
-      # Map host port 80 to the container's port 80
+      # Expose port 80 of the Nginx container to port 80 on your host machine
       - "80:80"
-      # You could also add "443:443" if you configure SSL inside Nginx
     depends_on:
       - api
     networks:
       - app-network
 
+# Define a shared bridge network for the containers to communicate
 networks:
   app-network:
     driver: bridge
 
+# Define the named volume for persistent data
 volumes:
-  # Define the named volume for data persistence
   sqlite_data:
