@@ -7,7 +7,11 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for caching
+# Copy backend requirements and install first (for route imports)
+COPY backend/requirements.txt ./backend-requirements.txt
+RUN pip install --no-cache-dir -r backend-requirements.txt
+
+# Copy service-specific requirements
 COPY services/core/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
