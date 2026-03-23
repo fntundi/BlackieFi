@@ -7,15 +7,15 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy backend code for importing routes
-COPY ../backend /app/backend
-
 # Copy requirements first for caching
-COPY requirements.txt .
+COPY services/core/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Copy backend code (needed for route imports)
+COPY backend /app/backend
+
 # Copy application code
-COPY . .
+COPY services/core/*.py ./
 
 # Create non-root user
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
