@@ -457,6 +457,12 @@ Complete rewrite of the Budgets page with EveryDollar-inspired features for zero
   - [x] Clear error messages for missing API keys
   - [x] CoinGecko now requires API key (prevents rate limiting issues)
   - [x] UI warning when provider enabled but no API key configured
+- [x] **Development Makefile** (March 2026)
+  - [x] Comprehensive Makefile for local development and Docker deployment
+  - [x] Commands: setup, dev, docker-up, microservices-up, observability-up, all-up
+  - [x] Database management: db-start, db-stop, db-backup, db-restore
+  - [x] Health checks and version info utilities
+  - [x] Environment file generation (env-example)
 
 ## Remaining Tasks
 
