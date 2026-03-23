@@ -1,7 +1,3 @@
-#env
-.env
-.env.*
-
 # Logs
 logs
 *.log
@@ -27,55 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-.env-e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
--e 
-# Environment files
-*.env
-*.env.*
-
 
 # Git
 .git
@@ -85,10 +32,6 @@ dist-ssr
 node_modules
 npm-debug.log
 
-# Docker
-Dockerfile*
-docker-compose.yml
-
 # Env
 .env
 
@@ -96,3 +39,9 @@ docker-compose.yml
 .vscode
 .idea
 README.md
+.env-e 
+
+# Environment files
+*.env
+*.env.*
+-e 
