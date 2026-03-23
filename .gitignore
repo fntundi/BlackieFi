@@ -39,3 +39,9 @@ npm-debug.log
 .vscode
 .idea
 README.md
+.env-e 
+
+# Environment files
+*.env
+*.env.*
+-e 
