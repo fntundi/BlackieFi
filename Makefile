@@ -483,43 +483,40 @@ all-status: ## Show status of all services
 
 env-example: ## Generate example .env files
 	@echo "$(CYAN)Generating example .env files...$(NC)"
-	@cat > .env.example << 'EOF'
-# ============================================================================
-# BlackieFi 3.0 - Environment Configuration
-# ============================================================================
-# Copy this file to .env and update values as needed
-
-# Database
-MONGO_URL=mongodb://localhost:27017
-DB_NAME=blackiefi
-MONGO_ROOT_USER=blackiefi
-MONGO_ROOT_PASSWORD=blackiefi_secret
-
-# Redis
-REDIS_PASSWORD=blackiefi_redis_secret
-
-# JWT
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-
-# API Keys (optional - add your own)
-EMERGENT_LLM_KEY=
-ALPHA_VANTAGE_API_KEY=
-COINGECKO_API_KEY=
-RESEND_API_KEY=
-
-# ChromaDB
-CHROMA_AUTH_TOKEN=blackiefi_chroma_secret
-
-# Rate Limiting
-RATE_LIMIT_REQUESTS=100
-RATE_LIMIT_WINDOW=60
-
-# Logging
-LOG_LEVEL=INFO
-
-# CORS
-CORS_ORIGINS=*
-EOF
+	@echo "# ============================================================================" > .env.example
+	@echo "# BlackieFi 3.0 - Environment Configuration" >> .env.example
+	@echo "# ============================================================================" >> .env.example
+	@echo "" >> .env.example
+	@echo "# Database" >> .env.example
+	@echo "MONGO_URL=mongodb://localhost:27017" >> .env.example
+	@echo "DB_NAME=blackiefi" >> .env.example
+	@echo "MONGO_ROOT_USER=blackiefi" >> .env.example
+	@echo "MONGO_ROOT_PASSWORD=blackiefi_secret" >> .env.example
+	@echo "" >> .env.example
+	@echo "# Redis" >> .env.example
+	@echo "REDIS_PASSWORD=blackiefi_redis_secret" >> .env.example
+	@echo "" >> .env.example
+	@echo "# JWT" >> .env.example
+	@echo "JWT_SECRET=your-super-secret-jwt-key-change-in-production" >> .env.example
+	@echo "" >> .env.example
+	@echo "# API Keys (optional)" >> .env.example
+	@echo "EMERGENT_LLM_KEY=" >> .env.example
+	@echo "ALPHA_VANTAGE_API_KEY=" >> .env.example
+	@echo "COINGECKO_API_KEY=" >> .env.example
+	@echo "RESEND_API_KEY=" >> .env.example
+	@echo "" >> .env.example
+	@echo "# ChromaDB" >> .env.example
+	@echo "CHROMA_AUTH_TOKEN=blackiefi_chroma_secret" >> .env.example
+	@echo "" >> .env.example
+	@echo "# Rate Limiting" >> .env.example
+	@echo "RATE_LIMIT_REQUESTS=100" >> .env.example
+	@echo "RATE_LIMIT_WINDOW=60" >> .env.example
+	@echo "" >> .env.example
+	@echo "# Logging" >> .env.example
+	@echo "LOG_LEVEL=INFO" >> .env.example
+	@echo "" >> .env.example
+	@echo "# CORS" >> .env.example
+	@echo "CORS_ORIGINS=*" >> .env.example
 	@echo "$(GREEN)✓ Created .env.example$(NC)"
 
 health: ## Check health of all services
