@@ -1,35 +1,29 @@
-# Build stage
-FROM golang:1.22-alpine AS builder
-
-WORKDIR /build
-
-# Install dependencies
-RUN apk add --no-cache git
-
-# Copy go mod files
-COPY go.mod go.sum ./
-RUN go mod download
-
-# Copy source code
-COPY . .
-
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o blackiefi ./cmd/main.go
-
-# Runtime stage
-FROM alpine:3.19
+# BlackieFi Backend - Dockerfile
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates tzdata
+# Install system dependencies needed for some Python packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    python3-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy binary from builder
-COPY --from=builder /build/blackiefi .
-COPY --from=builder /build/migrations ./migrations
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
 
 # Expose port
-EXPOSE 8080
+EXPOSE 8001
 
-# Run the application
-CMD ["./blackiefi", "serve"]
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8001/api/health || exit 1
+
+# Run the application with hot reload for development
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
