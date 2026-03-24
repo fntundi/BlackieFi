@@ -1,65 +1,95 @@
-version: '3.8'
+# =============================================================================
+# BlackieFi - Production-Ready Docker Compose
+# =============================================================================
+# This is the ONLY docker-compose you need for local development.
+# 
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose logs -f        # View logs
+#   docker compose down           # Stop all services
+#   docker compose down -v        # Stop and remove volumes
+#
+# Access:
+#   Frontend: http://localhost:3000
+#   Backend:  http://localhost:8001
+#   API Docs: http://localhost:8001/docs
+# =============================================================================
 
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: blackiefi-db
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-blackiefi}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blackiefi_secret}
-      POSTGRES_DB: ${POSTGRES_DB:-blackiefi}
+  # ---------------------------------------------------------------------------
+  # MongoDB - Database
+  # ---------------------------------------------------------------------------
+  mongodb:
+    image: mongo:7.0
+    container_name: blackiefi-mongo
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - mongo_data:/data/db
     ports:
-      - "5432:5432"
+      - "27017:27017"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-blackiefi}"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - blackiefi-network
+      - blackiefi
 
+  # ---------------------------------------------------------------------------
+  # Backend - FastAPI
+  # ---------------------------------------------------------------------------
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: blackiefi-backend
     environment:
-      - DATABASE_URL=postgres://${POSTGRES_USER:-blackiefi}:${POSTGRES_PASSWORD:-blackiefi_secret}@postgres:5432/${POSTGRES_DB:-blackiefi}?sslmode=disable
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
-      - PORT=8080
-      - GIN_MODE=${GIN_MODE:-debug}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY:-}
+      - MONGO_URL=mongodb://mongodb:27017
+      - DB_NAME=blackiefi
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-dev-secret-change-in-production}
+      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY:-}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-}
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
     ports:
-      - "8080:8080"
+      - "8001:8001"
     depends_on:
-      postgres:
+      mongodb:
         condition: service_healthy
+    volumes:
+      # Mount source for hot reload during development
+      - ./backend:/app
     networks:
-      - blackiefi-network
+      - blackiefi
     restart: unless-stopped
 
+  # ---------------------------------------------------------------------------
+  # Frontend - React
+  # ---------------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: blackiefi-frontend
     environment:
-      - REACT_APP_API_URL=http://localhost:8080/api
+      - REACT_APP_BACKEND_URL=http://localhost:8001
+      # Enable polling for file changes in Docker/WSL
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
     ports:
       - "3000:3000"
     depends_on:
       - backend
+    volumes:
+      # Mount source for hot reload during development
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
     networks:
-      - blackiefi-network
+      - blackiefi
     restart: unless-stopped
 
-volumes:
-  postgres_data:
-
 networks:
-  blackiefi-network:
+  blackiefi:
     driver: bridge
+
+volumes:
+  mongo_data:
