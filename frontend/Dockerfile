@@ -1,27 +1,25 @@
-# Build stage
-FROM node:20-alpine AS builder
+# BlackieFi Frontend - Dockerfile
+FROM node:20-alpine
 
 WORKDIR /app
 
-# Install dependencies
+# Copy package files
 COPY package*.json ./
-RUN npm ci
+COPY yarn.lock* ./
 
-# Copy source
+# Install dependencies
+RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+    else npm ci; fi
+
+# Copy application code
 COPY . .
 
-# Build
-RUN npm run build
-
-# Production stage
-FROM nginx:alpine
-
-# Copy build files
-COPY --from=builder /app/build /usr/share/nginx/html
-
-# Copy nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
+# Expose port
 EXPOSE 3000
 
-CMD ["nginx", "-g", "daemon off;"]
+# Environment for hot reload in Docker/WSL
+ENV CHOKIDAR_USEPOLLING=true
+ENV WATCHPACK_POLLING=true
+
+# Start development server
+CMD ["npm", "start"]
