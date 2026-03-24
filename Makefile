@@ -379,6 +379,70 @@ docker-shell-frontend: ## Open shell in frontend container
 	$(DOCKER) exec -it blackiefi-frontend /bin/sh
 
 # ============================================================================
+# LOCAL DEVELOPMENT (Docker - Simplified)
+# ============================================================================
+
+LOCAL_COMPOSE := docker-compose.local.yml
+
+local-up: ## Start local development environment (recommended)
+	@echo "\033[0;36m╔═══════════════════════════════════════════════════════════════════╗\033[0m"
+	@echo "\033[0;36m║           Starting BlackieFi Local Development                    ║\033[0m"
+	@echo "\033[0;36m╚═══════════════════════════════════════════════════════════════════╝\033[0m"
+	$(COMPOSE) -f $(LOCAL_COMPOSE) up -d
+	@echo ""
+	@echo "\033[0;32m✓ Local development environment started\033[0m"
+	@echo ""
+	@echo "\033[0;33mAccess Points:\033[0m"
+	@echo "  Frontend:  http://localhost:3000"
+	@echo "  Backend:   http://localhost:8001"
+	@echo "  API Docs:  http://localhost:8001/docs"
+	@echo ""
+	@echo "\033[0;33mDefault Login:\033[0m"
+	@echo "  Username: demo"
+	@echo "  Password: user123"
+	@echo ""
+
+local-down: ## Stop local development environment
+	@echo "\033[0;36mStopping local development...\033[0m"
+	$(COMPOSE) -f $(LOCAL_COMPOSE) down
+	@echo "\033[0;32m✓ Local development stopped\033[0m"
+
+local-logs: ## View local development logs
+	$(COMPOSE) -f $(LOCAL_COMPOSE) logs -f
+
+local-logs-backend: ## View backend logs only
+	$(COMPOSE) -f $(LOCAL_COMPOSE) logs -f backend
+
+local-logs-frontend: ## View frontend logs only
+	$(COMPOSE) -f $(LOCAL_COMPOSE) logs -f frontend
+
+local-build: ## Rebuild local development images
+	@echo "\033[0;36mRebuilding local images...\033[0m"
+	$(COMPOSE) -f $(LOCAL_COMPOSE) build --no-cache
+	@echo "\033[0;32m✓ Local images rebuilt\033[0m"
+
+local-restart: ## Restart local development
+	@make local-down
+	@make local-up
+
+local-clean: ## Clean local development (removes volumes)
+	@echo "\033[0;36mCleaning local development...\033[0m"
+	$(COMPOSE) -f $(LOCAL_COMPOSE) down -v --rmi local
+	@echo "\033[0;32m✓ Local development cleaned\033[0m"
+
+local-shell-backend: ## Open shell in backend container
+	$(DOCKER) exec -it blackiefi-backend /bin/sh
+
+local-shell-frontend: ## Open shell in frontend container
+	$(DOCKER) exec -it blackiefi-frontend /bin/sh
+
+local-status: ## Show local development status
+	@echo ""
+	@echo "\033[0;33mLocal Development Status:\033[0m"
+	@$(COMPOSE) -f $(LOCAL_COMPOSE) ps
+	@echo ""
+
+# ============================================================================
 # DOCKER - MICROSERVICES
 # ============================================================================
 
