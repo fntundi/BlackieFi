@@ -40,11 +40,19 @@ from database import init_db, close_db, get_db
 from services.metrics_service import get_metrics_service
 from services.audit_service import get_audit_service
 from services.backup_scheduler_service import get_backup_scheduler_service
+from services.storage_service import storage_enabled, init_storage
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
+    if storage_enabled():
+        try:
+            init_storage()
+            print("Object storage initialized")
+        except Exception as exc:
+            print(f"Object storage init failed: {exc}")
+
     
     # Initialize metrics service
     metrics = get_metrics_service()

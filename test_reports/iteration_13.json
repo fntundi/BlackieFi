@@ -1,0 +1,75 @@
+{
+  "summary": "Entity Details and Documents API testing complete. All 15 backend tests passed. Frontend UI testing verified entity creation, details modal, business/personal details forms, and documents section. EMERGENT_LLM_KEY is SET in backend/.env so document uploads work (201). If key is removed, uploads correctly return 503.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "Entities.jsx",
+        "issue": "React warning: 'value' prop on input should not be null - controlled/uncontrolled input warning when opening entity details modal",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Entity Details Modal",
+        "issues": ["Minor React warning about controlled/uncontrolled inputs - does not affect functionality"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_entity_details_documents.py",
+    "/app/test_reports/pytest/pytest_entity_details.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Entity details API correctly returns business_details or personal_details based on entity type",
+    "Document upload correctly checks for EMERGENT_LLM_KEY and returns 503 when not configured",
+    "Entity documents list returns empty array for new entities - working correctly",
+    "All data-testid attributes present for testing: entities-page, add-entity-btn, entity-name-input, entity-type-select, submit-entity-btn, entity-details-modal, business-legal-name, business-ein, business-structure, entity-documents-list, upload-document-btn, save-entity-details-btn",
+    "Note: EMERGENT_LLM_KEY IS currently set in backend/.env (sk-emergent-...) so uploads work. Test request mentioned it should NOT be set - this is a configuration note, not a code issue"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_entity_details_documents.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "ui_test_user": {
+      "username": "uitestrirv6p",
+      "email": "uitestrirv6p@example.com",
+      "password": "TestPass123!"
+    }
+  },
+  "seed_data_creation": "Created test user and entities during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Entity Details and Documents features verified. Backend tests in /app/backend/tests/test_entity_details_documents.py cover: user registration, login, entity CRUD, entity details GET/PUT for both personal and business types, documents list (empty array), document upload (201 when EMERGENT_LLM_KEY set, 503 when not set). Frontend UI verified: Entities page, Add Entity modal, Entity Details modal with all business/personal fields, Documents section with upload form and empty state message.",
+  "features_tested": {
+    "User Registration": "PASS - Creates new user with token",
+    "User Login": "PASS - Returns token for existing user",
+    "Create Personal Entity": "PASS - Returns entity with type=personal",
+    "Create Business Entity": "PASS - Returns entity with type=business",
+    "List Entities": "PASS - Returns array of user's entities",
+    "GET /api/entities/{id}/details (personal)": "PASS - Returns entity with personal_details, business_details=null",
+    "GET /api/entities/{id}/details (business)": "PASS - Returns entity with business_details, personal_details=null",
+    "PUT /api/entities/{id}/details (personal)": "PASS - Updates personal details and persists",
+    "PUT /api/entities/{id}/details (business)": "PASS - Updates business details and persists",
+    "Wrong details type validation": "PASS - Returns 400 when updating personal entity with business_details",
+    "GET /api/entities/{id}/documents": "PASS - Returns empty array for new entity",
+    "POST /api/entities/{id}/documents (with key)": "PASS - Returns 201 with document metadata when EMERGENT_LLM_KEY set",
+    "POST /api/entities/{id}/documents (without key)": "PASS - Returns 503 when EMERGENT_LLM_KEY not set",
+    "404 for non-existent entity details": "PASS",
+    "404 for non-existent entity documents": "PASS",
+    "Frontend - Entities page": "PASS - Shows entity cards with Personal/Business badges",
+    "Frontend - Add Entity modal": "PASS - Name input, type select, submit button",
+    "Frontend - Entity Details modal": "PASS - All business/personal detail fields present",
+    "Frontend - Documents section": "PASS - Upload form, empty state message, Upload Document button"
+  },
+  "environment_note": "EMERGENT_LLM_KEY is SET in backend/.env. If testing 503 behavior, remove or comment out the key and restart backend."
+}

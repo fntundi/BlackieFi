@@ -44,10 +44,20 @@ class ApiClient {
       throw new Error('Unauthorized');
     }
 
-    const data = await response.json();
+    let data = null;
+    if (response.status !== 204) {
+      const text = await response.text();
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (err) {
+          data = { error: text };
+        }
+      }
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || 'Request failed');
+      throw new Error((data && (data.error || data.detail)) || 'Request failed');
     }
 
     return data;
@@ -143,6 +153,69 @@ class ApiClient {
   async deleteEntity(id) {
     return this.request(`/entities/${id}`, { method: 'DELETE' });
   }
+
+  async getEntityDetails(id) {
+    return this.request(`/entities/${id}/details`);
+  }
+
+  async updateEntityDetails(id, data) {
+    return this.request(`/entities/${id}/details`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async listEntityDocuments(entityId) {
+    return this.request(`/entities/${entityId}/documents`);
+  }
+
+  async uploadEntityDocument(entityId, formData) {
+    const url = `${API_URL}/entities/${entityId}/documents`;
+    const headers = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    let data = {};
+    try {
+      data = await response.json();
+    } catch (err) {
+      data = {};
+    }
+    if (!response.ok) {
+      throw new Error(data.detail || data.error || 'Upload failed');
+    }
+    return data;
+  }
+
+  async downloadEntityDocument(documentId) {
+    const url = `${API_URL}/entities/documents/${documentId}/download`;
+    const headers = {};
+    if (this.token) {
+      headers['Authorization'] = `Bearer ${this.token}`;
+    }
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      let message = 'Download failed';
+      try {
+        const data = await response.json();
+        message = data.detail || data.error || message;
+      } catch (err) {
+        message = message;
+      }
+      throw new Error(message);
+    }
+    return response.blob();
+  }
+
+  async deleteEntityDocument(documentId) {
+    return this.request(`/entities/documents/${documentId}`, { method: 'DELETE' });
+  }
+
 
   // Account endpoints
   async getAccounts(params = {}) {

@@ -41,9 +41,61 @@ class UserResponse(BaseModel):
     updated_at: str
 
 # ============= Entity Models =============
+class BusinessEntityDetailsInput(BaseModel):
+    legal_name: Optional[str] = None
+    dba_name: Optional[str] = None
+    ein: Optional[str] = None
+    entity_structure: Optional[str] = None
+    formation_state: Optional[str] = None
+    formation_date: Optional[str] = None
+    registered_agent_name: Optional[str] = None
+    registered_agent_email: Optional[EmailStr] = None
+    registered_agent_phone: Optional[str] = None
+    registered_agent_address: Optional[str] = None
+    principal_address: Optional[str] = None
+    mailing_address: Optional[str] = None
+    contact_email: Optional[EmailStr] = None
+    contact_phone: Optional[str] = None
+    website: Optional[str] = None
+    fiscal_year_end: Optional[str] = None
+    tax_filing_due_date: Optional[str] = None
+    annual_report_due_date: Optional[str] = None
+    renewal_date: Optional[str] = None
+    accounting_method: Optional[str] = None
+    payroll_provider: Optional[str] = None
+    tax_elections: List[str] = Field(default_factory=list)
+    associated_accounts: List[str] = Field(default_factory=list)
+    owners: List[str] = Field(default_factory=list)
+    officers: List[str] = Field(default_factory=list)
+    licenses: List[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+
+class PersonalEntityDetailsInput(BaseModel):
+    legal_name: Optional[str] = None
+    preferred_name: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    ssn_last4: Optional[str] = None
+    filing_status: Optional[str] = None
+    dependents: List[str] = Field(default_factory=list)
+    tax_filing_due_date: Optional[str] = None
+    primary_address: Optional[str] = None
+    residency_state: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[EmailStr] = None
+    employment_status: Optional[str] = None
+    employer_name: Optional[str] = None
+    income_sources: List[str] = Field(default_factory=list)
+    assets: List[str] = Field(default_factory=list)
+    liabilities: List[str] = Field(default_factory=list)
+    risk_tolerance: Optional[str] = None
+    retirement_accounts: List[str] = Field(default_factory=list)
+    notes: Optional[str] = None
+
 class EntityInput(BaseModel):
     name: str
     type: str = Field(..., pattern="^(personal|business)$")
+    business_details: Optional[BusinessEntityDetailsInput] = None
+    personal_details: Optional[PersonalEntityDetailsInput] = None
 
 class EntityResponse(BaseModel):
     id: str
@@ -52,6 +104,29 @@ class EntityResponse(BaseModel):
     type: str
     created_at: str
     updated_at: str
+
+class EntityDetailsResponse(BaseModel):
+    entity: EntityResponse
+    business_details: Optional[BusinessEntityDetailsInput] = None
+    personal_details: Optional[PersonalEntityDetailsInput] = None
+
+class EntityDetailsUpdateInput(BaseModel):
+    business_details: Optional[BusinessEntityDetailsInput] = None
+    personal_details: Optional[PersonalEntityDetailsInput] = None
+
+class EntityDocumentResponse(BaseModel):
+    id: str
+    entity_id: str
+    owner_id: str
+    document_type: str
+    title: str
+    original_filename: str
+    content_type: str
+    size: int
+    storage_path: str
+    uploaded_at: str
+    notes: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
 
 # ============= Account Models =============
 class AccountInput(BaseModel):

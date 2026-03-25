@@ -10,9 +10,9 @@ make up
 # Frontend: http://localhost:3000
 # Backend:  http://localhost:8001/docs
 
-# 3. Login
-# Username: demo
-# Password: user123
+# 3. Create an account or enable demo users
+#   - Register in the UI
+#   - (Optional) set SEED_DEMO_USERS=true in .env before make up
 ```
 
 ## Commands
@@ -54,6 +54,8 @@ EMERGENT_LLM_KEY=your-key
 ALPHA_VANTAGE_API_KEY=your-key
 COINGECKO_API_KEY=your-key
 ```
+SEED_DEMO_USERS=false
+
 
 ## Troubleshooting
 

@@ -40,6 +40,12 @@ async def create_indexes():
     
     # Entities collection
     await db.entities.create_index("owner_id")
+    # Entity details
+    await db.business_entities.create_index("entity_id", unique=True)
+    await db.personal_entities.create_index("entity_id", unique=True)
+    await db.entity_documents.create_index("entity_id")
+    await db.entity_documents.create_index("owner_id")
+
     
     # Accounts collection
     await db.accounts.create_index("entity_id")
@@ -75,6 +81,10 @@ async def create_indexes():
 
 async def seed_initial_data():
     """Seed initial data if database is empty"""
+    from datetime import datetime, timezone
+    from bson import ObjectId
+    from auth import hash_password
+
     # Check if system settings exist
     settings = await db.system_settings.find_one({"_id": "system"})
     if not settings:
@@ -85,68 +95,83 @@ async def seed_initial_data():
         })
         print("Created initial system settings")
 
-    # Seed demo/admin users if missing
-    from datetime import datetime, timezone
-    from bson import ObjectId
-    from auth import hash_password
+    # Seed demo/admin users if enabled
+    seed_demo = os.environ.get("SEED_DEMO_USERS", "").lower() in {"1", "true", "yes"}
+    if seed_demo:
+        now = datetime.now(timezone.utc).isoformat()
 
-    now = datetime.now(timezone.utc).isoformat()
+        demo_user = await db.users.find_one({"username": "demo"})
+        if not demo_user:
+            demo_id = str(ObjectId())
+            demo_entity_id = str(ObjectId())
+            await db.users.insert_one({
+                "_id": demo_id,
+                "username": "demo",
+                "email": "demo@example.com",
+                "password_hash": hash_password("user123"),
+                "full_name": "Demo User",
+                "role": "admin",
+                "ai_enabled": False,
+                "preferred_llm_provider": None,
+                "password_reset_token": None,
+                "password_reset_expires": None,
+                "created_at": now,
+                "updated_at": now
+            })
+            await db.entities.insert_one({
+                "_id": demo_entity_id,
+                "owner_id": demo_id,
+                "name": "Personal",
+                "type": "personal",
+                "created_at": now,
+                "updated_at": now
+            })
+            await db.personal_entities.insert_one({
+                "_id": str(ObjectId()),
+                "entity_id": demo_entity_id,
+                "owner_id": demo_id,
+                "created_at": now,
+                "updated_at": now
+            })
+            print("Created demo user")
 
-    demo_user = await db.users.find_one({"username": "demo"})
-    if not demo_user:
-        demo_id = str(ObjectId())
-        await db.users.insert_one({
-            "_id": demo_id,
-            "username": "demo",
-            "email": "demo@example.com",
-            "password_hash": hash_password("user123"),
-            "full_name": "Demo User",
-            "role": "admin",
-            "ai_enabled": False,
-            "preferred_llm_provider": None,
-            "password_reset_token": None,
-            "password_reset_expires": None,
-            "created_at": now,
-            "updated_at": now
-        })
-        await db.entities.insert_one({
-            "_id": str(ObjectId()),
-            "owner_id": demo_id,
-            "name": "Personal",
-            "type": "personal",
-            "created_at": now,
-            "updated_at": now
-        })
-        print("Created demo user")
-
-    admin_user = await db.users.find_one({"username": "admin"})
-    if not admin_user:
-        admin_id = str(ObjectId())
-        await db.users.insert_one({
-            "_id": admin_id,
-            "username": "admin",
-            "email": "admin@example.com",
-            "password_hash": hash_password("P@ssw0rd"),
-            "full_name": "System Admin",
-            "role": "admin",
-            "ai_enabled": False,
-            "preferred_llm_provider": None,
-            "password_reset_token": None,
-            "password_reset_expires": None,
-            "created_at": now,
-            "updated_at": now
-        })
-        await db.entities.insert_one({
-            "_id": str(ObjectId()),
-            "owner_id": admin_id,
-            "name": "Admin",
-            "type": "business",
-            "created_at": now,
-            "updated_at": now
-        })
-        print("Created admin user")
+        admin_user = await db.users.find_one({"username": "admin"})
+        if not admin_user:
+            admin_id = str(ObjectId())
+            admin_entity_id = str(ObjectId())
+            await db.users.insert_one({
+                "_id": admin_id,
+                "username": "admin",
+                "email": "admin@example.com",
+                "password_hash": hash_password("P@ssw0rd"),
+                "full_name": "System Admin",
+                "role": "admin",
+                "ai_enabled": False,
+                "preferred_llm_provider": None,
+                "password_reset_token": None,
+                "password_reset_expires": None,
+                "created_at": now,
+                "updated_at": now
+            })
+            await db.entities.insert_one({
+                "_id": admin_entity_id,
+                "owner_id": admin_id,
+                "name": "Admin",
+                "type": "business",
+                "created_at": now,
+                "updated_at": now
+            })
+            await db.business_entities.insert_one({
+                "_id": str(ObjectId()),
+                "entity_id": admin_entity_id,
+                "owner_id": admin_id,
+                "created_at": now,
+                "updated_at": now
+            })
+            print("Created admin user")
 
     # Create default categories if none exist
+    now = datetime.now(timezone.utc).isoformat()
     count = await db.categories.count_documents({})
     if count == 0:
         default_categories = [
