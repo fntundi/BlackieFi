@@ -84,7 +84,68 @@ async def seed_initial_data():
             "default_llm_provider": "openrouter"
         })
         print("Created initial system settings")
-    
+
+    # Seed demo/admin users if missing
+    from datetime import datetime, timezone
+    from bson import ObjectId
+    from auth import hash_password
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    demo_user = await db.users.find_one({"username": "demo"})
+    if not demo_user:
+        demo_id = str(ObjectId())
+        await db.users.insert_one({
+            "_id": demo_id,
+            "username": "demo",
+            "email": "demo@example.com",
+            "password_hash": hash_password("user123"),
+            "full_name": "Demo User",
+            "role": "admin",
+            "ai_enabled": False,
+            "preferred_llm_provider": None,
+            "password_reset_token": None,
+            "password_reset_expires": None,
+            "created_at": now,
+            "updated_at": now
+        })
+        await db.entities.insert_one({
+            "_id": str(ObjectId()),
+            "owner_id": demo_id,
+            "name": "Personal",
+            "type": "personal",
+            "created_at": now,
+            "updated_at": now
+        })
+        print("Created demo user")
+
+    admin_user = await db.users.find_one({"username": "admin"})
+    if not admin_user:
+        admin_id = str(ObjectId())
+        await db.users.insert_one({
+            "_id": admin_id,
+            "username": "admin",
+            "email": "admin@example.com",
+            "password_hash": hash_password("P@ssw0rd"),
+            "full_name": "System Admin",
+            "role": "admin",
+            "ai_enabled": False,
+            "preferred_llm_provider": None,
+            "password_reset_token": None,
+            "password_reset_expires": None,
+            "created_at": now,
+            "updated_at": now
+        })
+        await db.entities.insert_one({
+            "_id": str(ObjectId()),
+            "owner_id": admin_id,
+            "name": "Admin",
+            "type": "business",
+            "created_at": now,
+            "updated_at": now
+        })
+        print("Created admin user")
+
     # Create default categories if none exist
     count = await db.categories.count_documents({})
     if count == 0:
@@ -106,16 +167,13 @@ async def seed_initial_data():
             {"name": "Transfer", "type": "both", "is_default": True},
         ]
         
-        from datetime import datetime, timezone
-        from bson import ObjectId
-        
         for cat in default_categories:
             cat["_id"] = str(ObjectId())
             cat["entity_id"] = None
             cat["parent_category"] = None
             cat["auto_categorization_rules"] = []
-            cat["created_at"] = datetime.now(timezone.utc).isoformat()
-            cat["updated_at"] = datetime.now(timezone.utc).isoformat()
+            cat["created_at"] = now
+            cat["updated_at"] = now
         
         await db.categories.insert_many(default_categories)
         print(f"Created {len(default_categories)} default categories")
