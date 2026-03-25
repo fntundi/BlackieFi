@@ -60,6 +60,21 @@ const defaultPersonalDetails = {
 const listToText = (list) => (list || []).join('\n');
 const textToList = (text) => text.split('\n').map((item) => item.trim()).filter(Boolean);
 
+
+const normalizeDetails = (details, defaults) => {
+  const normalized = { ...defaults };
+  Object.keys(defaults).forEach((key) => {
+    const defaultValue = defaults[key];
+    const value = details ? details[key] : undefined;
+    if (Array.isArray(defaultValue)) {
+      normalized[key] = Array.isArray(value) ? value : [];
+    } else {
+      normalized[key] = value ?? '';
+    }
+  });
+  return normalized;
+};
+
 export default function Entities() {
   const queryClient = useQueryClient();
   const { selectEntity } = useEntity();
@@ -101,10 +116,10 @@ export default function Entities() {
       return;
     }
     if (entityDetails.business_details) {
-      setBusinessDetails({ ...defaultBusinessDetails, ...entityDetails.business_details });
+      setBusinessDetails(normalizeDetails(entityDetails.business_details, defaultBusinessDetails));
     }
     if (entityDetails.personal_details) {
-      setPersonalDetails({ ...defaultPersonalDetails, ...entityDetails.personal_details });
+      setPersonalDetails(normalizeDetails(entityDetails.personal_details, defaultPersonalDetails));
     }
   }, [entityDetails]);
 
