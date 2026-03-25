@@ -68,6 +68,16 @@ Migrate an existing application from the `base44` platform to a new technology s
 ---
 
 ## What's Been Implemented
+### December 2025 - Real App Mode & Entity Details ✅
+- **Demo seeding optional** via `SEED_DEMO_USERS` env (default off for real deployments)
+- **Entity details schema** stored in separate collections (`business_entities`, `personal_entities`)
+- **Business fields**: EIN, registered agent, formation details, compliance dates, tax filing due dates, accounting metadata, owners/officers, licenses
+- **Personal fields**: identity + tax profile + wealth profile (dependents, income sources, assets, liabilities, risk tolerance)
+- **Entity details APIs**: `GET/PUT /api/entities/{id}/details`
+- **Entity documents**: upload/list/download/delete with Emergent object storage (metadata stored in MongoDB)
+- **Frontend Entities UI**: details modal + document management with file upload
+
+
 
 ### March 2026 - AI Co-Pilot Enhancements & Refactoring ✅
 
