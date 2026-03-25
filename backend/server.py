@@ -21,6 +21,7 @@ from routes.inventory import router as inventory_router
 from routes.goals import router as goals_router
 from routes.settings import router as settings_router
 from routes.admin_llm import router as admin_llm_router
+from routes.admin_users import router as admin_users_router
 from routes.bills import router as bills_router
 from routes.reports import router as reports_router
 from routes.tax import router as tax_router
@@ -40,20 +41,12 @@ from database import init_db, close_db, get_db
 from services.metrics_service import get_metrics_service
 from services.audit_service import get_audit_service
 from services.backup_scheduler_service import get_backup_scheduler_service
-from services.storage_service import storage_enabled, init_storage
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
-    if storage_enabled():
-        try:
-            init_storage()
-            print("Object storage initialized")
-        except Exception as exc:
-            print(f"Object storage init failed: {exc}")
 
-    
     # Initialize metrics service
     metrics = get_metrics_service()
     metrics.initialize("blackiefi-api", "3.0.0")
@@ -101,6 +94,8 @@ app.include_router(entities_router, prefix="/api/entities", tags=["Entities"])
 app.include_router(accounts_router, prefix="/api/accounts", tags=["Accounts"])
 app.include_router(categories_router, prefix="/api/categories", tags=["Categories"])
 app.include_router(transactions_router, prefix="/api/transactions", tags=["Transactions"])
+app.include_router(admin_users_router, prefix="/api/admin", tags=["Admin - Users"])
+
 app.include_router(recurring_router, prefix="/api/recurring", tags=["Recurring Transactions"])
 app.include_router(budgets_router, prefix="/api/budgets", tags=["Budgets"])
 app.include_router(debts_router, prefix="/api/debts", tags=["Debts"])

@@ -29,6 +29,7 @@ const defaultBusinessDetails = {
   payroll_provider: '',
   tax_elections: [],
   associated_accounts: [],
+  primary_account_id: '',
   owners: [],
   officers: [],
   licenses: [],
@@ -54,6 +55,8 @@ const defaultPersonalDetails = {
   liabilities: [],
   risk_tolerance: '',
   retirement_accounts: [],
+  associated_accounts: [],
+  primary_account_id: '',
   notes: ''
 };
 
@@ -467,6 +470,11 @@ export default function Entities() {
                       <textarea value={listToText(businessDetails.associated_accounts)} onChange={(e) => setBusinessDetails({ ...businessDetails, associated_accounts: textToList(e.target.value) })} style={textareaStyle} data-testid="business-associated-accounts" />
                     </div>
                     <div>
+                      <label className="label">Primary Account ID</label>
+                      <input value={businessDetails.primary_account_id} onChange={(e) => setBusinessDetails({ ...businessDetails, primary_account_id: e.target.value })} style={inputStyle} data-testid="business-primary-account-id" />
+                    </div>
+
+                    <div>
                       <label className="label">Owners (one per line)</label>
                       <textarea value={listToText(businessDetails.owners)} onChange={(e) => setBusinessDetails({ ...businessDetails, owners: textToList(e.target.value) })} style={textareaStyle} data-testid="business-owners" />
                     </div>
@@ -562,6 +570,11 @@ export default function Entities() {
                       <label className="label">Liabilities (one per line)</label>
                       <textarea value={listToText(personalDetails.liabilities)} onChange={(e) => setPersonalDetails({ ...personalDetails, liabilities: textToList(e.target.value) })} style={textareaStyle} data-testid="personal-liabilities" />
                     </div>
+                    <div>
+                      <label className="label">Associated Accounts (one per line)</label>
+                      <textarea value={listToText(personalDetails.associated_accounts)} onChange={(e) => setPersonalDetails({ ...personalDetails, associated_accounts: textToList(e.target.value) })} style={textareaStyle} data-testid="personal-associated-accounts" />
+                    </div>
+
                   </div>
 
                   <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
@@ -573,6 +586,11 @@ export default function Entities() {
                       <label className="label">Retirement Accounts (one per line)</label>
                       <textarea value={listToText(personalDetails.retirement_accounts)} onChange={(e) => setPersonalDetails({ ...personalDetails, retirement_accounts: textToList(e.target.value) })} style={textareaStyle} data-testid="personal-retirement-accounts" />
                     </div>
+                    <div>
+                      <label className="label">Primary Account ID</label>
+                      <input value={personalDetails.primary_account_id} onChange={(e) => setPersonalDetails({ ...personalDetails, primary_account_id: e.target.value })} style={inputStyle} data-testid="personal-primary-account-id" />
+                    </div>
+
                   </div>
 
                   <div>

@@ -9,6 +9,7 @@ from typing import List, Optional
 from database import get_db
 from models import AssetInput, AssetResponse
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -21,9 +22,16 @@ async def list_assets(
     """List assets with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {"is_active": is_active}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "assets")
         query["entity_id"] = entity_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="assets")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
     
     assets = await db.assets.find(query).to_list(length=1000)
     
@@ -53,6 +61,7 @@ async def list_assets(
 async def create_asset(input: AssetInput, current_user: dict = Depends(get_current_user)):
     """Create a new asset"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), input.entity_id, "assets")
     now = datetime.now(timezone.utc).isoformat()
     
     asset_id = str(ObjectId())
@@ -110,7 +119,9 @@ async def get_asset(asset_id: str, current_user: dict = Depends(get_current_user
     asset = await db.assets.find_one({"_id": asset_id})
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), asset["entity_id"], "assets")
+
     return {
         "id": asset["_id"],
         "entity_id": asset["entity_id"],
@@ -141,7 +152,11 @@ async def update_asset(asset_id: str, input: AssetInput, current_user: dict = De
     asset = await db.assets.find_one({"_id": asset_id})
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), asset["entity_id"], "assets")
+    if input.entity_id != asset["entity_id"]:
+        raise HTTPException(status_code=400, detail="Entity cannot be changed for assets")
+
     now = datetime.now(timezone.utc).isoformat()
     await db.assets.update_one(
         {"_id": asset_id},
@@ -166,7 +181,7 @@ async def update_asset(asset_id: str, input: AssetInput, current_user: dict = De
     
     return {
         "id": asset_id,
-        "entity_id": input.entity_id,
+        "entity_id": asset["entity_id"],
         "name": input.name,
         "type": input.type,
         "description": input.description or "",
@@ -191,11 +206,15 @@ async def delete_asset(asset_id: str, current_user: dict = Depends(get_current_u
     """Delete (deactivate) an asset"""
     db = get_db()
     
-    result = await db.assets.update_one(
+    asset = await db.assets.find_one({"_id": asset_id})
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), asset["entity_id"], "assets")
+
+    await db.assets.update_one(
         {"_id": asset_id},
         {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Asset not found")
-    
+
     return None

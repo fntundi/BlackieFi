@@ -9,6 +9,7 @@ from typing import List, Optional
 from database import get_db
 from models import RecurringTransactionInput, RecurringTransactionResponse
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -21,9 +22,16 @@ async def list_recurring(
     """List recurring transactions with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {"is_active": is_active}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "recurring")
         query["entity_id"] = entity_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="recurring")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
     
     recurring = await db.recurring_transactions.find(query).to_list(length=1000)
     
@@ -46,6 +54,7 @@ async def list_recurring(
 async def create_recurring(input: RecurringTransactionInput, current_user: dict = Depends(get_current_user)):
     """Create a new recurring transaction"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), input.entity_id, "recurring")
     now = datetime.now(timezone.utc).isoformat()
     
     recurring_id = str(ObjectId())
@@ -89,7 +98,9 @@ async def get_recurring(recurring_id: str, current_user: dict = Depends(get_curr
     recurring = await db.recurring_transactions.find_one({"_id": recurring_id})
     if not recurring:
         raise HTTPException(status_code=404, detail="Recurring transaction not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), recurring["entity_id"], "recurring")
+
     return {
         "id": recurring["_id"],
         "entity_id": recurring["entity_id"],
@@ -113,7 +124,11 @@ async def update_recurring(recurring_id: str, input: RecurringTransactionInput, 
     recurring = await db.recurring_transactions.find_one({"_id": recurring_id})
     if not recurring:
         raise HTTPException(status_code=404, detail="Recurring transaction not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), recurring["entity_id"], "recurring")
+    if input.entity_id != recurring["entity_id"]:
+        raise HTTPException(status_code=400, detail="Entity cannot be changed for recurring transactions")
+
     now = datetime.now(timezone.utc).isoformat()
     await db.recurring_transactions.update_one(
         {"_id": recurring_id},
@@ -149,11 +164,15 @@ async def delete_recurring(recurring_id: str, current_user: dict = Depends(get_c
     """Delete (deactivate) a recurring transaction"""
     db = get_db()
     
-    result = await db.recurring_transactions.update_one(
+    recurring = await db.recurring_transactions.find_one({"_id": recurring_id})
+    if not recurring:
+        raise HTTPException(status_code=404, detail="Recurring transaction not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), recurring["entity_id"], "recurring")
+
+    await db.recurring_transactions.update_one(
         {"_id": recurring_id},
         {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Recurring transaction not found")
-    
+
     return None

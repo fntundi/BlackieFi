@@ -40,6 +40,8 @@ async def create_indexes():
     
     # Entities collection
     await db.entities.create_index("owner_id")
+    await db.entity_access.create_index([("user_id", 1), ("entity_id", 1)], unique=True)
+
     # Entity details
     await db.business_entities.create_index("entity_id", unique=True)
     await db.personal_entities.create_index("entity_id", unique=True)
@@ -91,7 +93,11 @@ async def seed_initial_data():
         await db.system_settings.insert_one({
             "_id": "system",
             "ai_enabled": False,
-            "default_llm_provider": "openrouter"
+            "default_llm_provider": "openrouter",
+            "object_storage": {
+                "provider": "minio",
+                "enabled": False
+            }
         })
         print("Created initial system settings")
 

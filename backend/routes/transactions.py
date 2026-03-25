@@ -10,6 +10,7 @@ from database import get_db
 from models import TransactionInput, TransactionResponse
 from auth import get_current_user
 from services.alert_service import AlertService
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -37,9 +38,16 @@ async def list_transactions(
     """List transactions with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "transactions")
         query["entity_id"] = entity_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="transactions")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
     if category_id:
         query["category_id"] = category_id
     if type:
@@ -87,6 +95,8 @@ async def create_transaction(
     db = get_db()
     now = datetime.now(timezone.utc).isoformat()
     user_id = current_user.get("user_id")
+
+    await ensure_entity_access(db, user_id, input.entity_id, "transactions")
     
     transaction_id = str(ObjectId())
     transaction_doc = {
@@ -140,9 +150,14 @@ async def bulk_create_transactions(transactions: List[TransactionInput], current
     """Create multiple transactions at once"""
     db = get_db()
     now = datetime.now(timezone.utc).isoformat()
+    user_id = current_user.get("user_id")
     
     result = []
+    checked_entities = set()
     for input in transactions:
+        if input.entity_id and input.entity_id not in checked_entities:
+            await ensure_entity_access(db, user_id, input.entity_id, "transactions")
+            checked_entities.add(input.entity_id)
         transaction_id = str(ObjectId())
         transaction_doc = {
             "_id": transaction_id,
@@ -196,7 +211,9 @@ async def get_transaction(transaction_id: str, current_user: dict = Depends(get_
     transaction = await db.transactions.find_one({"_id": transaction_id})
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), transaction["entity_id"], "transactions")
+
     return {
         "id": transaction["_id"],
         "entity_id": transaction["entity_id"],
@@ -221,7 +238,11 @@ async def update_transaction(transaction_id: str, input: TransactionInput, curre
     transaction = await db.transactions.find_one({"_id": transaction_id})
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), transaction["entity_id"], "transactions")
+    if input.entity_id != transaction["entity_id"]:
+        raise HTTPException(status_code=400, detail="Entity cannot be changed for a transaction")
+
     # Reverse old account balance change
     if transaction.get("account_id"):
         old_balance_change = transaction["amount"] if transaction["type"] == "income" else -transaction["amount"]
@@ -279,7 +300,9 @@ async def delete_transaction(transaction_id: str, current_user: dict = Depends(g
     transaction = await db.transactions.find_one({"_id": transaction_id})
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), transaction["entity_id"], "transactions")
+
     # Reverse account balance change
     if transaction.get("account_id"):
         balance_change = transaction["amount"] if transaction["type"] == "income" else -transaction["amount"]

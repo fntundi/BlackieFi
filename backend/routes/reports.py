@@ -9,6 +9,7 @@ from bson import ObjectId
 from database import get_db
 from models import ReportFilterPresetInput, ReportFilterPresetResponse, GenerateReportInput
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access
 
 router = APIRouter()
 
@@ -16,6 +17,7 @@ router = APIRouter()
 async def generate_report(request: GenerateReportInput, current_user: dict = Depends(get_current_user)):
     """Generate a financial report"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), request.entity_id, "reports")
     
     # Get transactions for the period
     transactions = await db.transactions.find({

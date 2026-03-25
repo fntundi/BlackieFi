@@ -9,6 +9,7 @@ from typing import List, Optional
 from database import get_db
 from models import DebtInput, DebtResponse
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -21,9 +22,16 @@ async def list_debts(
     """List debts with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {"is_active": is_active}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "debts")
         query["entity_id"] = entity_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="debts")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
     
     debts = await db.debts.find(query).to_list(length=1000)
     
@@ -48,6 +56,7 @@ async def list_debts(
 async def create_debt(input: DebtInput, current_user: dict = Depends(get_current_user)):
     """Create a new debt"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), input.entity_id, "debts")
     now = datetime.now(timezone.utc).isoformat()
     
     debt_id = str(ObjectId())
@@ -95,7 +104,9 @@ async def get_debt(debt_id: str, current_user: dict = Depends(get_current_user))
     debt = await db.debts.find_one({"_id": debt_id})
     if not debt:
         raise HTTPException(status_code=404, detail="Debt not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), debt["entity_id"], "debts")
+
     return {
         "id": debt["_id"],
         "entity_id": debt["entity_id"],
@@ -121,7 +132,11 @@ async def update_debt(debt_id: str, input: DebtInput, current_user: dict = Depen
     debt = await db.debts.find_one({"_id": debt_id})
     if not debt:
         raise HTTPException(status_code=404, detail="Debt not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), debt["entity_id"], "debts")
+    if input.entity_id != debt["entity_id"]:
+        raise HTTPException(status_code=400, detail="Entity cannot be changed for debt records")
+
     now = datetime.now(timezone.utc).isoformat()
     await db.debts.update_one(
         {"_id": debt_id},
@@ -141,7 +156,7 @@ async def update_debt(debt_id: str, input: DebtInput, current_user: dict = Depen
     
     return {
         "id": debt_id,
-        "entity_id": input.entity_id,
+        "entity_id": debt["entity_id"],
         "account_id": input.account_id,
         "name": input.name,
         "type": input.type,
@@ -161,11 +176,15 @@ async def delete_debt(debt_id: str, current_user: dict = Depends(get_current_use
     """Delete (deactivate) a debt"""
     db = get_db()
     
-    result = await db.debts.update_one(
+    debt = await db.debts.find_one({"_id": debt_id})
+    if not debt:
+        raise HTTPException(status_code=404, detail="Debt not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), debt["entity_id"], "debts")
+
+    await db.debts.update_one(
         {"_id": debt_id},
         {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Debt not found")
-    
+
     return None

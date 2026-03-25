@@ -9,6 +9,7 @@ from typing import List, Optional
 from database import get_db
 from models import InventoryInput, InventoryResponse
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -21,9 +22,16 @@ async def list_inventory(
     """List inventory items with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {"is_active": is_active}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "inventory")
         query["entity_id"] = entity_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="inventory")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
     
     items = await db.inventory.find(query).to_list(length=1000)
     
@@ -47,6 +55,7 @@ async def list_inventory(
 async def create_inventory(input: InventoryInput, current_user: dict = Depends(get_current_user)):
     """Create a new inventory item"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), input.entity_id, "inventory")
     now = datetime.now(timezone.utc).isoformat()
     
     inventory_id = str(ObjectId())
@@ -92,7 +101,9 @@ async def get_inventory(inventory_id: str, current_user: dict = Depends(get_curr
     item = await db.inventory.find_one({"_id": inventory_id})
     if not item:
         raise HTTPException(status_code=404, detail="Inventory item not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), item["entity_id"], "inventory")
+
     return {
         "id": item["_id"],
         "entity_id": item["entity_id"],
@@ -117,7 +128,11 @@ async def update_inventory(inventory_id: str, input: InventoryInput, current_use
     item = await db.inventory.find_one({"_id": inventory_id})
     if not item:
         raise HTTPException(status_code=404, detail="Inventory item not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), item["entity_id"], "inventory")
+    if input.entity_id != item["entity_id"]:
+        raise HTTPException(status_code=400, detail="Entity cannot be changed for inventory items")
+
     now = datetime.now(timezone.utc).isoformat()
     await db.inventory.update_one(
         {"_id": inventory_id},
@@ -136,7 +151,7 @@ async def update_inventory(inventory_id: str, input: InventoryInput, current_use
     
     return {
         "id": inventory_id,
-        "entity_id": input.entity_id,
+        "entity_id": item["entity_id"],
         "name": input.name,
         "sku": input.sku or "",
         "quantity": input.quantity,
@@ -155,11 +170,15 @@ async def delete_inventory(inventory_id: str, current_user: dict = Depends(get_c
     """Delete (deactivate) an inventory item"""
     db = get_db()
     
-    result = await db.inventory.update_one(
+    item = await db.inventory.find_one({"_id": inventory_id})
+    if not item:
+        raise HTTPException(status_code=404, detail="Inventory item not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), item["entity_id"], "inventory")
+
+    await db.inventory.update_one(
         {"_id": inventory_id},
         {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Inventory item not found")
-    
+
     return None

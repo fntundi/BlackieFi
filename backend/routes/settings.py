@@ -5,8 +5,33 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone
 
 from database import get_db
-from models import SystemSettingsUpdate, SystemSettingsResponse, AIStatusResponse
+from models import SystemSettingsUpdate, SystemSettingsResponse, AIStatusResponse, ObjectStorageConfigUpdate, ObjectStorageConfigResponse
 from auth import get_current_user
+
+
+async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
+    """Verify user is an admin"""
+    db = get_db()
+    user_id = current_user.get("user_id")
+    user = await db.users.find_one({"_id": user_id})
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+
+def _storage_response(settings: dict) -> dict:
+    config = settings.get("object_storage", {}) if settings else {}
+    return {
+        "provider": config.get("provider", "minio"),
+        "endpoint_url": config.get("endpoint_url", ""),
+        "bucket": config.get("bucket", ""),
+        "access_key": config.get("access_key", ""),
+        "region": config.get("region"),
+        "secure": config.get("secure", True),
+        "path_prefix": config.get("path_prefix", ""),
+        "enabled": config.get("enabled", False),
+        "secret_key_set": bool(config.get("secret_key"))
+    }
 
 router = APIRouter()
 
@@ -66,6 +91,52 @@ async def get_ai_status(current_user: dict = Depends(get_current_user)):
     """Get effective AI status for current user"""
     db = get_db()
     user_id = current_user.get("user_id")
+
+@router.get("/storage", response_model=ObjectStorageConfigResponse)
+async def get_storage_settings(current_user: dict = Depends(require_admin)):
+    db = get_db()
+    settings = await db.system_settings.find_one({"_id": "system"})
+    return _storage_response(settings or {})
+
+
+@router.put("/storage", response_model=ObjectStorageConfigResponse)
+async def update_storage_settings(
+    input: ObjectStorageConfigUpdate,
+    current_user: dict = Depends(require_admin)
+):
+    db = get_db()
+    settings = await db.system_settings.find_one({"_id": "system"})
+    current = settings.get("object_storage", {}) if settings else {}
+
+    update_data = {**current}
+    if input.provider is not None:
+        update_data["provider"] = input.provider
+    if input.endpoint_url is not None:
+        update_data["endpoint_url"] = input.endpoint_url
+    if input.bucket is not None:
+        update_data["bucket"] = input.bucket
+    if input.access_key is not None:
+        update_data["access_key"] = input.access_key
+    if input.secret_key is not None:
+        update_data["secret_key"] = input.secret_key
+    if input.region is not None:
+        update_data["region"] = input.region
+    if input.secure is not None:
+        update_data["secure"] = input.secure
+    if input.path_prefix is not None:
+        update_data["path_prefix"] = input.path_prefix
+    if input.enabled is not None:
+        update_data["enabled"] = input.enabled
+
+    await db.system_settings.update_one(
+        {"_id": "system"},
+        {"$set": {"object_storage": update_data, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+
+    settings = await db.system_settings.find_one({"_id": "system"})
+    return _storage_response(settings or {})
+
     
     # Get system settings
     system_settings = await db.system_settings.find_one({"_id": "system"})

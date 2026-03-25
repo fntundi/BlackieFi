@@ -9,6 +9,7 @@ from bson import ObjectId
 from database import get_db
 from models import TaxScenarioInput, TaxScenarioResponse
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ async def list_tax_scenarios(
 ):
     """List tax scenarios for an entity"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), entity_id, "tax")
     query = {"entity_id": entity_id}
     if tax_year:
         query["tax_year"] = tax_year
@@ -31,6 +33,7 @@ async def list_tax_scenarios(
 async def create_tax_scenario(scenario: TaxScenarioInput, current_user: dict = Depends(get_current_user)):
     """Create a new tax scenario"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), scenario.entity_id, "tax")
     now = datetime.now(timezone.utc).isoformat()
     
     scenario_data = {
@@ -50,13 +53,20 @@ async def get_tax_scenario(scenario_id: str, current_user: dict = Depends(get_cu
     scenario = await db.tax_scenarios.find_one({"_id": scenario_id})
     if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), scenario["entity_id"], "tax")
+
     return {**scenario, "id": scenario["_id"]}
 
 @router.delete("/scenarios/{scenario_id}")
 async def delete_tax_scenario(scenario_id: str, current_user: dict = Depends(get_current_user)):
     """Delete a tax scenario"""
     db = get_db()
-    result = await db.tax_scenarios.delete_one({"_id": scenario_id})
-    if result.deleted_count == 0:
+    scenario = await db.tax_scenarios.find_one({"_id": scenario_id})
+    if not scenario:
         raise HTTPException(status_code=404, detail="Scenario not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), scenario["entity_id"], "tax")
+
+    await db.tax_scenarios.delete_one({"_id": scenario_id})
     return {"success": True, "message": "Scenario deleted"}

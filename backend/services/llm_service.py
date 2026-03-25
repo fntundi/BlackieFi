@@ -69,9 +69,10 @@ class LLMService:
         ],
     }
     
-    def __init__(self, provider: LLMProvider = LLMProvider.EMERGENT, model: Optional[str] = None):
+    def __init__(self, provider: LLMProvider = LLMProvider.EMERGENT, model: Optional[str] = None, base_url: Optional[str] = None):
         self.provider = provider
         self.model = model or self.PROVIDER_CONFIGS[provider]["default_model"]
+        self.base_url = base_url
         self._client = None
         
     def _get_api_key(self) -> Optional[str]:
@@ -158,6 +159,7 @@ class LLMService:
             raise ValueError("OPENROUTER_API_KEY not configured")
         
         config = self.PROVIDER_CONFIGS[LLMProvider.OPENROUTER]
+        base_url = self.base_url or config["base_url"]
         
         # Prepare messages with system message
         all_messages = []
@@ -167,7 +169,7 @@ class LLMService:
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
-                f"{config['base_url']}/chat/completions",
+                f"{base_url}/chat/completions",
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
@@ -193,7 +195,7 @@ class LLMService:
     ) -> str:
         """Chat using local Ollama instance"""
         config = self.PROVIDER_CONFIGS[LLMProvider.OLLAMA]
-        base_url = os.environ.get("OLLAMA_HOST", config["base_url"])
+        base_url = self.base_url or os.environ.get("OLLAMA_HOST", config["base_url"])
         
         # Prepare messages with system message
         all_messages = []
@@ -272,14 +274,17 @@ class LLMService:
 # Singleton instance for easy access
 _llm_service: Optional[LLMService] = None
 
-def get_llm_service(provider: str = "emergent", model: Optional[str] = None) -> LLMService:
+def get_llm_service(provider: str = "emergent", model: Optional[str] = None, base_url: Optional[str] = None) -> LLMService:
     """Get or create LLM service instance"""
     global _llm_service
     provider_enum = LLMProvider(provider) if isinstance(provider, str) else provider
     
     if _llm_service is None or _llm_service.provider != provider_enum:
-        _llm_service = LLMService(provider=provider_enum, model=model)
-    elif model and _llm_service.model != model:
-        _llm_service.model = model
+        _llm_service = LLMService(provider=provider_enum, model=model, base_url=base_url)
+    else:
+        if model and _llm_service.model != model:
+            _llm_service.model = model
+        if base_url:
+            _llm_service.base_url = base_url
     
     return _llm_service

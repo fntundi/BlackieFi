@@ -163,7 +163,8 @@ async def test_provider(request: AITestRequest, current_user: dict = Depends(req
         
         # Create service and test
         model = provider_config.get("default_model") if provider_config else None
-        service = get_llm_service(provider=request.provider, model=model)
+        base_url = provider_config.get("base_url") if provider_config else None
+        service = get_llm_service(provider=request.provider, model=model, base_url=base_url)
         
         response = await service.chat(
             messages=[{"role": "user", "content": request.prompt}],
@@ -230,7 +231,8 @@ async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_curre
     
     try:
         model = provider_config.get("default_model") if provider_config else None
-        service = get_llm_service(provider=provider, model=model)
+        base_url = provider_config.get("base_url") if provider_config else None
+        service = get_llm_service(provider=provider, model=model, base_url=base_url)
         
         response = await service.chat(
             messages=[{"role": "user", "content": request.message}],

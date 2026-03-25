@@ -50,7 +50,8 @@ async def get_configured_llm_service(current_user: dict):
             os.environ[provider_info["env_key_name"]] = provider_config["api_key"]
     
     model = provider_config.get("default_model") if provider_config else None
-    return get_llm_service(provider=provider, model=model)
+    base_url = provider_config.get("base_url") if provider_config else None
+    return get_llm_service(provider=provider, model=model, base_url=base_url)
 
 
 @router.post("/detect-anomalies")

@@ -65,6 +65,7 @@ class BusinessEntityDetailsInput(BaseModel):
     payroll_provider: Optional[str] = None
     tax_elections: List[str] = Field(default_factory=list)
     associated_accounts: List[str] = Field(default_factory=list)
+    primary_account_id: Optional[str] = None
     owners: List[str] = Field(default_factory=list)
     officers: List[str] = Field(default_factory=list)
     licenses: List[str] = Field(default_factory=list)
@@ -89,6 +90,8 @@ class PersonalEntityDetailsInput(BaseModel):
     liabilities: List[str] = Field(default_factory=list)
     risk_tolerance: Optional[str] = None
     retirement_accounts: List[str] = Field(default_factory=list)
+    associated_accounts: List[str] = Field(default_factory=list)
+    primary_account_id: Optional[str] = None
     notes: Optional[str] = None
 
 class EntityInput(BaseModel):
@@ -417,6 +420,28 @@ class SystemSettingsResponse(BaseModel):
     default_llm_provider: str
     default_model: Optional[str] = None
 
+class ObjectStorageConfigUpdate(BaseModel):
+    provider: Optional[str] = Field(None, pattern="^(minio|s3)$")
+    endpoint_url: Optional[str] = None
+    bucket: Optional[str] = None
+    access_key: Optional[str] = None
+    secret_key: Optional[str] = None
+    region: Optional[str] = None
+    secure: Optional[bool] = None
+    path_prefix: Optional[str] = None
+    enabled: Optional[bool] = None
+
+class ObjectStorageConfigResponse(BaseModel):
+    provider: str
+    endpoint_url: str
+    bucket: str
+    access_key: str
+    region: Optional[str] = None
+    secure: bool
+    path_prefix: Optional[str] = ""
+    enabled: bool
+    secret_key_set: bool
+
 class AIStatusResponse(BaseModel):
     system_ai_enabled: bool
     user_ai_enabled: bool
@@ -431,6 +456,45 @@ class LLMProviderConfig(BaseModel):
     api_key: Optional[str] = None
     default_model: Optional[str] = None
     base_url: Optional[str] = None  # For Ollama custom URL
+
+# ============= RBAC Models =============
+class AdminUserCreateInput(BaseModel):
+    username: str = Field(..., min_length=3, max_length=100)
+    email: EmailStr
+    password: str = Field(..., min_length=8)
+    full_name: Optional[str] = None
+    role: str = Field(..., pattern="^(admin|accountant|user)$")
+
+class AdminUserInviteInput(BaseModel):
+    email: EmailStr
+    full_name: Optional[str] = None
+    role: str = Field(..., pattern="^(admin|accountant|user)$")
+
+class UserRoleUpdate(BaseModel):
+    role: str = Field(..., pattern="^(admin|accountant|user)$")
+
+class UserSummaryResponse(BaseModel):
+    id: str
+    username: str
+    email: str
+    full_name: Optional[str] = None
+    role: str
+    ai_enabled: bool = False
+    created_at: str
+
+class EntityAccessGrantInput(BaseModel):
+    entity_id: str
+    role: str = Field(..., pattern="^(admin|accountant|user)$")
+
+class EntityAccessResponse(BaseModel):
+    id: str
+    entity_id: str
+    entity_name: Optional[str] = None
+    user_id: str
+    role: str
+    created_at: str
+    updated_at: str
+
 
 class LLMProviderConfigUpdate(BaseModel):
     enabled: Optional[bool] = None

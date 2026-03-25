@@ -9,6 +9,7 @@ from typing import List, Optional
 from database import get_db
 from models import AccountInput, AccountResponse
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -21,10 +22,17 @@ async def list_accounts(
     """List accounts with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {"is_active": is_active}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "accounts")
         query["entity_id"] = entity_id
-    
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="accounts")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
+
     accounts = await db.accounts.find(query).to_list(length=1000)
     
     return [{
@@ -43,6 +51,7 @@ async def list_accounts(
 async def create_account(input: AccountInput, current_user: dict = Depends(get_current_user)):
     """Create a new account"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), input.entity_id, "accounts")
     now = datetime.now(timezone.utc).isoformat()
     
     account_id = str(ObjectId())
@@ -80,7 +89,9 @@ async def get_account(account_id: str, current_user: dict = Depends(get_current_
     account = await db.accounts.find_one({"_id": account_id})
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), account["entity_id"], "accounts")
+
     return {
         "id": account["_id"],
         "entity_id": account["entity_id"],
@@ -101,7 +112,9 @@ async def update_account(account_id: str, input: AccountInput, current_user: dic
     account = await db.accounts.find_one({"_id": account_id})
     if not account:
         raise HTTPException(status_code=404, detail="Account not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), account["entity_id"], "accounts")
+
     now = datetime.now(timezone.utc).isoformat()
     await db.accounts.update_one(
         {"_id": account_id},
@@ -113,10 +126,10 @@ async def update_account(account_id: str, input: AccountInput, current_user: dic
             "updated_at": now
         }}
     )
-    
+
     return {
         "id": account_id,
-        "entity_id": input.entity_id,
+        "entity_id": account["entity_id"],
         "name": input.name,
         "type": input.type,
         "balance": input.balance,
@@ -131,11 +144,15 @@ async def delete_account(account_id: str, current_user: dict = Depends(get_curre
     """Delete (deactivate) an account"""
     db = get_db()
     
-    result = await db.accounts.update_one(
+    account = await db.accounts.find_one({"_id": account_id})
+    if not account:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), account["entity_id"], "accounts")
+
+    await db.accounts.update_one(
         {"_id": account_id},
         {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
+
     return None

@@ -17,7 +17,8 @@ from models import (
     EntityDocumentResponse
 )
 from auth import get_current_user
-from services.storage_service import storage_enabled, put_object, get_object, build_storage_path
+from services.storage_service import storage_enabled, put_object, get_object, build_storage_path, normalize_storage_config
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -31,6 +32,12 @@ def _entity_response(entity: dict) -> dict:
         "created_at": entity["created_at"],
         "updated_at": entity["updated_at"]
     }
+
+async def _get_storage_config(db) -> dict:
+    settings = await db.system_settings.find_one({"_id": "system"})
+    config = settings.get("object_storage", {}) if settings else {}
+    return normalize_storage_config(config)
+
 
 
 def _details_payload(details_doc: Optional[dict]) -> Optional[dict]:
@@ -57,26 +64,27 @@ def _document_response(doc: dict) -> dict:
     }
 
 
-async def _ensure_details(db, entity: dict, user_id: str) -> dict:
+async def _ensure_details(db, entity: dict) -> dict:
     now = datetime.now(timezone.utc).isoformat()
+    owner_id = entity.get("owner_id")
     if entity["type"] == "business":
-        details = await db.business_entities.find_one({"entity_id": entity["_id"], "owner_id": user_id})
+        details = await db.business_entities.find_one({"entity_id": entity["_id"], "owner_id": owner_id})
         if not details:
             details = {
                 "_id": str(ObjectId()),
                 "entity_id": entity["_id"],
-                "owner_id": user_id,
+                "owner_id": owner_id,
                 "created_at": now,
                 "updated_at": now
             }
             await db.business_entities.insert_one(details)
         return details
-    details = await db.personal_entities.find_one({"entity_id": entity["_id"], "owner_id": user_id})
+    details = await db.personal_entities.find_one({"entity_id": entity["_id"], "owner_id": owner_id})
     if not details:
         details = {
             "_id": str(ObjectId()),
             "entity_id": entity["_id"],
-            "owner_id": user_id,
+            "owner_id": owner_id,
             "created_at": now,
             "updated_at": now
         }
@@ -90,7 +98,11 @@ async def list_entities(current_user: dict = Depends(get_current_user)):
     db = get_db()
     user_id = current_user.get("user_id")
 
-    entities = await db.entities.find({"owner_id": user_id}).to_list(length=100)
+    entity_ids = await get_accessible_entity_ids(db, user_id, feature="entities")
+    if not entity_ids:
+        return []
+
+    entities = await db.entities.find({"_id": {"$in": entity_ids}}).to_list(length=100)
 
     return [_entity_response(e) for e in entities]
 
@@ -149,9 +161,11 @@ async def get_entity(entity_id: str, current_user: dict = Depends(get_current_us
     db = get_db()
     user_id = current_user.get("user_id")
 
-    entity = await db.entities.find_one({"_id": entity_id, "owner_id": user_id})
+    entity = await db.entities.find_one({"_id": entity_id})
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
+
+    await ensure_entity_access(db, user_id, entity_id, "entities")
 
     return _entity_response(entity)
 
@@ -162,9 +176,13 @@ async def update_entity(entity_id: str, input: EntityInput, current_user: dict =
     db = get_db()
     user_id = current_user.get("user_id")
 
-    entity = await db.entities.find_one({"_id": entity_id, "owner_id": user_id})
+    entity = await db.entities.find_one({"_id": entity_id})
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
+
+    user = await db.users.find_one({"_id": user_id})
+    if not user or (user.get("role") != "admin" and entity.get("owner_id") != user_id):
+        raise HTTPException(status_code=403, detail="Only the owner or admin can update an entity")
 
     if input.type != entity["type"]:
         raise HTTPException(status_code=400, detail="Entity type cannot be changed")
@@ -189,11 +207,13 @@ async def get_entity_details(entity_id: str, current_user: dict = Depends(get_cu
     db = get_db()
     user_id = current_user.get("user_id")
 
-    entity = await db.entities.find_one({"_id": entity_id, "owner_id": user_id})
+    entity = await db.entities.find_one({"_id": entity_id})
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
 
-    details = await _ensure_details(db, entity, user_id)
+    await ensure_entity_access(db, user_id, entity_id, "entities")
+
+    details = await _ensure_details(db, entity)
 
     return {
         "entity": _entity_response(entity),
@@ -212,9 +232,11 @@ async def update_entity_details(
     db = get_db()
     user_id = current_user.get("user_id")
 
-    entity = await db.entities.find_one({"_id": entity_id, "owner_id": user_id})
+    entity = await db.entities.find_one({"_id": entity_id})
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
+
+    await ensure_entity_access(db, user_id, entity_id, "entities")
 
     now = datetime.now(timezone.utc).isoformat()
 
@@ -253,7 +275,7 @@ async def update_entity_details(
             upsert=True
         )
 
-    details = await _ensure_details(db, entity, user_id)
+    details = await _ensure_details(db, entity)
 
     return {
         "entity": _entity_response(entity),
@@ -267,13 +289,14 @@ async def list_entity_documents(entity_id: str, current_user: dict = Depends(get
     db = get_db()
     user_id = current_user.get("user_id")
 
-    entity = await db.entities.find_one({"_id": entity_id, "owner_id": user_id})
+    entity = await db.entities.find_one({"_id": entity_id})
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
 
+    await ensure_entity_access(db, user_id, entity_id, "documents")
+
     documents = await db.entity_documents.find({
         "entity_id": entity_id,
-        "owner_id": user_id,
         "is_deleted": False
     }).to_list(length=200)
 
@@ -293,20 +316,23 @@ async def upload_entity_document(
     db = get_db()
     user_id = current_user.get("user_id")
 
-    if not storage_enabled():
-        raise HTTPException(status_code=503, detail="Object storage not configured. Set EMERGENT_LLM_KEY.")
+    storage_config = await _get_storage_config(db)
+    if not storage_enabled(storage_config):
+        raise HTTPException(status_code=503, detail="Object storage not configured. Update settings in Admin > Object Storage.")
 
-    entity = await db.entities.find_one({"_id": entity_id, "owner_id": user_id})
+    entity = await db.entities.find_one({"_id": entity_id})
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
+
+    await ensure_entity_access(db, user_id, entity_id, "documents")
 
     file_bytes = await file.read()
     if not file_bytes:
         raise HTTPException(status_code=400, detail="Empty file")
 
     ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "bin"
-    storage_path = build_storage_path(user_id, entity_id, ext)
-    result = put_object(storage_path, file_bytes, file.content_type or "application/octet-stream")
+    storage_path = build_storage_path(storage_config, user_id, entity_id, ext)
+    result = put_object(storage_config, storage_path, file_bytes, file.content_type or "application/octet-stream")
 
     now = datetime.now(timezone.utc).isoformat()
     doc_id = str(ObjectId())
@@ -315,7 +341,7 @@ async def upload_entity_document(
     doc = {
         "_id": doc_id,
         "entity_id": entity_id,
-        "owner_id": user_id,
+        "owner_id": entity["owner_id"],
         "document_type": document_type,
         "title": title,
         "original_filename": file.filename or title,
@@ -338,11 +364,17 @@ async def download_entity_document(document_id: str, current_user: dict = Depend
     db = get_db()
     user_id = current_user.get("user_id")
 
-    doc = await db.entity_documents.find_one({"_id": document_id, "owner_id": user_id, "is_deleted": False})
+    doc = await db.entity_documents.find_one({"_id": document_id, "is_deleted": False})
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
 
-    data, content_type = get_object(doc["storage_path"])
+    await ensure_entity_access(db, user_id, doc["entity_id"], "documents")
+
+    storage_config = await _get_storage_config(db)
+    if not storage_enabled(storage_config):
+        raise HTTPException(status_code=503, detail="Object storage not configured. Update settings in Admin > Object Storage.")
+
+    data, content_type = get_object(storage_config, doc["storage_path"])
     return Response(content=data, media_type=doc.get("content_type", content_type))
 
 
@@ -351,13 +383,16 @@ async def delete_entity_document(document_id: str, current_user: dict = Depends(
     db = get_db()
     user_id = current_user.get("user_id")
 
+    doc = await db.entity_documents.find_one({"_id": document_id, "is_deleted": False})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    await ensure_entity_access(db, user_id, doc["entity_id"], "documents")
+
     result = await db.entity_documents.update_one(
-        {"_id": document_id, "owner_id": user_id},
+        {"_id": document_id},
         {"$set": {"is_deleted": True, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Document not found")
 
     return None
 
@@ -368,14 +403,21 @@ async def delete_entity(entity_id: str, current_user: dict = Depends(get_current
     db = get_db()
     user_id = current_user.get("user_id")
 
-    result = await db.entities.delete_one({"_id": entity_id, "owner_id": user_id})
-    if result.deleted_count == 0:
+    entity = await db.entities.find_one({"_id": entity_id})
+    if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
 
-    await db.business_entities.delete_many({"entity_id": entity_id, "owner_id": user_id})
-    await db.personal_entities.delete_many({"entity_id": entity_id, "owner_id": user_id})
+    user = await db.users.find_one({"_id": user_id})
+    if not user or (user.get("role") != "admin" and entity.get("owner_id") != user_id):
+        raise HTTPException(status_code=403, detail="Only the owner or admin can delete an entity")
+
+    await db.entities.delete_one({"_id": entity_id})
+
+    await db.business_entities.delete_many({"entity_id": entity_id})
+    await db.personal_entities.delete_many({"entity_id": entity_id})
+    await db.entity_access.delete_many({"entity_id": entity_id})
     await db.entity_documents.update_many(
-        {"entity_id": entity_id, "owner_id": user_id},
+        {"entity_id": entity_id},
         {"$set": {"is_deleted": True, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
 

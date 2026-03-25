@@ -1,54 +1,68 @@
-"""Object storage integration (Emergent Object Storage)"""
-import os
+"""Object storage integration (MinIO/S3 compatible)"""
 import uuid
-import requests
-from typing import Tuple
+from typing import Tuple, Dict
 
-STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
-APP_NAME = "blackiefi"
-_storage_key = None
+import boto3
+from botocore.client import Config
 
 
-def storage_enabled() -> bool:
-    return bool(os.environ.get("EMERGENT_LLM_KEY"))
+REQUIRED_FIELDS = {"endpoint_url", "bucket", "access_key", "secret_key"}
 
 
-def init_storage() -> str:
-    global _storage_key
-    if _storage_key:
-        return _storage_key
-    emergent_key = os.environ.get("EMERGENT_LLM_KEY")
-    if not emergent_key:
-        raise RuntimeError("EMERGENT_LLM_KEY not set")
-    resp = requests.post(f"{STORAGE_URL}/init", json={"emergent_key": emergent_key}, timeout=30)
-    resp.raise_for_status()
-    _storage_key = resp.json()["storage_key"]
-    return _storage_key
+def normalize_storage_config(config: Dict) -> Dict:
+    return {
+        "provider": config.get("provider", "minio"),
+        "endpoint_url": config.get("endpoint_url"),
+        "bucket": config.get("bucket"),
+        "access_key": config.get("access_key"),
+        "secret_key": config.get("secret_key"),
+        "region": config.get("region"),
+        "secure": config.get("secure", True),
+        "path_prefix": config.get("path_prefix", ""),
+        "enabled": config.get("enabled", False)
+    }
 
 
-def put_object(path: str, data: bytes, content_type: str) -> dict:
-    key = init_storage()
-    resp = requests.put(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key, "Content-Type": content_type},
-        data=data,
-        timeout=120
+def storage_enabled(config: Dict) -> bool:
+    if not config:
+        return False
+    normalized = normalize_storage_config(config)
+    if not normalized.get("enabled"):
+        return False
+    return REQUIRED_FIELDS.issubset({k for k, v in normalized.items() if v})
+
+
+def _get_client(config: Dict):
+    return boto3.client(
+        "s3",
+        endpoint_url=config["endpoint_url"],
+        aws_access_key_id=config["access_key"],
+        aws_secret_access_key=config["secret_key"],
+        region_name=config.get("region"),
+        use_ssl=config.get("secure", True),
+        config=Config(signature_version="s3v4")
     )
-    resp.raise_for_status()
-    return resp.json()
 
 
-def get_object(path: str) -> Tuple[bytes, str]:
-    key = init_storage()
-    resp = requests.get(
-        f"{STORAGE_URL}/objects/{path}",
-        headers={"X-Storage-Key": key},
-        timeout=60
-    )
-    resp.raise_for_status()
-    return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
-
-
-def build_storage_path(user_id: str, entity_id: str, extension: str) -> str:
+def build_storage_path(config: Dict, user_id: str, entity_id: str, extension: str) -> str:
     safe_ext = extension or "bin"
-    return f"{APP_NAME}/entities/{user_id}/{entity_id}/{uuid.uuid4()}.{safe_ext}"
+    prefix = config.get("path_prefix", "").strip("/")
+    base = f"entities/{user_id}/{entity_id}/{uuid.uuid4()}.{safe_ext}"
+    return f"{prefix}/{base}" if prefix else base
+
+
+def put_object(config: Dict, path: str, data: bytes, content_type: str) -> dict:
+    client = _get_client(config)
+    client.put_object(
+        Bucket=config["bucket"],
+        Key=path,
+        Body=data,
+        ContentType=content_type
+    )
+    return {"path": path, "size": len(data)}
+
+
+def get_object(config: Dict, path: str) -> Tuple[bytes, str]:
+    client = _get_client(config)
+    response = client.get_object(Bucket=config["bucket"], Key=path)
+    return response["Body"].read(), response.get("ContentType", "application/octet-stream")

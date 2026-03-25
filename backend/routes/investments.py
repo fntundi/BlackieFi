@@ -12,6 +12,15 @@ from models import (
     InvestmentHoldingInput, InvestmentHoldingResponse
 )
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
+
+
+async def _ensure_vehicle_access(db, user_id: str, vehicle_id: str):
+    vehicle = await db.investment_vehicles.find_one({"_id": vehicle_id})
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Investment vehicle not found")
+    await ensure_entity_access(db, user_id, vehicle["entity_id"], "investments")
+    return vehicle
 
 router = APIRouter()
 
@@ -26,9 +35,16 @@ async def list_vehicles(
     """List investment vehicles with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {"is_active": is_active}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "investments")
         query["entity_id"] = entity_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="investments")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
     
     vehicles = await db.investment_vehicles.find(query).to_list(length=1000)
     
@@ -47,6 +63,7 @@ async def list_vehicles(
 async def create_vehicle(input: InvestmentVehicleInput, current_user: dict = Depends(get_current_user)):
     """Create a new investment vehicle"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), input.entity_id, "investments")
     now = datetime.now(timezone.utc).isoformat()
     
     vehicle_id = str(ObjectId())
@@ -79,10 +96,8 @@ async def get_vehicle(vehicle_id: str, current_user: dict = Depends(get_current_
     """Get a specific investment vehicle"""
     db = get_db()
     
-    vehicle = await db.investment_vehicles.find_one({"_id": vehicle_id})
-    if not vehicle:
-        raise HTTPException(status_code=404, detail="Investment vehicle not found")
-    
+    vehicle = await _ensure_vehicle_access(db, current_user.get("user_id"), vehicle_id)
+
     return {
         "id": vehicle["_id"],
         "entity_id": vehicle["entity_id"],
@@ -99,10 +114,10 @@ async def update_vehicle(vehicle_id: str, input: InvestmentVehicleInput, current
     """Update an investment vehicle"""
     db = get_db()
     
-    vehicle = await db.investment_vehicles.find_one({"_id": vehicle_id})
-    if not vehicle:
-        raise HTTPException(status_code=404, detail="Investment vehicle not found")
-    
+    vehicle = await _ensure_vehicle_access(db, current_user.get("user_id"), vehicle_id)
+    if input.entity_id != vehicle["entity_id"]:
+        raise HTTPException(status_code=400, detail="Entity cannot be changed for investment vehicles")
+
     now = datetime.now(timezone.utc).isoformat()
     await db.investment_vehicles.update_one(
         {"_id": vehicle_id},
@@ -116,7 +131,7 @@ async def update_vehicle(vehicle_id: str, input: InvestmentVehicleInput, current
     
     return {
         "id": vehicle_id,
-        "entity_id": input.entity_id,
+        "entity_id": vehicle["entity_id"],
         "name": input.name,
         "type": input.type,
         "provider": input.provider or "",
@@ -130,13 +145,13 @@ async def delete_vehicle(vehicle_id: str, current_user: dict = Depends(get_curre
     """Delete (deactivate) an investment vehicle"""
     db = get_db()
     
-    result = await db.investment_vehicles.update_one(
+    await _ensure_vehicle_access(db, current_user.get("user_id"), vehicle_id)
+
+    await db.investment_vehicles.update_one(
         {"_id": vehicle_id},
         {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Investment vehicle not found")
-    
+
     return None
 
 # ============= Investment Holdings =============
@@ -149,9 +164,20 @@ async def list_holdings(
     """List investment holdings with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {}
     if vehicle_id:
+        await _ensure_vehicle_access(db, user_id, vehicle_id)
         query["vehicle_id"] = vehicle_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="investments")
+        if not entity_ids:
+            return []
+        vehicles = await db.investment_vehicles.find({"entity_id": {"$in": entity_ids}}, {"_id": 1}).to_list(length=1000)
+        vehicle_ids = [v["_id"] for v in vehicles]
+        if not vehicle_ids:
+            return []
+        query["vehicle_id"] = {"$in": vehicle_ids}
     
     holdings = await db.investment_holdings.find(query).to_list(length=1000)
     
@@ -173,6 +199,7 @@ async def list_holdings(
 async def create_holding(input: InvestmentHoldingInput, current_user: dict = Depends(get_current_user)):
     """Create a new investment holding"""
     db = get_db()
+    await _ensure_vehicle_access(db, current_user.get("user_id"), input.vehicle_id)
     now = datetime.now(timezone.utc).isoformat()
     
     holding_id = str(ObjectId())
@@ -214,7 +241,9 @@ async def get_holding(holding_id: str, current_user: dict = Depends(get_current_
     holding = await db.investment_holdings.find_one({"_id": holding_id})
     if not holding:
         raise HTTPException(status_code=404, detail="Investment holding not found")
-    
+
+    await _ensure_vehicle_access(db, current_user.get("user_id"), holding["vehicle_id"])
+
     return {
         "id": holding["_id"],
         "vehicle_id": holding["vehicle_id"],
@@ -237,7 +266,11 @@ async def update_holding(holding_id: str, input: InvestmentHoldingInput, current
     holding = await db.investment_holdings.find_one({"_id": holding_id})
     if not holding:
         raise HTTPException(status_code=404, detail="Investment holding not found")
-    
+
+    await _ensure_vehicle_access(db, current_user.get("user_id"), holding["vehicle_id"])
+    if input.vehicle_id != holding["vehicle_id"]:
+        raise HTTPException(status_code=400, detail="Vehicle cannot be changed for holdings")
+
     now = datetime.now(timezone.utc).isoformat()
     await db.investment_holdings.update_one(
         {"_id": holding_id},
@@ -255,7 +288,7 @@ async def update_holding(holding_id: str, input: InvestmentHoldingInput, current
     
     return {
         "id": holding_id,
-        "vehicle_id": input.vehicle_id,
+        "vehicle_id": holding["vehicle_id"],
         "asset_name": input.asset_name,
         "asset_class": input.asset_class,
         "quantity": input.quantity,
@@ -272,8 +305,12 @@ async def delete_holding(holding_id: str, current_user: dict = Depends(get_curre
     """Delete an investment holding"""
     db = get_db()
     
-    result = await db.investment_holdings.delete_one({"_id": holding_id})
-    if result.deleted_count == 0:
+    holding = await db.investment_holdings.find_one({"_id": holding_id})
+    if not holding:
         raise HTTPException(status_code=404, detail="Investment holding not found")
-    
+
+    await _ensure_vehicle_access(db, current_user.get("user_id"), holding["vehicle_id"])
+
+    await db.investment_holdings.delete_one({"_id": holding_id})
+
     return None

@@ -9,6 +9,7 @@ from typing import List, Optional
 from database import get_db
 from models import BudgetInput, BudgetResponse
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -21,9 +22,16 @@ async def list_budgets(
     """List budgets with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "budgets")
         query["entity_id"] = entity_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="budgets")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
     if month:
         query["month"] = month
     
@@ -44,7 +52,9 @@ async def create_budget(input: BudgetInput, current_user: dict = Depends(get_cur
     """Create a new budget"""
     db = get_db()
     now = datetime.now(timezone.utc).isoformat()
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), input.entity_id, "budgets")
+
     # Check if budget for this entity/month already exists
     existing = await db.budgets.find_one({"entity_id": input.entity_id, "month": input.month})
     if existing:
@@ -83,7 +93,9 @@ async def get_budget(budget_id: str, current_user: dict = Depends(get_current_us
     budget = await db.budgets.find_one({"_id": budget_id})
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), budget["entity_id"], "budgets")
+
     return {
         "id": budget["_id"],
         "entity_id": budget["entity_id"],
@@ -102,7 +114,9 @@ async def update_budget(budget_id: str, input: BudgetInput, current_user: dict =
     budget = await db.budgets.find_one({"_id": budget_id})
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), budget["entity_id"], "budgets")
+
     now = datetime.now(timezone.utc).isoformat()
     category_budgets = [cb.model_dump() for cb in input.category_budgets]
     
@@ -118,7 +132,7 @@ async def update_budget(budget_id: str, input: BudgetInput, current_user: dict =
     
     return {
         "id": budget_id,
-        "entity_id": input.entity_id,
+        "entity_id": budget["entity_id"],
         "month": input.month,
         "category_budgets": category_budgets,
         "total_planned": input.total_planned,
@@ -131,8 +145,12 @@ async def delete_budget(budget_id: str, current_user: dict = Depends(get_current
     """Delete a budget"""
     db = get_db()
     
-    result = await db.budgets.delete_one({"_id": budget_id})
-    if result.deleted_count == 0:
+    budget = await db.budgets.find_one({"_id": budget_id})
+    if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), budget["entity_id"], "budgets")
+
+    await db.budgets.delete_one({"_id": budget_id})
+
     return None

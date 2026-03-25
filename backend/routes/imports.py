@@ -12,6 +12,7 @@ import re
 from database import get_db
 from models import ImportBatchResponse
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access
 
 router = APIRouter()
 
@@ -21,6 +22,7 @@ async def list_import_batches(entity_id: str = None, current_user: dict = Depend
     db = get_db()
     query = {}
     if entity_id:
+        await ensure_entity_access(db, current_user.get("user_id"), entity_id, "imports")
         query["entity_id"] = entity_id
     
     batches = await db.import_batches.find(query).sort("created_date", -1).limit(20).to_list(20)
@@ -35,6 +37,7 @@ async def import_csv(
 ):
     """Import transactions from CSV file"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), entity_id, "imports")
     now = datetime.now(timezone.utc).isoformat()
     
     # Create import batch record
@@ -163,6 +166,7 @@ async def import_pdf(
 ):
     """Import transactions from PDF bank statement"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), entity_id, "imports")
     now = datetime.now(timezone.utc).isoformat()
     
     # Create import batch record

@@ -9,6 +9,7 @@ from typing import List, Optional
 from database import get_db
 from models import FinancialGoalInput, FinancialGoalResponse, GoalStatusUpdate
 from auth import get_current_user
+from services.rbac_service import ensure_entity_access, get_accessible_entity_ids
 
 router = APIRouter()
 
@@ -21,9 +22,16 @@ async def list_goals(
     """List financial goals with optional filters"""
     db = get_db()
     
+    user_id = current_user.get("user_id")
     query = {}
     if entity_id:
+        await ensure_entity_access(db, user_id, entity_id, "goals")
         query["entity_id"] = entity_id
+    else:
+        entity_ids = await get_accessible_entity_ids(db, user_id, feature="goals")
+        if not entity_ids:
+            return []
+        query["entity_id"] = {"$in": entity_ids}
     if status:
         query["status"] = status
     
@@ -50,6 +58,7 @@ async def list_goals(
 async def create_goal(input: FinancialGoalInput, current_user: dict = Depends(get_current_user)):
     """Create a new financial goal"""
     db = get_db()
+    await ensure_entity_access(db, current_user.get("user_id"), input.entity_id, "goals")
     now = datetime.now(timezone.utc).isoformat()
     
     goal_id = str(ObjectId())
@@ -97,7 +106,9 @@ async def get_goal(goal_id: str, current_user: dict = Depends(get_current_user))
     goal = await db.goals.find_one({"_id": goal_id})
     if not goal:
         raise HTTPException(status_code=404, detail="Financial goal not found")
-    
+
+    await ensure_entity_access(db, current_user.get("user_id"), goal["entity_id"], "goals")
+
     return {
         "id": goal["_id"],
         "entity_id": goal["entity_id"],
@@ -123,6 +134,10 @@ async def update_goal(goal_id: str, input: FinancialGoalInput, current_user: dic
     goal = await db.goals.find_one({"_id": goal_id})
     if not goal:
         raise HTTPException(status_code=404, detail="Financial goal not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), goal["entity_id"], "goals")
+    if input.entity_id != goal["entity_id"]:
+        raise HTTPException(status_code=400, detail="Entity cannot be changed for goals")
     
     now = datetime.now(timezone.utc).isoformat()
     await db.goals.update_one(
@@ -142,7 +157,7 @@ async def update_goal(goal_id: str, input: FinancialGoalInput, current_user: dic
     
     return {
         "id": goal_id,
-        "entity_id": input.entity_id,
+        "entity_id": goal["entity_id"],
         "name": input.name,
         "goal_type": input.goal_type,
         "target_amount": input.target_amount,
@@ -165,6 +180,8 @@ async def update_goal_status(goal_id: str, input: GoalStatusUpdate, current_user
     goal = await db.goals.find_one({"_id": goal_id})
     if not goal:
         raise HTTPException(status_code=404, detail="Financial goal not found")
+
+    await ensure_entity_access(db, current_user.get("user_id"), goal["entity_id"], "goals")
     
     now = datetime.now(timezone.utc).isoformat()
     await db.goals.update_one(

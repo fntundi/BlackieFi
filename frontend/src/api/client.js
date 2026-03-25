@@ -535,6 +535,66 @@ class ApiClient {
     });
   }
 
+  // Object storage settings
+  async getStorageSettings() {
+    return this.request('/settings/storage');
+  }
+
+  async updateStorageSettings(config) {
+    return this.request('/settings/storage', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    });
+  }
+
+  // Admin user management
+  async listAdminUsers() {
+    return this.request('/admin/users');
+  }
+
+  async createAdminUser(data) {
+    return this.request('/admin/users', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async inviteAdminUser(data) {
+    return this.request('/admin/users/invite', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateUserRole(userId, role) {
+    return this.request(`/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  async listUserEntityAccess(userId) {
+    return this.request(`/admin/users/${userId}/entity-access`);
+  }
+
+  async grantUserEntityAccess(userId, payload) {
+    return this.request(`/admin/users/${userId}/entity-access`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async revokeUserEntityAccess(userId, entityId) {
+    return this.request(`/admin/users/${userId}/entity-access/${entityId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async listAdminEntities() {
+    return this.request('/admin/entities');
+  }
+
+
   // Bills endpoints
   async getBills(entityId) {
     const query = entityId ? `?entity_id=${entityId}` : '';
