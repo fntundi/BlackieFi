@@ -10,7 +10,7 @@ import uuid
 # Get BASE_URL from environment variable
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = "https://wealth-microservices-1.preview.emergentagent.com"
+    BASE_URL = "https://blackiefi-v3.preview.emergentagent.com"
 
 
 class TestAuthLogin:
