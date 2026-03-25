@@ -27,10 +27,11 @@ services:
     ports:
       - "27017:27017"
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD-SHELL", "echo 'db.runCommand({ ping: 1 }).ok' | mongo localhost:27017/test --quiet | grep 1"]
+      interval: 10s
+      timeout: 10s
       retries: 5
+      start_period: 30s
     networks:
       - blackiefi
 
