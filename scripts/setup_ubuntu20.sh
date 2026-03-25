@@ -1,4 +1,7 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 5ec0591 (updated ip)
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -101,6 +104,7 @@ log "2) From repo root, run: make build"
 log "3) Then run: make up"
 log "4) Open: http://localhost:3000"
 log "5) Add EMERGENT_LLM_KEY / API keys in .env to enable AI + market data features"
+<<<<<<< HEAD
 =======
 #!/usr/bin/env bash
 set -euo pipefail
@@ -205,3 +209,5 @@ log "3) Then run: make up"
 log "4) Open: http://localhost:3000"
 log "5) Add EMERGENT_LLM_KEY / API keys in .env to enable AI + market data features"
 >>>>>>> eca0309 (reverted mongodb to 4.4.29 due to avx requirements in 5.0 onward)
+=======
+>>>>>>> 5ec0591 (updated ip)
