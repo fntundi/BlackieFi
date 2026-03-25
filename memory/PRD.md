@@ -84,6 +84,13 @@ Migrate an existing application from the `base44` platform to a new technology s
 #### AI Co-Pilot UI Refactoring
 - **AICoPilot.jsx**: Refactored from ~793 lines to ~300 lines with modular components
 - **KnowledgeLab.jsx**: Extracted Knowledge Lab tab (document upload, stats, analysis)
+### December 2025 - RBAC + MinIO Storage Settings ✅
+- **Object storage configuration** in Admin Settings (MinIO/S3-compatible) via `/api/settings/storage`
+- **RBAC user management**: admin creates/invites users, assigns roles (admin/accountant/user), grants entity access
+- **Entity access control** enforced across key entity-scoped APIs (entities, accounts, transactions, budgets, assets, debts, inventory, goals, recurring, reports, tax, bills, imports, investments)
+- **Admin Settings UI** extended with Storage config, User Management, Entity Access grants
+- **OpenRouter/Ollama** now respect configurable `base_url` in provider settings
+
 - **StrategyStudio.jsx**: Extracted Strategy Studio tab (framework selection, asset analysis)
 - **AnalysisLab.jsx**: Extracted Analysis Lab tab (comprehensive, risk, due diligence, market, portfolio)
 - **Component Structure**: `/app/frontend/src/components/ai-copilot/` with index.js export
