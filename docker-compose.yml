@@ -10,9 +10,9 @@
 #   docker compose down -v        # Stop and remove volumes
 #
 # Access:
-#   Frontend: http://localhost:3000
-#   Backend:  http://localhost:8001
-#   API Docs: http://localhost:8001/docs
+#   Frontend: http://192.168.4.87:3000
+#   Backend:  http://192.168.4.87:8001
+#   API Docs: http://192.168.4.87:8001/docs
 # =============================================================================
 
 services:
@@ -72,7 +72,7 @@ services:
       dockerfile: Dockerfile
     container_name: blackiefi-frontend
     environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8001
+      - REACT_APP_BACKEND_URL=http://192.168.4.87:8001
       # Enable polling for file changes in Docker/WSL
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true
