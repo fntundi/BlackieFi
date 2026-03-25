@@ -9,7 +9,8 @@ COPY yarn.lock* ./
 
 # Install dependencies
 RUN if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-    else npm ci; fi
+    elif [ -f package-lock.json ]; then npm ci; \
+    else npm install; fi
 
 # Copy application code
 COPY . .
