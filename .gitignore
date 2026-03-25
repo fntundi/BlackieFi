@@ -1,7 +1,10 @@
+<<<<<<< HEAD
 #env
 .env
 .env.*
 
+=======
+>>>>>>> 1d4ef5c (resolving conflicts)
 # Logs
 logs
 *.log
@@ -27,7 +30,28 @@ dist-ssr
 *.sln
 *.sw?
 
+<<<<<<< HEAD
 .env-e 
+=======
+
+# Git
+.git
+.gitignore
+
+# Node
+node_modules
+npm-debug.log
+
+# Env
+.env
+
+# IDE / OS specific
+.vscode
+.idea
+README.md
+.env-e 
+
+>>>>>>> 1d4ef5c (resolving conflicts)
 # Environment files
 *.env
 *.env.*
@@ -91,6 +115,7 @@ dist-ssr
 # Environment files
 *.env
 *.env.*
+<<<<<<< HEAD
 -e 
 # Environment files
 *.env
@@ -156,3 +181,5 @@ npm-debug.log
 .vscode
 .idea
 README.md
+=======
+>>>>>>> 1d4ef5c (resolving conflicts)
