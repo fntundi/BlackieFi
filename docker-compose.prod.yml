@@ -1,0 +1,68 @@
+version: "3.9"
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: blackiefi-mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - blackiefi
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: blackiefi-backend
+    environment:
+      - MONGO_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/blackiefi?authSource=admin
+      - DB_NAME=blackiefi
+      - JWT_SECRET=${JWT_SECRET}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
+      - METRICS_TOKEN=${METRICS_TOKEN}
+      - UPLOAD_MAX_MB=${UPLOAD_MAX_MB}
+      - ENVIRONMENT=production
+      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY}
+      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
+      - COINGECKO_API_KEY=${COINGECKO_API_KEY}
+      - RESEND_API_KEY=${RESEND_API_KEY}
+    ports:
+      - "8001:8001"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - blackiefi
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
+    container_name: blackiefi-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - blackiefi
+    restart: unless-stopped
+
+networks:
+  blackiefi:
+    driver: bridge
+
+volumes:
+  mongo_data:

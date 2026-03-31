@@ -2,10 +2,13 @@
 Settings routes - system and user settings
 """
 from fastapi import APIRouter, HTTPException, Depends
+import os
+
 from datetime import datetime, timezone
 
 from database import get_db
 from models import SystemSettingsUpdate, SystemSettingsResponse, AIStatusResponse, ObjectStorageConfigUpdate, ObjectStorageConfigResponse
+from services.secrets_service import encrypt_value, decrypt_value
 from auth import get_current_user
 
 
@@ -21,16 +24,25 @@ async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
 
 def _storage_response(settings: dict) -> dict:
     config = settings.get("object_storage", {}) if settings else {}
+    access_last4 = None
+    encrypted_access = config.get("access_key_enc")
+    if encrypted_access:
+        try:
+            access_plain = decrypt_value(encrypted_access)
+            if access_plain:
+                access_last4 = access_plain[-4:]
+        except Exception:
+            access_last4 = None
     return {
         "provider": config.get("provider", "minio"),
         "endpoint_url": config.get("endpoint_url", ""),
         "bucket": config.get("bucket", ""),
-        "access_key": config.get("access_key", ""),
+        "access_key_last4": access_last4,
         "region": config.get("region"),
         "secure": config.get("secure", True),
         "path_prefix": config.get("path_prefix", ""),
         "enabled": config.get("enabled", False),
-        "secret_key_set": bool(config.get("secret_key"))
+        "secret_key_set": bool(config.get("secret_key_enc"))
     }
 
 router = APIRouter()
@@ -104,6 +116,10 @@ async def update_storage_settings(
     input: ObjectStorageConfigUpdate,
     current_user: dict = Depends(require_admin)
 ):
+    # Ensure STORAGE_SECRET_KEY is set before encrypting credentials
+    if (input.access_key is not None or input.secret_key is not None) and not os.environ.get("STORAGE_SECRET_KEY"):
+        raise HTTPException(status_code=500, detail="STORAGE_SECRET_KEY must be set to encrypt credentials")
+
     db = get_db()
     settings = await db.system_settings.find_one({"_id": "system"})
     current = settings.get("object_storage", {}) if settings else {}
@@ -116,9 +132,17 @@ async def update_storage_settings(
     if input.bucket is not None:
         update_data["bucket"] = input.bucket
     if input.access_key is not None:
-        update_data["access_key"] = input.access_key
+        if input.access_key == "":
+            update_data.pop("access_key_enc", None)
+        else:
+            update_data["access_key_enc"] = encrypt_value(input.access_key)
+        update_data.pop("access_key", None)
     if input.secret_key is not None:
-        update_data["secret_key"] = input.secret_key
+        if input.secret_key == "":
+            update_data.pop("secret_key_enc", None)
+        else:
+            update_data["secret_key_enc"] = encrypt_value(input.secret_key)
+        update_data.pop("secret_key", None)
     if input.region is not None:
         update_data["region"] = input.region
     if input.secure is not None:

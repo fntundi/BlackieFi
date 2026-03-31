@@ -3,6 +3,8 @@ Authentication utilities - JWT and password hashing
 """
 import os
 import secrets
+import hashlib
+
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
@@ -14,7 +16,9 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # JWT configuration
-SECRET_KEY = os.environ.get("JWT_SECRET", "blackiefi-super-secret-jwt-key-change-in-production")
+SECRET_KEY = os.environ.get("JWT_SECRET")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET environment variable must be set")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24 * 7  # 7 days
 
@@ -54,6 +58,11 @@ def decode_token(token: str) -> dict:
 def generate_reset_token() -> str:
     """Generate a secure password reset token"""
     return secrets.token_urlsafe(32)
+
+
+def hash_reset_token(token: str) -> str:
+    """Hash reset token before storing"""
+    return hashlib.sha256(f"{token}:{SECRET_KEY}".encode("utf-8")).hexdigest()
 
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     """Get the current user from the JWT token"""

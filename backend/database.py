@@ -2,6 +2,10 @@
 MongoDB database connection and utilities
 """
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from motor.motor_asyncio import AsyncIOMotorClient
 from typing import Optional
 
@@ -11,8 +15,11 @@ db = None
 async def init_db():
     """Initialize database connection"""
     global client, db
-    mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
-    db_name = os.environ.get("DB_NAME", "blackiefi")
+    mongo_url = os.environ.get("MONGO_URL")
+    db_name = os.environ.get("DB_NAME")
+
+    if not mongo_url or not db_name:
+        raise RuntimeError("MONGO_URL and DB_NAME environment variables must be set")
     
     client = AsyncIOMotorClient(mongo_url)
     db = client[db_name]

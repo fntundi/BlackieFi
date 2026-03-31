@@ -435,7 +435,7 @@ class ObjectStorageConfigResponse(BaseModel):
     provider: str
     endpoint_url: str
     bucket: str
-    access_key: str
+    access_key_last4: Optional[str] = None
     region: Optional[str] = None
     secure: bool
     path_prefix: Optional[str] = ""

@@ -12,16 +12,26 @@ from models import (
 )
 from auth import (
     hash_password, verify_password, create_access_token,
-    generate_reset_token, get_current_user, get_user_id
+    generate_reset_token, hash_reset_token, get_current_user, get_user_id
 )
 from services.audit_service import get_audit_service, AuditAction
+from services.notification_service import NotificationService
+from services.rate_limit import rate_limiter
 
 router = APIRouter()
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
-async def register(input: UserRegisterInput):
+async def register(input: UserRegisterInput, request: Request):
     """Register a new user"""
     db = get_db()
+
+    ip_address = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+    rate_limiter.check(
+        key=f"register:{ip_address}",
+        limit=5,
+        window_seconds=3600,
+        message="Too many registration attempts. Please try again later."
+    )
     
     # Check if username exists
     existing_user = await db.users.find_one({"username": input.username})
@@ -86,6 +96,13 @@ async def register(input: UserRegisterInput):
         },
         "token": token
     }
+    rate_limiter.check(
+        key=f"login:{ip_address}",
+        limit=10,
+        window_seconds=900,
+        message="Too many login attempts. Please try again later."
+    )
+
 
 @router.post("/login")
 async def login(input: UserLoginInput, request: Request):
@@ -214,39 +231,57 @@ async def update_profile(input: UserUpdateInput, current_user: dict = Depends(ge
     }
 
 @router.post("/password-reset/request")
-async def request_password_reset(input: PasswordResetRequestInput):
+async def request_password_reset(input: PasswordResetRequestInput, request: Request):
     """Request a password reset token"""
     db = get_db()
-    
+
+    ip_address = request.headers.get("X-Forwarded-For", request.client.host if request.client else "unknown")
+    rate_limiter.check(
+        key=f"password_reset:{ip_address}",
+        limit=5,
+        window_seconds=3600,
+        message="Too many password reset requests. Please try again later."
+    )
+
     reset_token = generate_reset_token()
+    reset_token_hash = hash_reset_token(reset_token)
     expires = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
-    
+
     result = await db.users.update_one(
         {"email": input.email},
         {"$set": {
-            "password_reset_token": reset_token,
+            "password_reset_token": reset_token_hash,
             "password_reset_expires": expires
         }}
     )
-    
+
     # Always return success to prevent email enumeration
     if result.matched_count == 0:
         return {"message": "If the email exists, a reset link has been sent"}
-    
-    # In production, send email here
-    # For now, return token for testing
-    return {
-        "message": "Password reset token generated",
-        "reset_token": reset_token  # Remove in production
-    }
+
+    notification_service = NotificationService()
+    await notification_service.send_email(
+        to_email=input.email,
+        subject="BlackieFi password reset",
+        html_content=f"""
+        <div style="font-family: Arial, sans-serif; color: #111;">
+          <h2>Password reset requested</h2>
+          <p>Use the following token to reset your password. This expires in 1 hour.</p>
+          <p><strong>Reset token:</strong> {reset_token}</p>
+        </div>
+        """
+    )
+
+    return {"message": "If the email exists, a reset link has been sent"}
 
 @router.post("/password-reset")
 async def reset_password(input: PasswordResetInput):
     """Reset password using token"""
     db = get_db()
     
+    token_hash = hash_reset_token(input.token)
     user = await db.users.find_one({
-        "password_reset_token": input.token
+        "password_reset_token": token_hash
     })
     
     if not user:

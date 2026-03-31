@@ -1,21 +1,29 @@
 """Object storage integration (MinIO/S3 compatible)"""
 import uuid
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Union, IO
 
 import boto3
 from botocore.client import Config
+
+from services.secrets_service import decrypt_value
 
 
 REQUIRED_FIELDS = {"endpoint_url", "bucket", "access_key", "secret_key"}
 
 
 def normalize_storage_config(config: Dict) -> Dict:
+    access_key = config.get("access_key") or config.get("access_key_enc")
+    secret_key = config.get("secret_key") or config.get("secret_key_enc")
+    if access_key and access_key == config.get("access_key_enc"):
+        access_key = decrypt_value(access_key)
+    if secret_key and secret_key == config.get("secret_key_enc"):
+        secret_key = decrypt_value(secret_key)
     return {
         "provider": config.get("provider", "minio"),
         "endpoint_url": config.get("endpoint_url"),
         "bucket": config.get("bucket"),
-        "access_key": config.get("access_key"),
-        "secret_key": config.get("secret_key"),
+        "access_key": access_key,
+        "secret_key": secret_key,
         "region": config.get("region"),
         "secure": config.get("secure", True),
         "path_prefix": config.get("path_prefix", ""),
@@ -51,8 +59,16 @@ def build_storage_path(config: Dict, user_id: str, entity_id: str, extension: st
     return f"{prefix}/{base}" if prefix else base
 
 
-def put_object(config: Dict, path: str, data: bytes, content_type: str) -> dict:
+def put_object(config: Dict, path: str, data: Union[bytes, IO], content_type: str, size: int = None) -> dict:
     client = _get_client(config)
+    if hasattr(data, "read"):
+        client.upload_fileobj(
+            data,
+            Bucket=config["bucket"],
+            Key=path,
+            ExtraArgs={"ContentType": content_type}
+        )
+        return {"path": path, "size": size or 0}
     client.put_object(
         Bucket=config["bucket"],
         Key=path,

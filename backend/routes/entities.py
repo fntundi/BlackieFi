@@ -3,6 +3,8 @@ Entity routes
 """
 from fastapi import APIRouter, HTTPException, Depends, status, UploadFile, File, Form, Response
 from datetime import datetime, timezone
+import os
+
 from bson import ObjectId
 from typing import List, Optional
 
@@ -326,13 +328,24 @@ async def upload_entity_document(
 
     await ensure_entity_access(db, user_id, entity_id, "documents")
 
-    file_bytes = await file.read()
-    if not file_bytes:
+    max_mb = int(os.environ.get("UPLOAD_MAX_MB", "25"))
+    max_bytes = max_mb * 1024 * 1024
+
+    try:
+        file.file.seek(0, os.SEEK_END)
+        size = file.file.tell()
+        file.file.seek(0)
+    except Exception:
+        size = None
+
+    if size is not None and size == 0:
         raise HTTPException(status_code=400, detail="Empty file")
+    if size is not None and size > max_bytes:
+        raise HTTPException(status_code=413, detail=f"File too large. Max {max_mb}MB")
 
     ext = file.filename.split(".")[-1] if file.filename and "." in file.filename else "bin"
     storage_path = build_storage_path(storage_config, user_id, entity_id, ext)
-    result = put_object(storage_config, storage_path, file_bytes, file.content_type or "application/octet-stream")
+    result = put_object(storage_config, storage_path, file.file, file.content_type or "application/octet-stream", size=size)
 
     now = datetime.now(timezone.utc).isoformat()
     doc_id = str(ObjectId())
@@ -346,7 +359,7 @@ async def upload_entity_document(
         "title": title,
         "original_filename": file.filename or title,
         "content_type": file.content_type or "application/octet-stream",
-        "size": result.get("size", len(file_bytes)),
+        "size": result.get("size", size or 0),
         "storage_path": result.get("path", storage_path),
         "uploaded_at": now,
         "notes": notes,

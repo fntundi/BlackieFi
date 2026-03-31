@@ -45,7 +45,13 @@ services:
     environment:
       - MONGO_URL=mongodb://mongodb:27017
       - DB_NAME=blackiefi
-      - JWT_SECRET=${JWT_SECRET:-blackiefi-dev-secret-change-in-production}
+      - JWT_SECRET=${JWT_SECRET}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      - METRICS_TOKEN=${METRICS_TOKEN}
+      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
+      - UPLOAD_MAX_MB=${UPLOAD_MAX_MB}
+      - ENVIRONMENT=${ENVIRONMENT}
+
       - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY:-}
       - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-}
       - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}

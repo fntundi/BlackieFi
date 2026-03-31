@@ -75,12 +75,17 @@ app.add_middleware(MetricsMiddleware)
 app.add_middleware(RequestContextMiddleware)
 
 # CORS middleware
+origins_env = os.environ.get("ALLOWED_ORIGINS")
+if not origins_env:
+    raise RuntimeError("ALLOWED_ORIGINS must be set (comma-separated)")
+allowed_origins = [origin.strip() for origin in origins_env.split(",") if origin.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*"]
 )
 
 # Health check

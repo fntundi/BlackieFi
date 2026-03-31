@@ -99,9 +99,11 @@ export default function AdminSettings() {
 
   useEffect(() => {
     if (storageSettings) {
+      const { access_key_last4, ...rest } = storageSettings;
       setStorageForm((prev) => ({
         ...prev,
-        ...storageSettings,
+        ...rest,
+        access_key: '',
         secret_key: ''
       }));
     }
@@ -711,7 +713,7 @@ export default function AdminSettings() {
             </div>
             <div>
               <label style={{ fontSize: '0.7rem', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Access Key</label>
-              <input value={storageForm.access_key} onChange={(e) => setStorageForm({ ...storageForm, access_key: e.target.value })} style={inputStyle} data-testid="storage-access-key-input" />
+              <input value={storageForm.access_key} onChange={(e) => setStorageForm({ ...storageForm, access_key: e.target.value })} style={inputStyle} placeholder={storageSettings?.access_key_last4 ? `••••${storageSettings.access_key_last4}` : 'Enter access key'} data-testid="storage-access-key-input" />
             </div>
             <div>
               <label style={{ fontSize: '0.7rem', color: '#737373', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Secret Key</label>

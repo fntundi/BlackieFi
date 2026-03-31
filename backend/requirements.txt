@@ -20,7 +20,7 @@ charset-normalizer==3.4.4
 chroma-hnswlib==0.7.3
 chromadb==0.4.22
 click==8.3.1
-cryptography==46.0.5
+cryptography==42.0.8
 distro==1.9.0
 dnspython==2.8.0
 durationpy==0.10

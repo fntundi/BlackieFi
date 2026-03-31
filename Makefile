@@ -19,72 +19,86 @@
 # ---------------------------------------------------------------------------
 
 up: ## Start all services
-	@echo "Starting BlackieFi..."
-	docker compose up -d
-	@echo ""
-	@echo "✓ Services started"
-	@echo ""
-	@echo "Access:"
-	@echo "  Frontend: http://localhost:3000"
-	@echo "  Backend:  http://localhost:8001"
-	@echo "  API Docs: http://localhost:8001/docs"
-	@echo ""
-	@echo "Login: demo / user123"
+        @echo "Starting BlackieFi..."
+        docker compose up -d
+        @echo ""
+        @echo "✓ Services started"
+        @echo ""
+        @echo "Access:"
+        @echo "  Frontend: http://localhost:3000"
+        @echo "  Backend:  http://localhost:8001"
+        @echo "  API Docs: http://localhost:8001/docs"
+        @echo ""
+        @echo "Login: demo / user123"
 
 down: ## Stop all services
-	docker compose down
+        docker compose down
 
 logs: ## View logs (all services)
-	docker compose logs -f
+        docker compose logs -f
 
 logs-backend: ## View backend logs only
-	docker compose logs -f backend
+        docker compose logs -f backend
 
 logs-frontend: ## View frontend logs only
-	docker compose logs -f frontend
+        docker compose logs -f frontend
 
 build: ## Rebuild all images
-	docker compose build --no-cache
+        docker compose build --no-cache
+
+
+# ---------------------------------------------------------------------------
+# PRODUCTION COMMANDS
+# ---------------------------------------------------------------------------
+
+up-prod: ## Start production services
+                docker compose -f docker-compose.prod.yml up -d
+
+build-prod: ## Build production images
+                docker compose -f docker-compose.prod.yml build --no-cache
+
+down-prod: ## Stop production services
+                docker compose -f docker-compose.prod.yml down
 
 restart: ## Restart all services
-	docker compose restart
+        docker compose restart
 
 # ---------------------------------------------------------------------------
 # UTILITIES
 # ---------------------------------------------------------------------------
 
 health: ## Check service health
-	@echo "Checking services..."
-	@curl -sf http://localhost:8001/api/health && echo "Backend: ✓" || echo "Backend: ✗"
-	@curl -sf http://localhost:3000 > /dev/null && echo "Frontend: ✓" || echo "Frontend: ✗"
+        @echo "Checking services..."
+        @curl -sf http://localhost:8001/api/health && echo "Backend: ✓" || echo "Backend: ✗"
+        @curl -sf http://localhost:3000 > /dev/null && echo "Frontend: ✓" || echo "Frontend: ✗"
 
 shell-backend: ## Open shell in backend container
-	docker exec -it blackiefi-backend /bin/sh
+        docker exec -it blackiefi-backend /bin/sh
 
 shell-frontend: ## Open shell in frontend container
-	docker exec -it blackiefi-frontend /bin/sh
+        docker exec -it blackiefi-frontend /bin/sh
 
 shell-mongo: ## Open MongoDB shell
-	docker exec -it blackiefi-mongo mongosh blackiefi
+        docker exec -it blackiefi-mongo mongosh blackiefi
 
 clean: ## Remove containers, images, and volumes
-	docker compose down -v --rmi local
-	@echo "✓ Cleaned"
+        docker compose down -v --rmi local
+        @echo "✓ Cleaned"
 
 status: ## Show container status
-	docker compose ps
+        docker compose ps
 
 # ---------------------------------------------------------------------------
 # HELP
 # ---------------------------------------------------------------------------
 
 help: ## Show this help
-	@echo ""
-	@echo "BlackieFi - Development Commands"
-	@echo "================================="
-	@echo ""
-	@echo "Usage: make [command]"
-	@echo ""
-	@echo "Commands:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
-	@echo ""
+        @echo ""
+        @echo "BlackieFi - Development Commands"
+        @echo "================================="
+        @echo ""
+        @echo "Usage: make [command]"
+        @echo ""
+        @echo "Commands:"
+        @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
+        @echo ""
