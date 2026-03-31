@@ -53,6 +53,6 @@ async def get_metrics_summary(
     return {
         "service": "blackiefi-api",
         "status": "healthy",
-        "metrics_endpoint": "/metrics",
+        "metrics_endpoint": "/api/metrics",
         "note": "Use Prometheus/Grafana for full metrics visualization",
     }

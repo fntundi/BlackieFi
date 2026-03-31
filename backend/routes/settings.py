@@ -104,6 +104,31 @@ async def get_ai_status(current_user: dict = Depends(get_current_user)):
     db = get_db()
     user_id = current_user.get("user_id")
 
+    # Get system settings
+    system_settings = await db.system_settings.find_one({"_id": "system"})
+    system_ai_enabled = system_settings.get("ai_enabled", False) if system_settings else False
+    system_llm_provider = system_settings.get("default_llm_provider", "emergent") if system_settings else "emergent"
+    system_model = system_settings.get("default_model") if system_settings else None
+
+    # Get user settings
+    user = await db.users.find_one({"_id": user_id})
+    user_ai_enabled = user.get("ai_enabled", False) if user else False
+    user_llm_provider = user.get("preferred_llm_provider") if user else None
+
+    # Effective AI is enabled only if both system AND user have it enabled
+    effective_ai_enabled = system_ai_enabled and user_ai_enabled
+
+    # Use user's preferred provider if set, otherwise system default
+    effective_provider = user_llm_provider or system_llm_provider
+
+    return {
+        "system_ai_enabled": system_ai_enabled,
+        "user_ai_enabled": user_ai_enabled,
+        "effective_ai_enabled": effective_ai_enabled,
+        "llm_provider": effective_provider,
+        "llm_model": system_model
+    }
+
 @router.get("/storage", response_model=ObjectStorageConfigResponse)
 async def get_storage_settings(current_user: dict = Depends(require_admin)):
     db = get_db()
@@ -160,29 +185,3 @@ async def update_storage_settings(
 
     settings = await db.system_settings.find_one({"_id": "system"})
     return _storage_response(settings or {})
-
-    
-    # Get system settings
-    system_settings = await db.system_settings.find_one({"_id": "system"})
-    system_ai_enabled = system_settings.get("ai_enabled", False) if system_settings else False
-    system_llm_provider = system_settings.get("default_llm_provider", "emergent") if system_settings else "emergent"
-    system_model = system_settings.get("default_model") if system_settings else None
-    
-    # Get user settings
-    user = await db.users.find_one({"_id": user_id})
-    user_ai_enabled = user.get("ai_enabled", False) if user else False
-    user_llm_provider = user.get("preferred_llm_provider") if user else None
-    
-    # Effective AI is enabled only if both system AND user have it enabled
-    effective_ai_enabled = system_ai_enabled and user_ai_enabled
-    
-    # Use user's preferred provider if set, otherwise system default
-    effective_provider = user_llm_provider or system_llm_provider
-    
-    return {
-        "system_ai_enabled": system_ai_enabled,
-        "user_ai_enabled": user_ai_enabled,
-        "effective_ai_enabled": effective_ai_enabled,
-        "llm_provider": effective_provider,
-        "llm_model": system_model
-    }
