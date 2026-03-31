@@ -90,6 +90,16 @@ Migrate an existing application from the `base44` platform to a new technology s
 - **Entity access control** enforced across key entity-scoped APIs (entities, accounts, transactions, budgets, assets, debts, inventory, goals, recurring, reports, tax, bills, imports, investments)
 - **Admin Settings UI** extended with Storage config, User Management, Entity Access grants
 - **OpenRouter/Ollama** now respect configurable `base_url` in provider settings
+### December 2025 - Security - Production Hardening ✅
+- **Removed secret defaults**; JWT_SECRET - DB envs must be set (fail-fast)
+- **Password reset hardened**: hashed reset tokens, no token returned in API
+- **Auth rate limiting** - brute-force protection on login/register/reset
+- **CORS restricted** via ALLOWED_ORIGINS; credentials disabled
+- **Metrics protected** with METRICS_TOKEN at /api/metrics
+- **Upload hardening**: size limits - streaming to storage
+- **Storage secrets encrypted** with STORAGE_SECRET_KEY; API only returns access_key_last4
+- **Production Docker**: new Dockerfile.prod for backend/frontend - docker-compose.prod.yml (Mongo auth, no dev mounts)
+
 
 - **StrategyStudio.jsx**: Extracted Strategy Studio tab (framework selection, asset analysis)
 - **AnalysisLab.jsx**: Extracted Analysis Lab tab (comprehensive, risk, due diligence, market, portfolio)
