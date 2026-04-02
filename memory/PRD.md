@@ -98,6 +98,12 @@ Migrate an existing application from the `base44` platform to a new technology s
 - **Metrics protected** with METRICS_TOKEN at /api/metrics
 - **Upload hardening**: size limits - streaming to storage
 - **Storage secrets encrypted** with STORAGE_SECRET_KEY; API only returns access_key_last4
+### December 2025 - Repo Cleanup ✅
+- Removed unused microservices code (/services), Next.js migration (/frontend-next), and legacy microservices/local Docker files
+- Removed obsolete deploy script, root Vite/Node configs, build artifacts, backups, and old test reports
+- Kept observability stack and monolith files only
+
+
 - **Production Docker**: new Dockerfile.prod for backend/frontend - docker-compose.prod.yml (Mongo auth, no dev mounts)
 
 
