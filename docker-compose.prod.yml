@@ -9,6 +9,9 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
     volumes:
       - mongo_data:/data/db
+    env_file:
+      - .env.prod
+
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -23,19 +26,11 @@ services:
       context: ./backend
       dockerfile: Dockerfile.prod
     container_name: blackiefi-backend
+    env_file:
+      - .env.prod
     environment:
       - MONGO_URL=mongodb://${MONGO_ROOT_USER}:${MONGO_ROOT_PASSWORD}@mongodb:27017/blackiefi?authSource=admin
       - DB_NAME=blackiefi
-      - JWT_SECRET=${JWT_SECRET}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
-      - METRICS_TOKEN=${METRICS_TOKEN}
-      - UPLOAD_MAX_MB=${UPLOAD_MAX_MB}
-      - ENVIRONMENT=production
-      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY}
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
-      - COINGECKO_API_KEY=${COINGECKO_API_KEY}
-      - RESEND_API_KEY=${RESEND_API_KEY}
     ports:
       - "8001:8001"
     depends_on:
@@ -45,6 +40,7 @@ services:
       - blackiefi
     restart: unless-stopped
 
+
   frontend:
     build:
       context: ./frontend
@@ -52,6 +48,8 @@ services:
       args:
         - REACT_APP_BACKEND_URL=${REACT_APP_BACKEND_URL}
     container_name: blackiefi-frontend
+    env_file:
+      - .env.prod
     ports:
       - "80:80"
     depends_on:
@@ -63,6 +61,8 @@ services:
   prometheus:
     image: prom/prometheus:v2.48.0
     container_name: blackiefi-prometheus
+    env_file:
+      - .env.prod
     environment:
       - METRICS_TOKEN=${METRICS_TOKEN}
     volumes:
@@ -80,6 +80,8 @@ services:
   grafana:
     image: grafana/grafana:10.2.2
     container_name: blackiefi-grafana
+    env_file:
+      - .env.prod
     volumes:
       - grafana_data:/var/lib/grafana
       - ./observability/grafana/provisioning:/etc/grafana/provisioning

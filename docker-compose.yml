@@ -42,21 +42,8 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: blackiefi-backend
-    environment:
-      - MONGO_URL=mongodb://mongodb:27017
-      - DB_NAME=blackiefi
-      - JWT_SECRET=${JWT_SECRET}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
-      - METRICS_TOKEN=${METRICS_TOKEN}
-      - STORAGE_SECRET_KEY=${STORAGE_SECRET_KEY}
-      - UPLOAD_MAX_MB=${UPLOAD_MAX_MB}
-      - ENVIRONMENT=${ENVIRONMENT}
-
-      - EMERGENT_LLM_KEY=${EMERGENT_LLM_KEY:-}
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY:-}
-      - COINGECKO_API_KEY=${COINGECKO_API_KEY:-}
-      - RESEND_API_KEY=${RESEND_API_KEY:-}
-      - SEED_DEMO_USERS=${SEED_DEMO_USERS}
+    env_file:
+      - .env.dev
 
     ports:
       - "8001:8001"
@@ -78,8 +65,9 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: blackiefi-frontend
+    env_file:
+      - .env.dev
     environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8001
       # Enable polling for file changes in Docker/WSL
       - CHOKIDAR_USEPOLLING=true
       - WATCHPACK_POLLING=true

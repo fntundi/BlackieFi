@@ -20,7 +20,7 @@
 
 up: ## Start all services
         @echo "Starting BlackieFi..."
-        docker compose up -d
+		docker compose --env-file .env.dev up -d
         @echo ""
         @echo "✓ Services started"
         @echo ""
@@ -32,19 +32,19 @@ up: ## Start all services
         @echo "Login: demo / user123"
 
 down: ## Stop all services
-        docker compose down
+		docker compose --env-file .env.dev down
 
 logs: ## View logs (all services)
-        docker compose logs -f
+		docker compose --env-file .env.dev logs -f
 
 logs-backend: ## View backend logs only
-        docker compose logs -f backend
+		docker compose --env-file .env.dev logs -f backend
 
 logs-frontend: ## View frontend logs only
-        docker compose logs -f frontend
+		docker compose --env-file .env.dev logs -f frontend
 
 build: ## Rebuild all images
-        docker compose build --no-cache
+	docker compose --env-file .env.dev build --no-cache
 
 
 # ---------------------------------------------------------------------------
@@ -52,16 +52,16 @@ build: ## Rebuild all images
 # ---------------------------------------------------------------------------
 
 up-prod: ## Start production services
-                docker compose -f docker-compose.prod.yml up -d
+	docker compose --env-file .env.prod -f docker-compose.prod.yml up -d
 
 build-prod: ## Build production images
-                docker compose -f docker-compose.prod.yml build --no-cache
+	docker compose --env-file .env.prod -f docker-compose.prod.yml build --no-cache
 
 down-prod: ## Stop production services
-                docker compose -f docker-compose.prod.yml down
+	docker compose --env-file .env.prod -f docker-compose.prod.yml down
 
 restart: ## Restart all services
-        docker compose restart
+	docker compose --env-file .env.dev restart
 
 # ---------------------------------------------------------------------------
 # UTILITIES
@@ -82,11 +82,11 @@ shell-mongo: ## Open MongoDB shell
         docker exec -it blackiefi-mongo mongosh blackiefi
 
 clean: ## Remove containers, images, and volumes
-        docker compose down -v --rmi local
+	docker compose --env-file .env.dev down -v --rmi local
         @echo "✓ Cleaned"
 
 status: ## Show container status
-        docker compose ps
+	docker compose --env-file .env.dev ps
 
 # ---------------------------------------------------------------------------
 # HELP
