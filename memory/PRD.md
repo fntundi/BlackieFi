@@ -106,6 +106,12 @@ Migrate an existing application from the `base44` platform to a new technology s
 
 - **Production Docker**: new Dockerfile.prod for backend/frontend - docker-compose.prod.yml (Mongo auth, no dev mounts)
 
+### December 2025 - Observability Enabled in Production ✅
+- Prometheus + Grafana added to docker-compose.prod.yml by default
+- Prometheus now scrapes /api/metrics with bearer token file
+- Grafana credentials moved to env vars (GF_SECURITY_ADMIN_USER/GF_SECURITY_ADMIN_PASSWORD)
+
+
 
 - **StrategyStudio.jsx**: Extracted Strategy Studio tab (framework selection, asset analysis)
 - **AnalysisLab.jsx**: Extracted Analysis Lab tab (comprehensive, risk, due diligence, market, portfolio)
