@@ -7,16 +7,12 @@ services:
   prometheus:
     image: prom/prometheus:v2.48.0
     container_name: blackiefi-prometheus
+    environment:
+      - METRICS_TOKEN=${METRICS_TOKEN}
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--storage.tsdb.retention.time=15d'
-      - '--web.enable-lifecycle'
+    command: ["/bin/sh", "-c", "echo \"${METRICS_TOKEN}\" > /etc/prometheus/metrics_token && /bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/prometheus --web.console.libraries=/usr/share/prometheus/console_libraries --web.console.templates=/usr/share/prometheus/consoles --storage.tsdb.retention.time=15d --web.enable-lifecycle"]
     ports:
       - "9090:9090"
     networks:
@@ -31,10 +27,10 @@ services:
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=BlackieFi2024!
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_SERVER_ROOT_URL=${GF_SERVER_ROOT_URL}
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
     ports:
       - "3001:3000"
