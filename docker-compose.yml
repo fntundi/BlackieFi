@@ -82,9 +82,9 @@ services:
       - OLLAMA_HOST=0.0.0.0
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 30s
+      interval: 40s
       timeout: 10s
-      retries: 5
+      retries: 20
       start_period: 60s
     networks:
       - blackiefi-network
@@ -135,9 +135,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/api/auth/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 40s
+      timeout: 10s
+      retries: 20
     networks:
       - blackiefi-network
 
@@ -167,9 +167,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8002/api/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 40s
+      timeout: 10s
+      retries: 20
     networks:
       - blackiefi-network
 
@@ -195,8 +195,8 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8003/api/entities/health"]
       interval: 10s
-      timeout: 5s
-      retries: 5
+      timeout: 40s
+      retries: 20
     networks:
       - blackiefi-network
 
@@ -221,9 +221,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8004/api/accounts/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 40s
+      timeout: 10s
+      retries: 20
     networks:
       - blackiefi-network
 
@@ -248,9 +248,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8005/api/assets/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 40s
+      timeout: 10s
+      retries: 20
     networks:
       - blackiefi-network
 
@@ -289,9 +289,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 40s
+      timeout: 10s
+      retries: 10
     networks:
       - blackiefi-network
 
@@ -314,9 +314,9 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 50s
+      timeout: 10s
+      retries: 20
     networks:
       - blackiefi-network
 
@@ -335,9 +335,9 @@ services:
       - NODE_ENV=production
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 40s
+      timeout: 10s
+      retries: 20
     networks:
       - blackiefi-network
 
