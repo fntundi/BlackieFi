@@ -1,18 +1,23 @@
 # BlackieFi 3.0 - Makefile
-# Simple developer experience commands
+# Streamlined developer experience commands
 
-.PHONY: up down logs reset build clean help status
+.PHONY: up down logs logs-service reset build clean pull shell help status test-api
 
-# Default target
 .DEFAULT_GOAL := help
 
-# Colors for output
+# -----------------------------
+# Colors
+# -----------------------------
 GREEN := \033[0;32m
 YELLOW := \033[0;33m
 RED := \033[0;31m
-NC := \033[0m # No Color
+NC := \033[0m
 
+DATA_DIRS := data/mongo data/redis data/chroma data/ollama
+
+# -----------------------------
 # Ensure .env exists
+# -----------------------------
 .env:
 	@if [ ! -f .env ]; then \
 		echo "$(YELLOW)Creating .env from .env.template...$(NC)"; \
@@ -20,110 +25,126 @@ NC := \033[0m # No Color
 		echo "$(GREEN).env file created$(NC)"; \
 	fi
 
-## up: Start all services (creates .env if missing)
+# -----------------------------
+# Start services
+# -----------------------------
 up: .env
 	@echo "$(GREEN)Starting BlackieFi 3.0...$(NC)"
 	@docker compose up -d --build
 	@echo ""
 	@echo "$(GREEN)BlackieFi 3.0 is starting!$(NC)"
+	@echo "Services:"
+	@echo "  Frontend: http://localhost:3000"
+	@echo "  Gateway:  http://localhost:8080"
+	@echo "  API:      http://localhost:8080/api"
 	@echo ""
-	@echo "Services will be available at:"
-	@echo "  Frontend:    http://localhost:3000"
-	@echo "  Gateway:     http://localhost:8080"
-	@echo "  API:         http://localhost:8080/api"
-	@echo ""
-	@echo "Use 'make logs' to view service logs"
-	@echo "Use 'make status' to check service health"
+	@echo "Use 'make logs' to view logs, 'make status' for health checks"
 
-## down: Stop all services
+# -----------------------------
+# Stop services
+# -----------------------------
 down:
 	@echo "$(YELLOW)Stopping BlackieFi 3.0...$(NC)"
 	@docker compose down
 	@echo "$(GREEN)All services stopped$(NC)"
 
-## logs: Stream logs from all services
+# -----------------------------
+# Logs
+# -----------------------------
 logs:
 	@docker compose logs -f
 
-## logs-service: Stream logs from a specific service (usage: make logs-service SERVICE=auth)
 logs-service:
-	@docker compose logs -f $(SERVICE)
+	@if [ -z "$(SERVICE)" ]; then \
+		echo "$(RED)Please specify SERVICE variable. Example: make logs-service SERVICE=auth$(NC)"; \
+	else \
+		docker compose logs -f $(SERVICE); \
+	fi
 
-## status: Check status of all services
+# -----------------------------
+# Status / Health
+# -----------------------------
 status:
 	@echo "$(GREEN)Service Status:$(NC)"
 	@docker compose ps
 	@echo ""
 	@echo "$(GREEN)Health Checks:$(NC)"
-	@echo -n "Nginx Gateway: " && curl -s http://localhost:8080/health | jq -r '.status' 2>/dev/null || echo "$(RED)unavailable$(NC)"
-	@echo -n "Gateway App:   " && curl -s http://localhost:8080/api/health | jq -r '.status' 2>/dev/null || echo "$(RED)unavailable$(NC)"
-	@echo -n "Auth Service:  " && curl -s http://localhost:8080/api/auth/health | jq -r '.status' 2>/dev/null || echo "$(RED)unavailable$(NC)"
+	@for service in "Nginx Gateway:http://localhost:8080/health" \
+	               "Gateway App:http://localhost:8080/api/health" \
+	               "Auth Service:http://localhost:8080/api/auth/health"; do \
+		name=$$(echo $$service | cut -d':' -f1); \
+		url=$$(echo $$service | cut -d':' -f2); \
+		status=$$(curl -s $$url | jq -r '.status' 2>/dev/null || echo "$(RED)unavailable$(NC)"); \
+		echo -e "$$name: $$status"; \
+	done
 
-## reset: Stop services, wipe all data, and restart clean
+# -----------------------------
+# Reset services and data
+# -----------------------------
 reset:
 	@echo "$(RED)WARNING: This will delete all data!$(NC)"
-	@echo "Press Ctrl+C to cancel, or wait 5 seconds to continue..."
+	@echo "Press Ctrl+C to cancel or wait 5 seconds..."
 	@sleep 5
 	@echo "$(YELLOW)Stopping services...$(NC)"
 	@docker compose down -v
-	@echo "$(YELLOW)Removing data directories...$(NC)"
-	@rm -rf data/mongo/* data/redis/* data/chroma/* data/ollama/*
-	@echo "$(YELLOW)Recreating data directories...$(NC)"
-	@mkdir -p data/mongo data/redis data/chroma data/ollama
-	@echo "$(GREEN)Starting fresh...$(NC)"
+	@echo "$(YELLOW)Clearing data directories...$(NC)"
+	@for dir in $(DATA_DIRS); do \
+		rm -rf $$dir/*; \
+		mkdir -p $$dir; \
+	done
+	@echo "$(GREEN)Restarting services clean...$(NC)"
 	@$(MAKE) up
 
-## build: Build all Docker images without starting
+# -----------------------------
+# Build
+# -----------------------------
 build: .env
 	@echo "$(GREEN)Building Docker images...$(NC)"
 	@docker compose build
 	@echo "$(GREEN)Build complete$(NC)"
 
-## clean: Remove all containers, images, and volumes
+# -----------------------------
+# Clean everything
+# -----------------------------
 clean:
-	@echo "$(RED)WARNING: This will remove all containers, images, and volumes!$(NC)"
-	@echo "Press Ctrl+C to cancel, or wait 5 seconds to continue..."
+	@echo "$(RED)WARNING: This will remove containers, images, and volumes!$(NC)"
+	@echo "Press Ctrl+C to cancel or wait 5 seconds..."
 	@sleep 5
 	@docker compose down -v --rmi all
-	@rm -rf data/mongo/* data/redis/* data/chroma/* data/ollama/*
+	@for dir in $(DATA_DIRS); do rm -rf $$dir/*; done
 	@echo "$(GREEN)Cleanup complete$(NC)"
 
-## pull: Pull latest images
+# -----------------------------
+# Pull latest images
+# -----------------------------
 pull:
 	@echo "$(GREEN)Pulling latest images...$(NC)"
 	@docker compose pull
 	@echo "$(GREEN)Pull complete$(NC)"
 
-## shell-auth: Open shell in auth service
-shell-auth:
-	@docker compose exec auth /bin/sh
+# -----------------------------
+# Service shells
+# -----------------------------
+shell-auth:   ; @docker compose exec auth /bin/sh
+shell-core:   ; @docker compose exec core /bin/sh
+shell-mongo:  ; @docker compose exec mongo mongosh blackiefi
+shell-redis:  ; @docker compose exec redis redis-cli
 
-## shell-core: Open shell in core service
-shell-core:
-	@docker compose exec core /bin/sh
-
-## shell-mongo: Open MongoDB shell
-shell-mongo:
-	@docker compose exec mongo mongosh blackiefi
-
-## shell-redis: Open Redis CLI
-shell-redis:
-	@docker compose exec redis redis-cli
-
-## test-api: Quick API test
+# -----------------------------
+# API test
+# -----------------------------
 test-api:
 	@echo "$(GREEN)Testing API endpoints...$(NC)"
 	@echo ""
-	@echo "Gateway Health:"
-	@curl -s http://localhost:8080/health | jq .
+	@echo "Gateway Health:" && curl -s http://localhost:8080/health | jq .
 	@echo ""
-	@echo "API Root:"
-	@curl -s http://localhost:8080/api/ | jq .
+	@echo "API Root:" && curl -s http://localhost:8080/api/ | jq .
 	@echo ""
-	@echo "Auth Health:"
-	@curl -s http://localhost:8080/api/auth/health | jq .
+	@echo "Auth Health:" && curl -s http://localhost:8080/api/auth/health | jq .
 
-## help: Show this help message
+# -----------------------------
+# Help
+# -----------------------------
 help:
 	@echo ""
 	@echo "$(GREEN)BlackieFi 3.0 - Microservices Architecture$(NC)"
@@ -131,16 +152,21 @@ help:
 	@echo "Usage: make [target]"
 	@echo ""
 	@echo "Primary Commands:"
-	@echo "  $(YELLOW)make up$(NC)      - Start all services"
-	@echo "  $(YELLOW)make down$(NC)    - Stop all services"
-	@echo "  $(YELLOW)make logs$(NC)    - Stream all logs"
-	@echo "  $(YELLOW)make reset$(NC)   - Wipe data and restart clean"
+	@echo "  $(YELLOW)make up$(NC)        - Start all services"
+	@echo "  $(YELLOW)make down$(NC)      - Stop all services"
+	@echo "  $(YELLOW)make logs$(NC)      - Stream all logs"
+	@echo "  $(YELLOW)make reset$(NC)     - Wipe data and restart clean"
 	@echo ""
 	@echo "Other Commands:"
-	@echo "  $(YELLOW)make status$(NC)  - Check service health"
-	@echo "  $(YELLOW)make build$(NC)   - Build images without starting"
-	@echo "  $(YELLOW)make clean$(NC)   - Remove all containers and images"
-	@echo "  $(YELLOW)make test-api$(NC) - Quick API test"
+	@echo "  $(YELLOW)make status$(NC)    - Check service health"
+	@echo "  $(YELLOW)make build$(NC)     - Build images without starting"
+	@echo "  $(YELLOW)make clean$(NC)     - Remove containers, images, volumes"
+	@echo "  $(YELLOW)make pull$(NC)      - Pull latest images"
+	@echo "  $(YELLOW)make test-api$(NC)  - Quick API test"
+	@echo "  $(YELLOW)make shell-auth$(NC)  - Shell in auth service"
+	@echo "  $(YELLOW)make shell-core$(NC)  - Shell in core service"
+	@echo "  $(YELLOW)make shell-mongo$(NC) - Mongo shell"
+	@echo "  $(YELLOW)make shell-redis$(NC) - Redis CLI"
 	@echo ""
 	@echo "After running 'make up', access:"
 	@echo "  Frontend: http://localhost:3000"
