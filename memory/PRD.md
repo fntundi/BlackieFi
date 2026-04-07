@@ -77,7 +77,12 @@ The system must boot fully locally with zero manual steps.
 - [x] Dashboard with overview, entities, accounts, assets tabs
 - [x] CRUD modals for creating entities, accounts, assets
 - [x] Responsive design with dark theme
-- [x] faithntundi.com inspired color scheme (orange/gold accents on dark background)
+- [x] Premium dark blue theme inspired by faithntundi.com
+  - Deep navy blue backgrounds (#020617, #0f172a, #1e293b)
+  - Gold/amber accents (#f59e0b, #fbbf24) for buttons and highlights
+  - Backdrop blur effects on cards and modals
+  - Plus Jakarta Sans typography
+  - Subtle gradients and shadow layering for depth
 
 ## Prioritized Backlog
 
