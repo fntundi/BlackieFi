@@ -1,0 +1,489 @@
+{
+  "timestamp": "2026-04-07T19:56:17.740262",
+  "summary": {
+    "tests_run": 114,
+    "tests_passed": 109,
+    "success_rate": 95.6140350877193
+  },
+  "results": {
+    "file_structure": {
+      "docker-compose.yml exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Makefile exists": {
+        "passed": true,
+        "details": ""
+      },
+      ".env.template exists": {
+        "passed": true,
+        "details": ""
+      },
+      "infrastructure/nginx.conf exists": {
+        "passed": true,
+        "details": ""
+      },
+      "services/auth/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "services/core/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "services/entity/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "services/portfolio/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "services/assets/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "services/gateway-app/src/index.ts exists": {
+        "passed": true,
+        "details": ""
+      },
+      "services/shared/config.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "frontend/src/App.js exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory services/gateway-app exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory services/auth exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory services/core exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory services/entity exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory services/portfolio exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory services/assets exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory services/shared exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory frontend exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory infrastructure exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory data/mongo exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory data/redis exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory data/chroma exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Directory data/ollama exists": {
+        "passed": true,
+        "details": ""
+      }
+    },
+    "docker_compose": {
+      "Service mongo defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service redis defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service chroma defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service ollama defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service auth defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service core defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service entity defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service portfolio defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service assets defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service gateway-app defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service nginx defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service frontend defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Service mongo has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service redis has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service chroma has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service ollama has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service ollama-init has healthcheck": {
+        "passed": false,
+        "details": "No healthcheck defined for ollama-init"
+      },
+      "Service auth has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service core has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service entity has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service portfolio has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service assets has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service gateway-app has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service nginx has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Service frontend has healthcheck": {
+        "passed": true,
+        "details": ""
+      },
+      "Networks defined": {
+        "passed": true,
+        "details": ""
+      }
+    },
+    "makefile": {
+      "Target 'up' exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Target 'down' exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Target 'logs' exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Target 'reset' exists": {
+        "passed": true,
+        "details": ""
+      }
+    },
+    "env_template": {
+      "Variable JWT_SECRET defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable JWT_ALGORITHM defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable JWT_EXPIRATION_HOURS defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable MONGO_URL defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable MONGO_DB defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable MONGO_INITDB_ROOT_USERNAME defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable MONGO_INITDB_ROOT_PASSWORD defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable REDIS_URL defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable CHROMA_HOST defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable CHROMA_PORT defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable OLLAMA_HOST defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable OLLAMA_PORT defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable OLLAMA_MODEL defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable AUTH_SERVICE_URL defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable CORE_SERVICE_URL defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable ENTITY_SERVICE_URL defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable PORTFOLIO_SERVICE_URL defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable ASSETS_SERVICE_URL defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable CORS_ORIGINS defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Variable LOG_LEVEL defined": {
+        "passed": true,
+        "details": ""
+      }
+    },
+    "nginx_config": {
+      "Route /api/auth/ configured": {
+        "passed": true,
+        "details": ""
+      },
+      "Route /api/entities/ configured": {
+        "passed": false,
+        "details": "Route /api/entities/ not found in nginx.conf"
+      },
+      "Route /api/accounts/ configured": {
+        "passed": false,
+        "details": "Route /api/accounts/ not found in nginx.conf"
+      },
+      "Route /api/assets/ configured": {
+        "passed": false,
+        "details": "Route /api/assets/ not found in nginx.conf"
+      },
+      "Route /api/ configured": {
+        "passed": true,
+        "details": ""
+      },
+      "Upstream gateway_app defined": {
+        "passed": true,
+        "details": ""
+      },
+      "Upstream frontend defined": {
+        "passed": true,
+        "details": ""
+      }
+    },
+    "services": {
+      "auth/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "auth/Dockerfile exists": {
+        "passed": true,
+        "details": ""
+      },
+      "core/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "core/Dockerfile exists": {
+        "passed": true,
+        "details": ""
+      },
+      "entity/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "entity/Dockerfile exists": {
+        "passed": true,
+        "details": ""
+      },
+      "portfolio/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "portfolio/Dockerfile exists": {
+        "passed": true,
+        "details": ""
+      },
+      "assets/main.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "assets/Dockerfile exists": {
+        "passed": true,
+        "details": ""
+      },
+      "gateway-app/src/index.ts exists": {
+        "passed": true,
+        "details": ""
+      },
+      "gateway-app/package.json exists": {
+        "passed": true,
+        "details": ""
+      },
+      "gateway-app/Dockerfile exists": {
+        "passed": true,
+        "details": ""
+      },
+      "gateway-app/tsconfig.json exists": {
+        "passed": true,
+        "details": ""
+      },
+      "shared/config.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "shared/database.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "shared/auth_utils.py exists": {
+        "passed": true,
+        "details": ""
+      },
+      "shared/models.py exists": {
+        "passed": true,
+        "details": ""
+      }
+    },
+    "data_persistence": {
+      "data/mongo directory exists": {
+        "passed": true,
+        "details": ""
+      },
+      "data/redis directory exists": {
+        "passed": true,
+        "details": ""
+      },
+      "data/chroma directory exists": {
+        "passed": true,
+        "details": ""
+      },
+      "data/ollama directory exists": {
+        "passed": true,
+        "details": ""
+      }
+    },
+    "frontend": {
+      "Component AuthForm exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Component Dashboard exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Component useAuth exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Component EntityForm exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Component AccountForm exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Component AssetForm exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Test ID data-testid=\"auth-container\" exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Test ID data-testid=\"dashboard\" exists": {
+        "passed": true,
+        "details": ""
+      },
+      "Test ID data-testid=\"nav-overview\" exists": {
+        "passed": false,
+        "details": "Test ID data-testid=\"nav-overview\" not found"
+      },
+      "Test ID data-testid=\"entities-tab\" exists": {
+        "passed": true,
+        "details": ""
+      }
+    }
+  },
+  "issues": [
+    "docker_compose: Service ollama-init has healthcheck - No healthcheck defined for ollama-init",
+    "nginx_config: Route /api/entities/ configured - Route /api/entities/ not found in nginx.conf",
+    "nginx_config: Route /api/accounts/ configured - Route /api/accounts/ not found in nginx.conf",
+    "nginx_config: Route /api/assets/ configured - Route /api/assets/ not found in nginx.conf",
+    "frontend: Test ID data-testid=\"nav-overview\" exists - Test ID data-testid=\"nav-overview\" not found"
+  ]
+}
