@@ -96,6 +96,7 @@ const AuthForm = ({ onLogin, onRegister }) => {
     <div className="auth-container" data-testid="auth-container">
       <div className="auth-card">
         <div className="auth-header">
+          <img src="/logo.png" alt="BlackieFi Logo" className="auth-logo" />
           <h1>BlackieFi</h1>
           <p>Asset Management Platform</p>
         </div>
@@ -228,6 +229,7 @@ const Dashboard = ({ user, onLogout }) => {
     <div className="dashboard" data-testid="dashboard">
       <header className="dashboard-header">
         <div className="header-left">
+          <img src="/logo.png" alt="BlackieFi" className="header-logo" />
           <h1>BlackieFi</h1>
           <span className="version">v3.0</span>
         </div>
