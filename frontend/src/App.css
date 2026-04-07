@@ -1,18 +1,25 @@
-/* BlackieFi 3.0 - Main Styles */
+/* BlackieFi 3.0 - Faith Ntundi Inspired Theme */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
-  --primary: #0f172a;
-  --primary-light: #1e293b;
-  --accent: #3b82f6;
-  --accent-hover: #2563eb;
+  --primary: #0a0a0a;
+  --primary-light: #141414;
+  --accent: #d97706;
+  --accent-hover: #b45309;
+  --accent-light: #fbbf24;
   --success: #10b981;
   --danger: #ef4444;
   --warning: #f59e0b;
-  --text: #f8fafc;
-  --text-muted: #94a3b8;
-  --border: #334155;
-  --card-bg: #1e293b;
-  --input-bg: #0f172a;
+  --text: #ffffff;
+  --text-secondary: #e5e5e5;
+  --text-muted: #a3a3a3;
+  --border: #262626;
+  --border-light: #404040;
+  --card-bg: #171717;
+  --input-bg: #0a0a0a;
+  --gradient-start: #d97706;
+  --gradient-end: #f59e0b;
 }
 
 * {
@@ -26,6 +33,7 @@ body {
   background: var(--primary);
   color: var(--text);
   min-height: 100vh;
+  line-height: 1.6;
 }
 
 .App {
@@ -38,11 +46,13 @@ body {
   justify-content: center;
   align-items: center;
   min-height: 100vh;
+  background: var(--primary);
 }
 
 .loading-spinner {
   color: var(--accent);
   font-size: 1.25rem;
+  font-weight: 500;
 }
 
 /* Auth Container */
@@ -52,17 +62,17 @@ body {
   justify-content: center;
   align-items: center;
   padding: 1rem;
-  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+  background: var(--primary);
 }
 
 .auth-card {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 2rem;
+  padding: 2.5rem;
   width: 100%;
-  max-width: 400px;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  max-width: 420px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
 }
 
 .auth-header {
@@ -71,57 +81,59 @@ body {
 }
 
 .auth-header h1 {
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text);
+  margin-bottom: 0.5rem;
 }
 
 .auth-header p {
-  color: var(--text-muted);
-  margin-top: 0.5rem;
+  color: var(--accent);
+  font-size: 0.95rem;
+  font-weight: 500;
 }
 
 .auth-tabs {
   display: flex;
   gap: 0.5rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .auth-tabs button {
   flex: 1;
-  padding: 0.75rem;
-  border: none;
-  background: var(--input-bg);
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  background: transparent;
   color: var(--text-muted);
   border-radius: 0.5rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   font-weight: 500;
+  font-size: 0.95rem;
 }
 
 .auth-tabs button.active {
   background: var(--accent);
-  color: white;
+  border-color: var(--accent);
+  color: var(--primary);
 }
 
 .auth-tabs button:hover:not(.active) {
-  background: var(--border);
+  border-color: var(--border-light);
+  color: var(--text);
 }
 
 form input,
 form select {
   width: 100%;
-  padding: 0.875rem 1rem;
+  padding: 0.95rem 1rem;
   margin-bottom: 1rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   background: var(--input-bg);
   color: var(--text);
   font-size: 1rem;
-  transition: border-color 0.2s;
+  transition: border-color 0.2s ease;
 }
 
 form input:focus,
@@ -136,15 +148,15 @@ form input::placeholder {
 
 form button[type="submit"] {
   width: 100%;
-  padding: 0.875rem;
+  padding: 0.95rem;
   border: none;
   border-radius: 0.5rem;
   background: var(--accent);
-  color: white;
+  color: var(--primary);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
 }
 
 form button[type="submit"]:hover {
@@ -160,7 +172,7 @@ form button[type="submit"]:disabled {
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid var(--danger);
   color: var(--danger);
-  padding: 0.75rem;
+  padding: 0.875rem;
   border-radius: 0.5rem;
   margin-bottom: 1rem;
   font-size: 0.875rem;
@@ -171,6 +183,7 @@ form button[type="submit"]:disabled {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  background: var(--primary);
 }
 
 .dashboard-header {
@@ -191,43 +204,44 @@ form button[type="submit"]:disabled {
 .header-left h1 {
   font-size: 1.5rem;
   font-weight: 700;
-  background: linear-gradient(135deg, var(--accent) 0%, #8b5cf6 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--text);
 }
 
 .version {
-  background: var(--border);
-  color: var(--text-muted);
-  padding: 0.25rem 0.5rem;
-  border-radius: 0.25rem;
+  background: var(--accent);
+  color: var(--primary);
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
   font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .user-name {
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  font-weight: 500;
 }
 
 .logout-btn {
-  padding: 0.5rem 1rem;
+  padding: 0.5rem 1.25rem;
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   background: transparent;
   color: var(--text);
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .logout-btn:hover {
   background: var(--danger);
   border-color: var(--danger);
+  color: white;
 }
 
 .dashboard-nav {
@@ -245,13 +259,13 @@ form button[type="submit"]:disabled {
   color: var(--text-muted);
   border-radius: 0.5rem;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   font-weight: 500;
 }
 
 .dashboard-nav button.active {
   background: var(--accent);
-  color: white;
+  color: var(--primary);
 }
 
 .dashboard-nav button:hover:not(.active) {
@@ -276,7 +290,7 @@ form button[type="submit"]:disabled {
 /* Overview Tab */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
   margin-bottom: 1.5rem;
 }
@@ -285,25 +299,32 @@ form button[type="submit"]:disabled {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 1rem;
-  padding: 1.5rem;
+  padding: 1.75rem;
+  transition: border-color 0.2s ease;
+}
+
+.stat-card:hover {
+  border-color: var(--accent);
 }
 
 .stat-card h3 {
   color: var(--text-muted);
   font-size: 0.875rem;
   font-weight: 500;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .stat-value {
-  font-size: 2rem;
+  font-size: 2.25rem;
   font-weight: 700;
   color: var(--text);
 }
 
 .stat-value.large {
-  font-size: 2.5rem;
-  background: linear-gradient(135deg, var(--success) 0%, var(--accent) 100%);
+  font-size: 2.75rem;
+  background: linear-gradient(135deg, var(--gradient-start) 0%, var(--gradient-end) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -312,6 +333,7 @@ form button[type="submit"]:disabled {
 .total-card {
   text-align: center;
   background: linear-gradient(135deg, var(--primary-light) 0%, var(--card-bg) 100%);
+  border-color: var(--accent);
 }
 
 /* Tab Content */
@@ -319,12 +341,13 @@ form button[type="submit"]:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
 }
 
 .tab-header h2 {
   font-size: 1.5rem;
   font-weight: 600;
+  color: var(--text);
 }
 
 .tab-header button {
@@ -332,10 +355,13 @@ form button[type="submit"]:disabled {
   border: none;
   border-radius: 0.5rem;
   background: var(--accent);
-  color: white;
+  color: var(--primary);
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .tab-header button:hover {
@@ -350,32 +376,35 @@ form button[type="submit"]:disabled {
 
 .empty-state {
   text-align: center;
-  padding: 3rem;
+  padding: 3.5rem;
   color: var(--text-muted);
   background: var(--card-bg);
   border: 1px dashed var(--border);
   border-radius: 1rem;
+  font-size: 1rem;
 }
 
 .item-card {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem;
+  padding: 1.5rem;
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
-  transition: border-color 0.2s;
+  transition: all 0.2s ease;
 }
 
 .item-card:hover {
   border-color: var(--accent);
+  transform: translateY(-2px);
 }
 
 .item-info h3 {
   font-size: 1.125rem;
   font-weight: 600;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.375rem;
+  color: var(--text);
 }
 
 .item-info p {
@@ -384,9 +413,9 @@ form button[type="submit"]:disabled {
 }
 
 .item-info .balance {
-  color: var(--success);
+  color: var(--accent-light);
   font-weight: 600;
-  margin-top: 0.25rem;
+  margin-top: 0.375rem;
 }
 
 .delete-btn {
@@ -395,8 +424,9 @@ form button[type="submit"]:disabled {
   border-radius: 0.5rem;
   background: transparent;
   color: var(--danger);
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .delete-btn:hover {
@@ -411,12 +441,13 @@ form button[type="submit"]:disabled {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 1rem;
   z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
 .modal-content {
@@ -424,7 +455,7 @@ form button[type="submit"]:disabled {
   border: 1px solid var(--border);
   border-radius: 1rem;
   width: 100%;
-  max-width: 450px;
+  max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
 }
@@ -433,18 +464,19 @@ form button[type="submit"]:disabled {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.25rem 1.5rem;
+  padding: 1.5rem;
   border-bottom: 1px solid var(--border);
 }
 
 .modal-header h2 {
   font-size: 1.25rem;
   font-weight: 600;
+  color: var(--text);
 }
 
 .close-btn {
-  width: 2rem;
-  height: 2rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border: none;
   background: var(--border);
   color: var(--text);
@@ -454,7 +486,7 @@ form button[type="submit"]:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
 }
 
 .close-btn:hover {
@@ -468,17 +500,17 @@ form button[type="submit"]:disabled {
 .form-actions {
   display: flex;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 1.25rem;
 }
 
 .form-actions button {
   flex: 1;
-  padding: 0.875rem;
+  padding: 0.95rem;
   border: none;
   border-radius: 0.5rem;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .form-actions button[type="button"] {
@@ -492,11 +524,30 @@ form button[type="submit"]:disabled {
 
 .form-actions button[type="submit"] {
   background: var(--accent);
-  color: white;
+  color: var(--primary);
 }
 
 .form-actions button[type="submit"]:hover {
   background: var(--accent-hover);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
 }
 
 /* Responsive */
@@ -508,6 +559,10 @@ form button[type="submit"]:disabled {
   .dashboard-nav {
     padding: 0.75rem 1rem;
     overflow-x: auto;
+  }
+
+  .dashboard-nav::-webkit-scrollbar {
+    display: none;
   }
 
   .dashboard-content {
@@ -526,5 +581,19 @@ form button[type="submit"]:disabled {
 
   .delete-btn {
     width: 100%;
+  }
+
+  .auth-card {
+    padding: 1.75rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .auth-header h1 {
+    font-size: 1.875rem;
   }
 }

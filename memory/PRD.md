@@ -77,6 +77,7 @@ The system must boot fully locally with zero manual steps.
 - [x] Dashboard with overview, entities, accounts, assets tabs
 - [x] CRUD modals for creating entities, accounts, assets
 - [x] Responsive design with dark theme
+- [x] faithntundi.com inspired color scheme (orange/gold accents on dark background)
 
 ## Prioritized Backlog
 
