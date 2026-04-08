@@ -12,9 +12,13 @@ import CalendarPage from "@/pages/CalendarPage";
 import SavingsFundsPage from "@/pages/SavingsFundsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import OnboardingPage from "@/pages/OnboardingPage";
+import TransactionsPage from "@/pages/TransactionsPage";
+import DebtPayoffPage from "@/pages/DebtPayoffPage";
+import BudgetVariancePage from "@/pages/BudgetVariancePage";
 import {
   LayoutDashboard, DollarSign, Receipt, CreditCard, Wallet, TrendingUp,
-  PieChart, CalendarDays, Target, Settings, LogOut, Menu, X, ChevronDown
+  PieChart, CalendarDays, Target, Settings, LogOut, Menu, X, ChevronDown,
+  ArrowLeftRight, Calculator, BarChart3
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -22,9 +26,12 @@ const NAV_ITEMS = [
   { key: "income", label: "Income", icon: <DollarSign size={18} /> },
   { key: "expenses", label: "Expenses", icon: <Receipt size={18} /> },
   { key: "debts", label: "Debts", icon: <CreditCard size={18} /> },
+  { key: "transactions", label: "Transactions", icon: <ArrowLeftRight size={18} /> },
   { key: "accounts", label: "Accounts", icon: <Wallet size={18} /> },
   { key: "investments", label: "Investments", icon: <TrendingUp size={18} /> },
   { key: "budget", label: "Budget", icon: <PieChart size={18} /> },
+  { key: "variance", label: "Budget Variance", icon: <BarChart3 size={18} /> },
+  { key: "payoff", label: "Debt Payoff", icon: <Calculator size={18} /> },
   { key: "calendar", label: "Calendar", icon: <CalendarDays size={18} /> },
   { key: "savings", label: "Savings Goals", icon: <Target size={18} /> },
   { key: "settings", label: "Settings", icon: <Settings size={18} /> },
@@ -79,11 +86,17 @@ const useAuth = () => {
 
 function AuthForm({ onLogin, onRegister }) {
   const [isLogin, setIsLogin] = useState(true);
+  const [showReset, setShowReset] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetToken, setResetToken] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [resetStep, setResetStep] = useState(1);
+  const [resetMessage, setResetMessage] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -97,6 +110,87 @@ function AuthForm({ onLogin, onRegister }) {
     }
     setLoading(false);
   };
+
+  const handleResetRequest = async (e) => {
+    e.preventDefault();
+    setError(""); setResetMessage(""); setLoading(true);
+    try {
+      const r = await api.post("/auth/password-reset/request", { email: resetEmail });
+      if (r.data.reset_token) setResetToken(r.data.reset_token);
+      setResetMessage(r.data.message);
+      setResetStep(2);
+    } catch (err) {
+      setError(err.response?.data?.detail || "An error occurred");
+    }
+    setLoading(false);
+  };
+
+  const handleResetConfirm = async (e) => {
+    e.preventDefault();
+    setError(""); setResetMessage(""); setLoading(true);
+    try {
+      await api.post("/auth/password-reset/confirm", { token: resetToken, new_password: newPassword });
+      setResetMessage("Password reset successfully! You can now log in.");
+      setResetStep(3);
+    } catch (err) {
+      setError(err.response?.data?.detail || "An error occurred");
+    }
+    setLoading(false);
+  };
+
+  if (showReset) {
+    return (
+      <div className="auth-container" data-testid="reset-container">
+        <div className="auth-card">
+          <div className="auth-header">
+            <div className="auth-brand">
+              <img src="/logo.png" alt="BlackieFi Logo" className="auth-logo" />
+              <h1>BlackieFi</h1>
+            </div>
+            <p>Password Reset</p>
+          </div>
+
+          {resetStep === 1 && (
+            <form onSubmit={handleResetRequest} data-testid="reset-request-form">
+              <p className="reset-info">Enter your email address and we'll send you a reset token.</p>
+              <input type="email" placeholder="Email" value={resetEmail} onChange={e => setResetEmail(e.target.value)}
+                     required data-testid="reset-email-input" />
+              {error && <div className="error-message">{error}</div>}
+              <button type="submit" disabled={loading} data-testid="reset-request-btn">
+                {loading ? "Sending..." : "Request Reset"}
+              </button>
+            </form>
+          )}
+
+          {resetStep === 2 && (
+            <form onSubmit={handleResetConfirm} data-testid="reset-confirm-form">
+              {resetMessage && <div className="success-message" data-testid="reset-message">{resetMessage}</div>}
+              <p className="reset-info">Enter the reset token and your new password.</p>
+              <input type="text" placeholder="Reset Token" value={resetToken} onChange={e => setResetToken(e.target.value)}
+                     required data-testid="reset-token-input" />
+              <input type="password" placeholder="New Password (min 6 chars)" value={newPassword}
+                     onChange={e => setNewPassword(e.target.value)} required minLength={6} data-testid="reset-password-input" />
+              {error && <div className="error-message">{error}</div>}
+              <button type="submit" disabled={loading} data-testid="reset-confirm-btn">
+                {loading ? "Resetting..." : "Reset Password"}
+              </button>
+            </form>
+          )}
+
+          {resetStep === 3 && (
+            <div data-testid="reset-success">
+              <div className="success-message">{resetMessage}</div>
+            </div>
+          )}
+
+          <div className="reset-back">
+            <button className="btn-text" onClick={() => { setShowReset(false); setResetStep(1); setError(""); setResetMessage(""); }}
+                    data-testid="back-to-login">Back to Login</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container" data-testid="auth-container">
@@ -124,6 +218,13 @@ function AuthForm({ onLogin, onRegister }) {
             {loading ? "Loading..." : isLogin ? "Login" : "Register"}
           </button>
         </form>
+        {isLogin && (
+          <div className="forgot-password-link">
+            <button className="btn-text" onClick={() => setShowReset(true)} data-testid="forgot-password-btn">
+              Forgot your password?
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -177,9 +278,12 @@ function MainLayout({ user, onLogout, onUpdateUser }) {
       case "income": return <IncomePage />;
       case "expenses": return <ExpensesPage />;
       case "debts": return <DebtsPage />;
+      case "transactions": return <TransactionsPage />;
       case "accounts": return <AccountsPage />;
       case "investments": return <InvestmentsPage />;
       case "budget": return <BudgetPage />;
+      case "variance": return <BudgetVariancePage />;
+      case "payoff": return <DebtPayoffPage />;
       case "calendar": return <CalendarPage />;
       case "savings": return <SavingsFundsPage />;
       case "settings": return <SettingsPage entities={entities} currentEntityId={currentEntityId} onRefreshEntities={fetchEntities} />;

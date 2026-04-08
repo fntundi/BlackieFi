@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from typing import List, Optional, Dict
 from datetime import datetime, timezone, timedelta
 from dateutil.relativedelta import relativedelta
-import os, logging, uuid, jwt
+import os, logging, uuid, jwt, math, secrets, hashlib
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent
@@ -386,6 +386,21 @@ class HealthCheck(BaseModel):
     status: str = "healthy"
     service: str
     version: str = "3.0.0"
+
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    new_password: str
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+class DebtPayoffRequest(BaseModel):
+    extra_monthly: float = 0.0
+    strategy: str = "avalanche"
 
 
 # ==================== HELPERS ====================
@@ -1549,6 +1564,361 @@ async def startup():
         })
 
         logger.info("Demo user seeded: demo@blackiefi.com / Demo123!")
+
+
+# ==================== PASSWORD RESET ROUTES ====================
+@auth_router.post("/password-reset/request")
+async def request_password_reset(req: PasswordResetRequest):
+    user = await db.users.find_one({"email": req.email}, {"_id": 0})
+    if not user:
+        return {"message": "If that email exists, a reset link has been sent."}
+    token = secrets.token_urlsafe(48)
+    token_hash = hashlib.sha256(token.encode()).hexdigest()
+    expires = (now_dt() + timedelta(hours=1)).isoformat()
+    await db.password_resets.delete_many({"user_id": user["id"]})
+    await db.password_resets.insert_one({
+        "id": new_id(), "user_id": user["id"], "token_hash": token_hash,
+        "expires_at": expires, "used": False, "created_at": now_str()
+    })
+    logger.info(f"Password reset token for {req.email}: {token}")
+    return {"message": "If that email exists, a reset link has been sent.", "reset_token": token}
+
+@auth_router.post("/password-reset/confirm")
+async def confirm_password_reset(req: PasswordResetConfirm):
+    token_hash = hashlib.sha256(req.token.encode()).hexdigest()
+    reset = await db.password_resets.find_one({"token_hash": token_hash, "used": False}, {"_id": 0})
+    if not reset:
+        raise HTTPException(400, "Invalid or expired reset token")
+    if reset.get("expires_at", "") < now_str():
+        raise HTTPException(400, "Reset token has expired")
+    if len(req.new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    await db.users.update_one(
+        {"id": reset["user_id"]},
+        {"$set": {"hashed_password": hash_password(req.new_password), "updated_at": now_str()}}
+    )
+    await db.password_resets.update_one({"id": reset["id"]}, {"$set": {"used": True}})
+    return {"message": "Password has been reset successfully"}
+
+@auth_router.post("/password-change")
+async def change_password(req: PasswordChangeRequest, user_id: str = Depends(get_current_user_id)):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user or not verify_password(req.current_password, user["hashed_password"]):
+        raise HTTPException(400, "Current password is incorrect")
+    if len(req.new_password) < 6:
+        raise HTTPException(400, "Password must be at least 6 characters")
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"hashed_password": hash_password(req.new_password), "updated_at": now_str()}}
+    )
+    return {"message": "Password changed successfully"}
+
+
+# ==================== ENHANCED TRANSACTIONS ROUTES ====================
+@transactions_router.get("/search")
+async def search_transactions(
+    q: Optional[str] = Query(None, alias="search"),
+    transaction_type: Optional[str] = None,
+    category_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    sort_by: str = Query("date", regex="^(date|amount|description)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    ctx: dict = Depends(get_entity_access),
+):
+    query = {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"]}
+    if transaction_type:
+        query["transaction_type"] = transaction_type
+    if category_id:
+        query["category_id"] = category_id
+    if start_date or end_date:
+        query["date"] = {}
+        if start_date:
+            query["date"]["$gte"] = start_date
+        if end_date:
+            query["date"]["$lte"] = end_date
+    if min_amount is not None or max_amount is not None:
+        query["amount"] = {}
+        if min_amount is not None:
+            query["amount"]["$gte"] = min_amount
+        if max_amount is not None:
+            query["amount"]["$lte"] = max_amount
+    if q:
+        query["description"] = {"$regex": q, "$options": "i"}
+
+    direction = 1 if sort_order == "asc" else -1
+    total = await db.transactions.count_documents(query)
+    skip = (page - 1) * page_size
+    items = await db.transactions.find(query, {"_id": 0}).sort(sort_by, direction).skip(skip).limit(page_size).to_list(page_size)
+
+    total_income = 0
+    total_expense = 0
+    all_for_summary = await db.transactions.find(query, {"_id": 0, "transaction_type": 1, "amount": 1}).to_list(5000)
+    for t in all_for_summary:
+        if t.get("transaction_type") == "income":
+            total_income += t.get("amount", 0)
+        else:
+            total_expense += t.get("amount", 0)
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": math.ceil(total / page_size) if page_size > 0 else 0,
+        "summary": {
+            "total_income": total_income,
+            "total_expenses": total_expense,
+            "net": total_income - total_expense,
+            "count": total,
+        },
+    }
+
+
+# ==================== DEBT PAYOFF ESTIMATOR ====================
+@debts_router.post("/payoff-estimate")
+async def debt_payoff_estimate(req: DebtPayoffRequest, ctx: dict = Depends(get_entity_access)):
+    debts = await db.debts.find(
+        {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"], "is_active": True}, {"_id": 0}
+    ).to_list(100)
+    if not debts:
+        return {"debts": [], "total_interest": 0, "total_months": 0, "total_paid": 0}
+
+    strategy = req.strategy
+    extra = req.extra_monthly
+
+    results = []
+    for debt in debts:
+        balance = debt.get("current_balance", 0)
+        rate = debt.get("interest_rate", 0) / 100 / 12
+        min_pay = debt.get("minimum_payment") or (balance * 0.02 if balance > 0 else 0)
+        min_pay = max(min_pay, 25)
+
+        schedule = _amortize(balance, rate, min_pay, 0)
+        results.append({
+            "id": debt["id"],
+            "name": debt["name"],
+            "debt_type": debt["debt_type"],
+            "current_balance": balance,
+            "interest_rate": debt.get("interest_rate", 0),
+            "minimum_payment": round(min_pay, 2),
+            "months_to_payoff": schedule["months"],
+            "total_interest": round(schedule["total_interest"], 2),
+            "total_paid": round(schedule["total_paid"], 2),
+            "payoff_date": schedule["payoff_date"],
+            "schedule": schedule["monthly"][:60],
+        })
+
+    if strategy == "avalanche":
+        sorted_debts = sorted(results, key=lambda d: -d["interest_rate"])
+    else:
+        sorted_debts = sorted(results, key=lambda d: d["current_balance"])
+
+    accelerated = []
+    remaining_extra = extra
+    debt_balances = {d["id"]: d["current_balance"] for d in sorted_debts}
+    debt_rates = {d["id"]: d["interest_rate"] / 100 / 12 for d in sorted_debts}
+    debt_minpay = {d["id"]: d["minimum_payment"] for d in sorted_debts}
+    order = [d["id"] for d in sorted_debts]
+
+    max_months = 360
+    month = 0
+    total_interest_accel = 0
+    total_paid_accel = 0
+    per_debt_accel = {did: {"months": 0, "interest": 0, "paid": 0, "schedule": []} for did in order}
+
+    while any(debt_balances[d] > 0.01 for d in order) and month < max_months:
+        month += 1
+        leftover = remaining_extra
+        for did in order:
+            bal = debt_balances[did]
+            if bal <= 0.01:
+                continue
+            rate = debt_rates[did]
+            interest = bal * rate
+            total_interest_accel += interest
+            per_debt_accel[did]["interest"] += interest
+            payment = min(debt_minpay[did], bal + interest)
+            bal_after_interest = bal + interest
+            payment = min(payment + leftover, bal_after_interest)
+            leftover = max(0, (debt_minpay[did] + leftover) - payment) if leftover > 0 else 0
+            new_bal = max(0, bal_after_interest - payment)
+            total_paid_accel += payment
+            per_debt_accel[did]["paid"] += payment
+            debt_balances[did] = new_bal
+            if len(per_debt_accel[did]["schedule"]) < 60:
+                per_debt_accel[did]["schedule"].append({
+                    "month": month,
+                    "payment": round(payment, 2),
+                    "interest": round(interest, 2),
+                    "principal": round(payment - interest, 2),
+                    "balance": round(new_bal, 2),
+                })
+            if new_bal <= 0.01:
+                per_debt_accel[did]["months"] = month
+                leftover += debt_minpay[did]
+
+    for did in order:
+        if per_debt_accel[did]["months"] == 0 and debt_balances[did] <= 0.01:
+            per_debt_accel[did]["months"] = month
+
+    n = now_dt()
+    for r in results:
+        accel = per_debt_accel[r["id"]]
+        payoff = n + relativedelta(months=accel["months"])
+        r["accelerated"] = {
+            "months_to_payoff": accel["months"],
+            "total_interest": round(accel["interest"], 2),
+            "total_paid": round(accel["paid"], 2),
+            "payoff_date": payoff.isoformat(),
+            "schedule": accel["schedule"],
+            "months_saved": r["months_to_payoff"] - accel["months"],
+            "interest_saved": round(r["total_interest"] - accel["interest"], 2),
+        }
+
+    original_total_interest = sum(r["total_interest"] for r in results)
+    original_total_months = max((r["months_to_payoff"] for r in results), default=0)
+    accel_total_months = max((r["accelerated"]["months_to_payoff"] for r in results), default=0)
+
+    return {
+        "strategy": strategy,
+        "extra_monthly": extra,
+        "debts": results,
+        "summary": {
+            "original_total_interest": round(original_total_interest, 2),
+            "original_total_months": original_total_months,
+            "accelerated_total_interest": round(total_interest_accel, 2),
+            "accelerated_total_months": accel_total_months,
+            "total_interest_saved": round(original_total_interest - total_interest_accel, 2),
+            "total_months_saved": original_total_months - accel_total_months,
+        },
+    }
+
+
+def _amortize(balance, monthly_rate, payment, extra=0):
+    months = 0
+    total_interest = 0
+    total_paid = 0
+    schedule = []
+    bal = balance
+    n = now_dt()
+    while bal > 0.01 and months < 360:
+        months += 1
+        interest = bal * monthly_rate
+        total_interest += interest
+        pay = min(payment + extra, bal + interest)
+        total_paid += pay
+        bal = max(0, bal + interest - pay)
+        if len(schedule) < 60:
+            schedule.append({
+                "month": months, "payment": round(pay, 2),
+                "interest": round(interest, 2), "principal": round(pay - interest, 2),
+                "balance": round(bal, 2),
+            })
+    payoff = n + relativedelta(months=months)
+    return {"months": months, "total_interest": total_interest, "total_paid": total_paid,
+            "payoff_date": payoff.isoformat(), "monthly": schedule}
+
+
+# ==================== BUDGET VARIANCE REPORTING ====================
+@budgets_router.get("/variance")
+async def budget_variance_report(
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    months_back: int = Query(6, ge=1, le=24),
+    ctx: dict = Depends(get_entity_access),
+):
+    n = now_dt()
+    target_month = month or n.month
+    target_year = year or n.year
+
+    reports = []
+    for i in range(months_back):
+        dt = datetime(target_year, target_month, 1, tzinfo=timezone.utc) - relativedelta(months=i)
+        m, y = dt.month, dt.year
+        budget = await db.budgets.find_one(
+            {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"], "month": m, "year": y}, {"_id": 0}
+        )
+        month_start = dt.isoformat()
+        month_end = (dt + relativedelta(months=1) - timedelta(seconds=1)).isoformat()
+        txns = await db.transactions.find(
+            {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"],
+             "date": {"$gte": month_start, "$lte": month_end},
+             "transaction_type": {"$in": ["expense", "debt_payment"]}},
+            {"_id": 0}
+        ).to_list(1000)
+
+        actual_by_cat = {}
+        total_actual = 0
+        for t in txns:
+            cid = t.get("category_id") or "uncategorized"
+            actual_by_cat[cid] = actual_by_cat.get(cid, 0) + t.get("amount", 0)
+            total_actual += t.get("amount", 0)
+
+        income_txns = await db.transactions.find(
+            {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"],
+             "date": {"$gte": month_start, "$lte": month_end},
+             "transaction_type": "income"},
+            {"_id": 0}
+        ).to_list(1000)
+        total_income = sum(t.get("amount", 0) for t in income_txns)
+
+        categories = []
+        total_planned = 0
+        if budget:
+            for item in budget.get("items", []):
+                cid = item.get("category_id", "")
+                planned = item.get("planned_amount", 0)
+                actual = actual_by_cat.pop(cid, 0)
+                total_planned += planned
+                variance = planned - actual
+                pct = (actual / planned * 100) if planned > 0 else (100 if actual > 0 else 0)
+                categories.append({
+                    "category_id": cid,
+                    "category_name": item.get("category_name", "Other"),
+                    "planned": round(planned, 2),
+                    "actual": round(actual, 2),
+                    "variance": round(variance, 2),
+                    "utilization_pct": round(pct, 1),
+                    "status": "over" if actual > planned else ("warning" if pct > 80 else "on_track"),
+                })
+
+        for cid, actual in actual_by_cat.items():
+            if actual > 0:
+                cat = await db.categories.find_one({"id": cid}, {"_id": 0})
+                categories.append({
+                    "category_id": cid,
+                    "category_name": cat.get("name", "Uncategorized") if cat else "Uncategorized",
+                    "planned": 0, "actual": round(actual, 2),
+                    "variance": round(-actual, 2), "utilization_pct": 100,
+                    "status": "unbudgeted",
+                })
+
+        reports.append({
+            "month": m, "year": y,
+            "month_name": dt.strftime("%B"),
+            "has_budget": budget is not None,
+            "total_planned": round(total_planned, 2),
+            "total_actual": round(total_actual, 2),
+            "total_variance": round(total_planned - total_actual, 2),
+            "total_income": round(total_income, 2),
+            "savings_rate": round(((total_income - total_actual) / total_income * 100) if total_income > 0 else 0, 1),
+            "categories": categories,
+        })
+
+    return {
+        "reports": reports,
+        "trend": {
+            "months": [r["month_name"][:3] for r in reversed(reports)],
+            "planned": [r["total_planned"] for r in reversed(reports)],
+            "actual": [r["total_actual"] for r in reversed(reports)],
+            "income": [r["total_income"] for r in reversed(reports)],
+        },
+    }
 
 
 # ==================== REGISTER ROUTERS ====================
