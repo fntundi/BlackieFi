@@ -1,25 +1,35 @@
 import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
-import axios from "axios";
+import { api } from "@/lib/api";
+import DashboardPage from "@/pages/DashboardPage";
+import IncomePage from "@/pages/IncomePage";
+import ExpensesPage from "@/pages/ExpensesPage";
+import DebtsPage from "@/pages/DebtsPage";
+import AccountsPage from "@/pages/AccountsPage";
+import InvestmentsPage from "@/pages/InvestmentsPage";
+import BudgetPage from "@/pages/BudgetPage";
+import CalendarPage from "@/pages/CalendarPage";
+import SavingsFundsPage from "@/pages/SavingsFundsPage";
+import SettingsPage from "@/pages/SettingsPage";
+import OnboardingPage from "@/pages/OnboardingPage";
+import {
+  LayoutDashboard, DollarSign, Receipt, CreditCard, Wallet, TrendingUp,
+  PieChart, CalendarDays, Target, Settings, LogOut, Menu, X, ChevronDown
+} from "lucide-react";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || "http://localhost:8080";
-const API = `${BACKEND_URL}/api`;
+const NAV_ITEMS = [
+  { key: "dashboard", label: "Dashboard", icon: <LayoutDashboard size={18} /> },
+  { key: "income", label: "Income", icon: <DollarSign size={18} /> },
+  { key: "expenses", label: "Expenses", icon: <Receipt size={18} /> },
+  { key: "debts", label: "Debts", icon: <CreditCard size={18} /> },
+  { key: "accounts", label: "Accounts", icon: <Wallet size={18} /> },
+  { key: "investments", label: "Investments", icon: <TrendingUp size={18} /> },
+  { key: "budget", label: "Budget", icon: <PieChart size={18} /> },
+  { key: "calendar", label: "Calendar", icon: <CalendarDays size={18} /> },
+  { key: "savings", label: "Savings Goals", icon: <Target size={18} /> },
+  { key: "settings", label: "Settings", icon: <Settings size={18} /> },
+];
 
-// API client with auth
-const api = axios.create({
-  baseURL: API,
-  headers: { "Content-Type": "application/json" },
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-// Auth Context
 const useAuth = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -28,47 +38,46 @@ const useAuth = () => {
     const token = localStorage.getItem("token");
     const savedUser = localStorage.getItem("user");
     if (token && savedUser) {
-      setUser(JSON.parse(savedUser));
+      try { setUser(JSON.parse(savedUser)); } catch (e) { localStorage.clear(); }
     }
     setLoading(false);
   }, []);
 
   const login = async (email, password) => {
     const response = await api.post("/auth/login", { email, password });
-    localStorage.setItem("token", response.data.access_token);
-    localStorage.setItem("user", JSON.stringify(response.data.user));
-    setUser(response.data.user);
+    const { access_token, user: u } = response.data;
+    localStorage.setItem("token", access_token);
+    localStorage.setItem("user", JSON.stringify(u));
+    if (u.personal_entity_id) localStorage.setItem("currentEntityId", u.personal_entity_id);
+    setUser(u);
     return response.data;
   };
 
   const register = async (email, password, fullName) => {
-    const response = await api.post("/auth/register", {
-      email,
-      password,
-      full_name: fullName,
-    });
-    localStorage.setItem("token", response.data.access_token);
-    localStorage.setItem("user", JSON.stringify(response.data.user));
-    setUser(response.data.user);
+    const response = await api.post("/auth/register", { email, password, full_name: fullName });
+    const { access_token, user: u } = response.data;
+    localStorage.setItem("token", access_token);
+    localStorage.setItem("user", JSON.stringify(u));
+    if (u.personal_entity_id) localStorage.setItem("currentEntityId", u.personal_entity_id);
+    setUser(u);
     return response.data;
   };
 
-  const logout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch (e) {
-      console.error("Logout error:", e);
-    }
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+  const logout = () => {
+    try { api.post("/auth/logout"); } catch (e) {}
+    localStorage.clear();
     setUser(null);
   };
 
-  return { user, loading, login, register, logout };
+  const updateUser = (u) => {
+    localStorage.setItem("user", JSON.stringify(u));
+    setUser(u);
+  };
+
+  return { user, loading, login, register, logout, updateUser };
 };
 
-// Components
-const AuthForm = ({ onLogin, onRegister }) => {
+function AuthForm({ onLogin, onRegister }) {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,11 +90,8 @@ const AuthForm = ({ onLogin, onRegister }) => {
     setError("");
     setLoading(true);
     try {
-      if (isLogin) {
-        await onLogin(email, password);
-      } else {
-        await onRegister(email, password, fullName);
-      }
+      if (isLogin) await onLogin(email, password);
+      else await onRegister(email, password, fullName);
     } catch (err) {
       setError(err.response?.data?.detail || "An error occurred");
     }
@@ -103,48 +109,16 @@ const AuthForm = ({ onLogin, onRegister }) => {
           <p>Asset Management Platform</p>
         </div>
         <div className="auth-tabs">
-          <button
-            className={isLogin ? "active" : ""}
-            onClick={() => setIsLogin(true)}
-            data-testid="login-tab"
-          >
-            Login
-          </button>
-          <button
-            className={!isLogin ? "active" : ""}
-            onClick={() => setIsLogin(false)}
-            data-testid="register-tab"
-          >
-            Register
-          </button>
+          <button className={isLogin ? "active" : ""} onClick={() => setIsLogin(true)} data-testid="login-tab">Login</button>
+          <button className={!isLogin ? "active" : ""} onClick={() => setIsLogin(false)} data-testid="register-tab">Register</button>
         </div>
         <form onSubmit={handleSubmit} data-testid="auth-form">
           {!isLogin && (
-            <input
-              type="text"
-              placeholder="Full Name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required={!isLogin}
-              data-testid="fullname-input"
-            />
+            <input type="text" placeholder="Full Name" value={fullName} onChange={(e) => setFullName(e.target.value)}
+                   required={!isLogin} data-testid="fullname-input" />
           )}
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            data-testid="email-input"
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            data-testid="password-input"
-          />
+          <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required data-testid="email-input" />
+          <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required data-testid="password-input" />
           {error && <div className="error-message" data-testid="error-message">{error}</div>}
           <button type="submit" disabled={loading} data-testid="submit-button">
             {loading ? "Loading..." : isLogin ? "Login" : "Register"}
@@ -153,492 +127,145 @@ const AuthForm = ({ onLogin, onRegister }) => {
       </div>
     </div>
   );
-};
+}
 
-const Dashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState("overview");
+function MainLayout({ user, onLogout, onUpdateUser }) {
+  const [activePage, setActivePage] = useState("dashboard");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [entities, setEntities] = useState([]);
-  const [accounts, setAccounts] = useState([]);
-  const [assets, setAssets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(null);
+  const [currentEntityId, setCurrentEntityId] = useState(localStorage.getItem("currentEntityId") || user?.personal_entity_id || "");
+  const [entityDropOpen, setEntityDropOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(!user?.onboarding_complete);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchEntities = useCallback(async () => {
     try {
-      const [entitiesRes, accountsRes, assetsRes] = await Promise.all([
-        api.get("/entities/"),
-        api.get("/accounts/"),
-        api.get("/assets/"),
-      ]);
-      setEntities(entitiesRes.data);
-      setAccounts(accountsRes.data);
-      setAssets(assetsRes.data);
-    } catch (err) {
-      console.error("Error fetching data:", err);
-    }
-    setLoading(false);
-  }, []);
+      const r = await api.get("/entities/");
+      setEntities(r.data);
+      if (!currentEntityId && r.data.length > 0) {
+        const personal = r.data.find(e => e.is_personal);
+        const eid = personal?.id || r.data[0].id;
+        setCurrentEntityId(eid);
+        localStorage.setItem("currentEntityId", eid);
+      }
+    } catch (e) { console.error(e); }
+  }, [currentEntityId]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  useEffect(() => { fetchEntities(); }, [fetchEntities]);
 
-  const totalAccountBalance = accounts.reduce((sum, a) => sum + (a.balance || 0), 0);
-  const totalAssetValue = assets.reduce((sum, a) => sum + (a.value || 0), 0);
-
-  const handleCreateEntity = async (data) => {
-    try {
-      await api.post("/entities/", data);
-      fetchData();
-      setShowModal(null);
-    } catch (err) {
-      alert(err.response?.data?.detail || "Error creating entity");
-    }
+  const switchEntity = (eid) => {
+    setCurrentEntityId(eid);
+    localStorage.setItem("currentEntityId", eid);
+    setEntityDropOpen(false);
   };
 
-  const handleCreateAccount = async (data) => {
-    try {
-      await api.post("/accounts/", data);
-      fetchData();
-      setShowModal(null);
-    } catch (err) {
-      alert(err.response?.data?.detail || "Error creating account");
-    }
+  const currentEntity = entities.find(e => e.id === currentEntityId);
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+    const updated = { ...user, onboarding_complete: true };
+    onUpdateUser(updated);
+    fetchEntities();
   };
 
-  const handleCreateAsset = async (data) => {
-    try {
-      await api.post("/assets/", data);
-      fetchData();
-      setShowModal(null);
-    } catch (err) {
-      alert(err.response?.data?.detail || "Error creating asset");
-    }
-  };
+  if (showOnboarding) {
+    return <OnboardingPage onComplete={handleOnboardingComplete} />;
+  }
 
-  const handleDelete = async (type, id) => {
-    if (!window.confirm("Are you sure you want to delete this item?")) return;
-    try {
-      await api.delete(`/${type}/${id}`);
-      fetchData();
-    } catch (err) {
-      alert(err.response?.data?.detail || "Error deleting item");
+  const renderPage = () => {
+    switch (activePage) {
+      case "dashboard": return <DashboardPage entityId={currentEntityId} entities={entities} />;
+      case "income": return <IncomePage />;
+      case "expenses": return <ExpensesPage />;
+      case "debts": return <DebtsPage />;
+      case "accounts": return <AccountsPage />;
+      case "investments": return <InvestmentsPage />;
+      case "budget": return <BudgetPage />;
+      case "calendar": return <CalendarPage />;
+      case "savings": return <SavingsFundsPage />;
+      case "settings": return <SettingsPage entities={entities} currentEntityId={currentEntityId} onRefreshEntities={fetchEntities} />;
+      default: return <DashboardPage entityId={currentEntityId} entities={entities} />;
     }
   };
 
   return (
-    <div className="dashboard" data-testid="dashboard">
-      <header className="dashboard-header">
-        <div className="header-left">
-          <img src="/logo.png" alt="BlackieFi" className="header-logo" />
-          <h1>BlackieFi</h1>
-          <span className="version">v3.0</span>
+    <div className="app-layout" data-testid="app-layout">
+      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`} data-testid="sidebar">
+        <div className="sidebar-header">
+          <div className="sidebar-brand">
+            <img src="/logo.png" alt="BlackieFi" className="sidebar-logo" />
+            <span className="sidebar-title">BlackieFi</span>
+          </div>
+          <button className="sidebar-close" onClick={() => setSidebarOpen(false)} data-testid="sidebar-close"><X size={20} /></button>
         </div>
-        <div className="header-right">
-          <span className="user-name" data-testid="user-name">{user.full_name}</span>
-          <button onClick={onLogout} className="logout-btn" data-testid="logout-button">
-            Logout
+
+        <div className="entity-switcher" data-testid="entity-switcher">
+          <button className="entity-btn" onClick={() => setEntityDropOpen(!entityDropOpen)} data-testid="entity-dropdown-btn">
+            <span className="entity-name">{currentEntity?.name || "Select Entity"}</span>
+            <ChevronDown size={16} className={entityDropOpen ? "rotated" : ""} />
+          </button>
+          {entityDropOpen && (
+            <div className="entity-dropdown" data-testid="entity-dropdown">
+              {entities.map(e => (
+                <button key={e.id} className={`entity-option ${e.id === currentEntityId ? 'active' : ''}`}
+                        onClick={() => switchEntity(e.id)} data-testid={`entity-opt-${e.id}`}>
+                  <span>{e.name}</span>
+                  {e.is_personal && <span className="badge-xs">Personal</span>}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <nav className="sidebar-nav">
+          {NAV_ITEMS.map(item => (
+            <button key={item.key} className={`nav-item ${activePage === item.key ? 'active' : ''}`}
+                    onClick={() => { setActivePage(item.key); setSidebarOpen(false); }}
+                    data-testid={`nav-${item.key}`}>
+              {item.icon}
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <div className="sidebar-footer">
+          <div className="user-info">
+            <span className="user-avatar">{user?.full_name?.[0] || "U"}</span>
+            <div className="user-details">
+              <span className="user-name-text">{user?.full_name}</span>
+              <span className="user-email-text">{user?.email}</span>
+            </div>
+          </div>
+          <button className="logout-btn-sidebar" onClick={onLogout} data-testid="logout-button">
+            <LogOut size={18} />
           </button>
         </div>
-      </header>
+      </aside>
 
-      <nav className="dashboard-nav">
-        {["overview", "entities", "accounts", "assets"].map((tab) => (
-          <button
-            key={tab}
-            className={activeTab === tab ? "active" : ""}
-            onClick={() => setActiveTab(tab)}
-            data-testid={`nav-${tab}`}
-          >
-            {tab.charAt(0).toUpperCase() + tab.slice(1)}
+      {sidebarOpen && <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />}
+
+      <div className="main-area">
+        <header className="top-header" data-testid="top-header">
+          <button className="hamburger" onClick={() => setSidebarOpen(true)} data-testid="hamburger-btn">
+            <Menu size={22} />
           </button>
-        ))}
-      </nav>
+          <div className="header-title">
+            <h1>{NAV_ITEMS.find(i => i.key === activePage)?.label || "Dashboard"}</h1>
+          </div>
+          <div className="header-right-area">
+            <span className="user-name-header" data-testid="user-name">{user?.full_name}</span>
+          </div>
+        </header>
 
-      <main className="dashboard-content">
-        {loading ? (
-          <div className="loading" data-testid="loading">Loading...</div>
-        ) : (
-          <>
-            {activeTab === "overview" && (
-              <div className="overview" data-testid="overview-tab">
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <h3>Total Entities</h3>
-                    <p className="stat-value" data-testid="total-entities">{entities.length}</p>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Total Accounts</h3>
-                    <p className="stat-value" data-testid="total-accounts">{accounts.length}</p>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Account Balance</h3>
-                    <p className="stat-value" data-testid="total-balance">
-                      ${totalAccountBalance.toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Asset Value</h3>
-                    <p className="stat-value" data-testid="total-asset-value">
-                      ${totalAssetValue.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-                <div className="stat-card total-card">
-                  <h3>Total Net Worth</h3>
-                  <p className="stat-value large" data-testid="net-worth">
-                    ${(totalAccountBalance + totalAssetValue).toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {activeTab === "entities" && (
-              <div className="entities-tab" data-testid="entities-tab">
-                <div className="tab-header">
-                  <h2>Entities</h2>
-                  <button onClick={() => setShowModal("entity")} data-testid="add-entity-btn">
-                    + Add Entity
-                  </button>
-                </div>
-                <div className="items-list">
-                  {entities.length === 0 ? (
-                    <p className="empty-state">No entities yet. Create your first entity!</p>
-                  ) : (
-                    entities.map((entity) => (
-                      <div key={entity.id} className="item-card" data-testid={`entity-${entity.id}`}>
-                        <div className="item-info">
-                          <h3>{entity.name}</h3>
-                          <p>Type: {entity.entity_type}</p>
-                          {entity.jurisdiction && <p>Jurisdiction: {entity.jurisdiction}</p>}
-                        </div>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleDelete("entities", entity.id)}
-                          data-testid={`delete-entity-${entity.id}`}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeTab === "accounts" && (
-              <div className="accounts-tab" data-testid="accounts-tab">
-                <div className="tab-header">
-                  <h2>Accounts</h2>
-                  <button onClick={() => setShowModal("account")} data-testid="add-account-btn">
-                    + Add Account
-                  </button>
-                </div>
-                <div className="items-list">
-                  {accounts.length === 0 ? (
-                    <p className="empty-state">No accounts yet. Create your first account!</p>
-                  ) : (
-                    accounts.map((account) => (
-                      <div key={account.id} className="item-card" data-testid={`account-${account.id}`}>
-                        <div className="item-info">
-                          <h3>{account.name}</h3>
-                          <p>Type: {account.account_type}</p>
-                          <p className="balance">
-                            Balance: {account.currency} {account.balance?.toLocaleString()}
-                          </p>
-                        </div>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleDelete("accounts", account.id)}
-                          data-testid={`delete-account-${account.id}`}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-
-            {activeTab === "assets" && (
-              <div className="assets-tab" data-testid="assets-tab">
-                <div className="tab-header">
-                  <h2>Assets</h2>
-                  <button onClick={() => setShowModal("asset")} data-testid="add-asset-btn">
-                    + Add Asset
-                  </button>
-                </div>
-                <div className="items-list">
-                  {assets.length === 0 ? (
-                    <p className="empty-state">No assets yet. Create your first asset!</p>
-                  ) : (
-                    assets.map((asset) => (
-                      <div key={asset.id} className="item-card" data-testid={`asset-${asset.id}`}>
-                        <div className="item-info">
-                          <h3>{asset.name}</h3>
-                          <p>Type: {asset.asset_type}</p>
-                          <p className="balance">Value: ${asset.value?.toLocaleString()}</p>
-                          {asset.location && <p>Location: {asset.location}</p>}
-                        </div>
-                        <button
-                          className="delete-btn"
-                          onClick={() => handleDelete("assets", asset.id)}
-                          data-testid={`delete-asset-${asset.id}`}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </main>
-
-      {/* Modals */}
-      {showModal === "entity" && (
-        <Modal title="Add Entity" onClose={() => setShowModal(null)}>
-          <EntityForm onSubmit={handleCreateEntity} onCancel={() => setShowModal(null)} />
-        </Modal>
-      )}
-      {showModal === "account" && (
-        <Modal title="Add Account" onClose={() => setShowModal(null)}>
-          <AccountForm
-            entities={entities}
-            onSubmit={handleCreateAccount}
-            onCancel={() => setShowModal(null)}
-          />
-        </Modal>
-      )}
-      {showModal === "asset" && (
-        <Modal title="Add Asset" onClose={() => setShowModal(null)}>
-          <AssetForm
-            entities={entities}
-            onSubmit={handleCreateAsset}
-            onCancel={() => setShowModal(null)}
-          />
-        </Modal>
-      )}
+        <main className="content-area" data-testid="content-area">
+          {renderPage()}
+        </main>
+      </div>
     </div>
   );
-};
-
-const Modal = ({ title, children, onClose }) => (
-  <div className="modal-overlay" onClick={onClose} data-testid="modal-overlay">
-    <div className="modal-content" onClick={(e) => e.stopPropagation()} data-testid="modal-content">
-      <div className="modal-header">
-        <h2>{title}</h2>
-        <button className="close-btn" onClick={onClose} data-testid="modal-close">
-          ×
-        </button>
-      </div>
-      {children}
-    </div>
-  </div>
-);
-
-const EntityForm = ({ onSubmit, onCancel }) => {
-  const [name, setName] = useState("");
-  const [entityType, setEntityType] = useState("llc");
-  const [jurisdiction, setJurisdiction] = useState("");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({ name, entity_type: entityType, jurisdiction: jurisdiction || null });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="modal-form" data-testid="entity-form">
-      <input
-        type="text"
-        placeholder="Entity Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-        data-testid="entity-name-input"
-      />
-      <select
-        value={entityType}
-        onChange={(e) => setEntityType(e.target.value)}
-        data-testid="entity-type-select"
-      >
-        <option value="llc">LLC</option>
-        <option value="trust">Trust</option>
-        <option value="corporation">Corporation</option>
-      </select>
-      <input
-        type="text"
-        placeholder="Jurisdiction (optional)"
-        value={jurisdiction}
-        onChange={(e) => setJurisdiction(e.target.value)}
-        data-testid="entity-jurisdiction-input"
-      />
-      <div className="form-actions">
-        <button type="button" onClick={onCancel} data-testid="entity-cancel-btn">
-          Cancel
-        </button>
-        <button type="submit" data-testid="entity-submit-btn">
-          Create Entity
-        </button>
-      </div>
-    </form>
-  );
-};
-
-const AccountForm = ({ entities, onSubmit, onCancel }) => {
-  const [name, setName] = useState("");
-  const [accountType, setAccountType] = useState("checking");
-  const [balance, setBalance] = useState("");
-  const [entityId, setEntityId] = useState("");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({
-      name,
-      account_type: accountType,
-      balance: parseFloat(balance) || 0,
-      currency: "USD",
-      entity_id: entityId || null,
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="modal-form" data-testid="account-form">
-      <input
-        type="text"
-        placeholder="Account Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-        data-testid="account-name-input"
-      />
-      <select
-        value={accountType}
-        onChange={(e) => setAccountType(e.target.value)}
-        data-testid="account-type-select"
-      >
-        <option value="checking">Checking</option>
-        <option value="savings">Savings</option>
-        <option value="investment">Investment</option>
-        <option value="crypto">Crypto</option>
-      </select>
-      <input
-        type="number"
-        placeholder="Balance"
-        value={balance}
-        onChange={(e) => setBalance(e.target.value)}
-        step="0.01"
-        data-testid="account-balance-input"
-      />
-      <select
-        value={entityId}
-        onChange={(e) => setEntityId(e.target.value)}
-        data-testid="account-entity-select"
-      >
-        <option value="">No Entity</option>
-        {entities.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.name}
-          </option>
-        ))}
-      </select>
-      <div className="form-actions">
-        <button type="button" onClick={onCancel} data-testid="account-cancel-btn">
-          Cancel
-        </button>
-        <button type="submit" data-testid="account-submit-btn">
-          Create Account
-        </button>
-      </div>
-    </form>
-  );
-};
-
-const AssetForm = ({ entities, onSubmit, onCancel }) => {
-  const [name, setName] = useState("");
-  const [assetType, setAssetType] = useState("real_estate");
-  const [value, setValue] = useState("");
-  const [location, setLocation] = useState("");
-  const [entityId, setEntityId] = useState("");
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit({
-      name,
-      asset_type: assetType,
-      value: parseFloat(value) || 0,
-      location: location || null,
-      entity_id: entityId || null,
-    });
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="modal-form" data-testid="asset-form">
-      <input
-        type="text"
-        placeholder="Asset Name"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-        data-testid="asset-name-input"
-      />
-      <select
-        value={assetType}
-        onChange={(e) => setAssetType(e.target.value)}
-        data-testid="asset-type-select"
-      >
-        <option value="real_estate">Real Estate</option>
-        <option value="precious_metals">Precious Metals</option>
-        <option value="vehicle">Vehicle</option>
-        <option value="collectible">Collectible</option>
-        <option value="other">Other</option>
-      </select>
-      <input
-        type="number"
-        placeholder="Value"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        step="0.01"
-        required
-        data-testid="asset-value-input"
-      />
-      <input
-        type="text"
-        placeholder="Location (optional)"
-        value={location}
-        onChange={(e) => setLocation(e.target.value)}
-        data-testid="asset-location-input"
-      />
-      <select
-        value={entityId}
-        onChange={(e) => setEntityId(e.target.value)}
-        data-testid="asset-entity-select"
-      >
-        <option value="">No Entity</option>
-        {entities.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.name}
-          </option>
-        ))}
-      </select>
-      <div className="form-actions">
-        <button type="button" onClick={onCancel} data-testid="asset-cancel-btn">
-          Cancel
-        </button>
-        <button type="submit" data-testid="asset-submit-btn">
-          Create Asset
-        </button>
-      </div>
-    </form>
-  );
-};
+}
 
 function App() {
-  const { user, loading, login, register, logout } = useAuth();
+  const { user, loading, login, register, logout, updateUser } = useAuth();
 
   if (loading) {
     return (
@@ -651,7 +278,7 @@ function App() {
   return (
     <div className="App">
       {user ? (
-        <Dashboard user={user} onLogout={logout} />
+        <MainLayout user={user} onLogout={logout} onUpdateUser={updateUser} />
       ) : (
         <AuthForm onLogin={login} onRegister={register} />
       )}
