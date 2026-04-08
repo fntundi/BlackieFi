@@ -96,8 +96,10 @@ const AuthForm = ({ onLogin, onRegister }) => {
     <div className="auth-container" data-testid="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <img src="/logo.png" alt="BlackieFi Logo" className="auth-logo" />
-          <h1>BlackieFi</h1>
+          <div className="auth-brand">
+            <img src="/logo.png" alt="BlackieFi Logo" className="auth-logo" />
+            <h1>BlackieFi</h1>
+          </div>
           <p>Asset Management Platform</p>
         </div>
         <div className="auth-tabs">
