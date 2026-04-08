@@ -1,3 +1,23 @@
+"""
+================================================================================
+DEPRECATED - PREVIEW ENVIRONMENT ONLY
+================================================================================
+This monolithic server.py is DEPRECATED and maintained solely for the Emergent 
+preview environment (supervisor-managed). 
+
+For production deployments, use the microservices architecture:
+  - /app/services/auth/main.py      -> Auth Service (Port 8001)
+  - /app/services/core/main.py      -> Core Service (Port 8002)  
+  - /app/services/entity/main.py    -> Entity Service (Port 8003)
+  - /app/services/portfolio/main.py -> Portfolio Service (Port 8004)
+  - /app/services/assets/main.py    -> Assets Service (Port 8005)
+  - /app/services/gateway-app/      -> Node.js Gateway (Port 8000)
+  - /app/infrastructure/nginx.conf  -> Nginx Edge Gateway (Port 8080)
+
+To run production: docker-compose up -d
+================================================================================
+"""
+
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import StreamingResponse
@@ -27,7 +47,11 @@ JWT_ALGORITHM = 'HS256'
 JWT_EXPIRATION_HOURS = 24
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-app = FastAPI(title="BlackieFi API", version="3.0.0")
+app = FastAPI(
+    title="BlackieFi API", 
+    version="3.0.0",
+    description="DEPRECATED: Preview-only monolith. Use docker-compose for production microservices."
+)
 security = HTTPBearer()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

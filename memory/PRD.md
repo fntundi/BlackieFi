@@ -74,6 +74,12 @@ All services -> MongoDB (27017) + Redis (6379) + ChromaDB (8000) | Core -> Ollam
 ## Frontend Pages (17 total)
 Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Budget, Budget Variance, Debt Payoff, Calendar, Savings Goals, AI Assistant, Document Q&A, Notifications, Import/Export, Settings (7 tabs: Categories, Roles, Entity Users, Entities, AI Features, Security MFA, Currency)
 
+## Maintenance (Dec 2025)
+- [x] Fixed pydantic dependency conflict (`pydantic[email]>=2.9.0` for google-genai compatibility)
+- [x] Fixed httpx dependency (`httpx>=0.28.1` for google-genai compatibility)
+- [x] Added deprecation notice to monolithic server.py with microservices migration guide
+- [x] Server.py now clearly documented as preview-only; production uses docker-compose microservices
+
 ## P0 Backlog
 - Integrate live exchange rate API (optional upgrade from static rates)
 - Add email delivery for password reset tokens
