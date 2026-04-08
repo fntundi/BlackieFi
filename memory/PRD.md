@@ -1,114 +1,173 @@
 # BlackieFi 3.0 - Product Requirements Document
 
 ## Original Problem Statement
-Transform the existing application into the BlackieFi 3.0 microservices architecture using:
-- Python (FastAPI) for backend services
-- TypeScript (Node.js + React) for gateway app layer and frontend
-- Nginx as the API gateway edge layer
-- Docker + Docker Compose ONLY
-- Ollama (local LLM runtime) for AI features
+Transform BlackieFi into a comprehensive personal/business finance management platform that helps individuals and small businesses track recurring expenses, total debt, income, investments, and budgets, with a calendar view of financial events and role-based access control. Mobile-first UI with responsive web/desktop support. Single-currency (USD), no bank integrations; all data user-entered.
 
-The system must boot fully locally with zero manual steps.
+## Architecture
+- **Frontend**: React (with Recharts, Lucide React, date-fns)
+- **Backend**: FastAPI (Python) on port 8001
+- **Database**: MongoDB
+- **Theme**: Dark navy blue + amber/gold accent (inspired by faithntundi.com)
+- **Auth**: JWT token-based, bcrypt password hashing
+- **Fonts**: Plus Jakarta Sans
 
-## Architecture Overview
+## Code Structure
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Nginx Gateway (8080)                     │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-┌─────────────────────────────────────────────────────────────────┐
-│                   Gateway App - Node.js/TypeScript (8000)        │
-└─────────────────────────────────────────────────────────────────┘
-                                │
-┌───────────┬───────────┬───────────┬───────────┬───────────┐
-│   Auth    │   Core    │  Entity   │ Portfolio │  Assets   │
-│   8001    │   8002    │   8003    │   8004    │   8005    │
-└───────────┴───────────┴───────────┴───────────┴───────────┘
-                                │
-┌───────────────────────┬───────────────────────┬───────────────────────┐
-│      MongoDB (27017)  │     Redis (6379)      │    ChromaDB (8000)    │
-└───────────────────────┴───────────────────────┴───────────────────────┘
-                                │
-                      ┌───────────────┐
-                      │ Ollama (11434)│
-                      └───────────────┘
+/app
+├── backend/server.py          # Complete FastAPI backend (~1600 lines)
+├── frontend/src/
+│   ├── App.js                 # Main shell: auth, sidebar nav, entity switcher
+│   ├── App.css                # Dark navy/amber theme (~600 lines)
+│   ├── lib/api.js             # Axios client with auth interceptor
+│   └── pages/                 # Feature pages
+│       ├── DashboardPage.jsx  # Unified + entity dashboards with charts
+│       ├── IncomePage.jsx     # Income source CRUD + mark received
+│       ├── ExpensesPage.jsx   # Expense CRUD + mark paid
+│       ├── DebtsPage.jsx      # Debt CRUD + make payment + progress bars
+│       ├── AccountsPage.jsx   # Account CRUD
+│       ├── InvestmentsPage.jsx# Vehicles + holdings with pie chart
+│       ├── BudgetPage.jsx     # Monthly budgets with bar chart + copy
+│       ├── CalendarPage.jsx   # Month view with color-coded event dots
+│       ├── SavingsFundsPage.jsx # Savings goals with progress bars
+│       ├── SettingsPage.jsx   # Categories, roles, entity users, entities
+│       └── OnboardingPage.jsx # 5-step setup wizard for new users
+├── services/                  # Microservices scaffolding (Docker-based)
+├── docker-compose.yml
+└── Makefile
 ```
 
-## User Personas
-1. **Developer**: Needs simple DX with make up/down/logs/reset commands
-2. **DevOps**: Needs production-grade Docker setup with healthchecks and persistence
-3. **End User**: Needs asset management dashboard for entities, accounts, and assets
+## What's Been Implemented (April 2026)
 
-## Core Requirements (Static)
-1. Single environment only (.env.template → .env auto-generation)
-2. Zero external dependencies - all services run via Docker
-3. Idempotent startup - make up works multiple times without issues
-4. Simple DX with 4 main commands
-5. Data persistence via Docker volumes mapped to /data/*
+### Authentication & RBAC
+- [x] JWT-based login/register/logout
+- [x] Auto-create personal entity on registration
+- [x] Three default roles: Admin, Power User, Regular User
+- [x] Per-entity role assignment
+- [x] Permission-based access control (20+ permissions)
+- [x] Demo user auto-seeding (demo@blackiefi.com / Demo123!)
 
-## What's Been Implemented (Jan 2026)
+### Entity Management
+- [x] Personal entity (auto-created)
+- [x] Business entity creation
+- [x] Entity switcher in sidebar
+- [x] Invite users to entities
+- [x] Role assignment per entity
+- [x] User deactivation per entity
 
-### Backend Services (FastAPI)
-- [x] Auth Service (8001) - JWT authentication, login, register, logout, password change
-- [x] Core Service (8002) - Legacy routes, AI chat with Ollama
-- [x] Entity Service (8003) - CRUD for LLCs, trusts, corporations
-- [x] Portfolio Service (8004) - CRUD for accounts, holdings
-- [x] Assets Service (8005) - CRUD for real estate, precious metals, etc.
-- [x] Shared Config Module - Centralized configuration for all services
+### Income Tracking
+- [x] Add income sources (salary, freelance, rental, other)
+- [x] Frequency: weekly, biweekly, semimonthly, monthly, quarterly, yearly
+- [x] Mark income as received (creates transaction, advances next date)
+- [x] Variable amount flag
+- [x] CRUD operations
 
-### Gateway Layer
-- [x] Gateway App (Node.js/TypeScript) - JWT validation, request routing, correlation IDs
-- [x] Nginx Configuration - TLS termination, rate limiting, CORS, request logging
+### Expense Tracking
+- [x] Recurring and one-off expenses
+- [x] Category assignment
+- [x] Mark as paid (creates transaction, advances next date)
+- [x] Monthly total displayed
+- [x] CRUD operations
 
-### Data Layer
-- [x] MongoDB configuration with init script
-- [x] Redis configuration for sessions/cache
-- [x] ChromaDB for vector embeddings
-- [x] Ollama with phi model for AI features
+### Debt Management
+- [x] Loan, credit card, line of credit tracking
+- [x] Original amount, current balance, interest rate, minimum payment
+- [x] Make payment (reduces balance, creates transaction)
+- [x] Progress bar showing payoff %
+- [x] CRUD operations
 
-### Infrastructure
-- [x] Docker Compose with all 12 services
-- [x] Makefile with up/down/logs/reset commands
-- [x] .env.template with all required variables
-- [x] Data persistence directories
+### Account Management
+- [x] Checking, savings, credit card, investment, loan accounts
+- [x] Balance tracking with auto-updates from transactions
+- [x] Total balance display
+- [x] CRUD operations
 
-### Frontend
-- [x] React application with auth flow
-- [x] Dashboard with overview, entities, accounts, assets tabs
-- [x] CRUD modals for creating entities, accounts, assets
-- [x] Responsive design with dark theme
-- [x] Premium dark blue theme inspired by faithntundi.com
-  - Deep navy blue backgrounds (#020617, #0f172a, #1e293b)
-  - Gold/amber accents (#f59e0b, #fbbf24) for buttons and highlights
-  - Backdrop blur effects on cards and modals
-  - Plus Jakarta Sans typography
-  - Subtle gradients and shadow layering for depth
+### Investment Tracking
+- [x] Investment vehicles (401k, IRA, brokerage, crypto)
+- [x] Holdings per vehicle (asset name, quantity, cost basis, current price)
+- [x] Portfolio value calculation
+- [x] Gain/loss display
+- [x] Pie chart breakdown by vehicle
+- [x] CRUD operations
 
-## Prioritized Backlog
+### Budgeting
+- [x] Monthly budgets per entity
+- [x] Category-based planned spending
+- [x] Year navigation + month selection grid
+- [x] Copy budget to another month
+- [x] Bar chart visualization
+- [x] CRUD operations
 
-### P0 (Critical - For Docker Testing)
-- [ ] Test full Docker Compose startup
-- [ ] Verify service health checks work correctly
-- [ ] Test end-to-end user flow in containerized environment
+### Calendar View
+- [x] Month grid with day cells
+- [x] Color-coded event dots (green=income, red=expense, orange=debt)
+- [x] Auto-generated events from recurring items
+- [x] Manual event creation
+- [x] Day detail panel on click
+- [x] Month navigation + Today button
+- [x] Event type filters
 
-### P1 (High Priority)
-- [ ] Add MFA/TOTP authentication support
-- [ ] Implement RAG-based document Q&A using ChromaDB
-- [ ] Add real-time notifications via WebSocket
+### Savings Goals
+- [x] Target amount + current amount tracking
+- [x] Progress bars with percentage
+- [x] Contribute to fund (creates transaction)
+- [x] Target date tracking
+- [x] CRUD operations
 
-### P2 (Medium Priority)
-- [ ] Add user roles and permissions
-- [ ] Implement data export/import functionality
-- [ ] Add audit logging for all operations
-- [ ] Dashboard charts and analytics
+### Dashboard
+- [x] Unified view (all entities) + per-entity view toggle
+- [x] Net worth, total balance, total debt, investments stat cards
+- [x] Income vs expenses summary
+- [x] Upcoming paydays + upcoming bills
+- [x] Budget utilization bar chart
+- [x] Debt breakdown pie chart
+- [x] Recent transactions list
 
-### P3 (Nice to Have)
-- [ ] Email notifications
-- [ ] Integration with external financial APIs
-- [ ] Mobile-responsive PWA features
+### Settings & Admin
+- [x] Categories management (view defaults, add custom, delete)
+- [x] Roles & permissions display (admin, power_user, regular_user)
+- [x] Entity users management (invite, change role)
+- [x] Entity management (create business, delete)
 
-## Next Tasks
-1. User needs to run `make up` locally to test the full Docker setup
-2. Test authentication flow end-to-end
-3. Verify Ollama model pulling works correctly
-4. Test data persistence across container restarts
+### Onboarding
+- [x] 5-step wizard for new users
+- [x] Add income sources, expenses, debts, optional business
+- [x] Skip option
+- [x] Auto-marks onboarding complete
+
+### Audit Trail
+- [x] Logs creation of entities, accounts, income, expenses, debts
+
+## Seeded Demo Data
+- 3 accounts (Chase Checking, Marcus Savings, Amex Credit Card)
+- 2 income sources (Employer Salary, Freelance Gigs)
+- 5 expenses (Rent, Car Insurance, Netflix, Gym, Groceries)
+- 2 debts (Auto Loan, Credit Card Balance)
+- 1 investment vehicle (Fidelity 401k) with 2 holdings (AAPL, VTI)
+- 1 savings fund (Vacation Fund)
+- Current month budget with 6 categories
+- 13 default categories
+
+## Testing Status
+- Backend: 42/42 tests pass (100%)
+- Frontend: All navigation, CRUD, mobile, auth flows pass
+- Test report: /app/test_reports/iteration_2.json
+
+## P0 Backlog (Next Priority)
+- Transaction history page with filtering/sorting
+- Password reset flow
+- Debt payoff estimator (with interest calculations)
+
+## P1 Backlog
+- Implement Ollama/AI integration in core service
+- Advanced budget variance reporting (planned vs actual per category)
+- Notification/reminder system for upcoming bills
+- Data export (CSV/PDF)
+
+## P2 Backlog
+- Multi-currency support
+- Portfolio analytics with historical charts
+- MFA/TOTP authentication
+- RAG-based document Q&A using ChromaDB
+- Real-time notifications via WebSocket
+- Audit log viewer UI
+- Advanced role permission editing UI
