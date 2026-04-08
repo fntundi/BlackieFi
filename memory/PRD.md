@@ -5,38 +5,52 @@ Transform BlackieFi into a comprehensive personal/business finance management pl
 
 ## Architecture
 - **Frontend**: React (with Recharts, Lucide React, date-fns)
-- **Backend**: FastAPI (Python) on port 8001
+- **Backend (Preview)**: FastAPI (Python) on port 8001 (monolithic server.py)
+- **Backend (Docker)**: Microservices architecture with 5 Python services + Node.js gateway
 - **Database**: MongoDB
-- **Theme**: Dark navy blue + amber/gold accent (inspired by faithntundi.com)
+- **Cache**: Redis
+- **Vector DB**: ChromaDB
+- **AI Runtime**: Ollama (phi model)
+- **Edge Gateway**: Nginx
+- **Theme**: Dark navy blue + amber/gold accent
 - **Auth**: JWT token-based, bcrypt password hashing
 - **Fonts**: Plus Jakarta Sans
+
+## Microservices Architecture (Docker)
+```
+Nginx (8080) -> Gateway App (Node.js, 8000) -> Auth (8001) | Core (8002) | Entity (8003) | Portfolio (8004) | Assets (8005)
+                                                All services -> MongoDB (27017) + Redis (6379) + ChromaDB (8000)
+                                                Core -> Ollama (11434)
+```
 
 ## Code Structure
 ```
 /app
-├── backend/server.py          # Complete FastAPI backend (~1600 lines)
+├── backend/server.py          # Monolithic backend for preview (~1950 lines)
 ├── frontend/src/
-│   ├── App.js                 # Main shell: auth, sidebar nav, entity switcher
-│   ├── App.css                # Dark navy/amber theme (~600 lines)
+│   ├── App.js                 # Auth, sidebar nav, entity switcher
+│   ├── App.css                # Dark navy/amber theme
 │   ├── lib/api.js             # Axios client with auth interceptor
-│   └── pages/                 # Feature pages
-│       ├── DashboardPage.jsx  # Unified + entity dashboards with charts
-│       ├── IncomePage.jsx     # Income source CRUD + mark received
-│       ├── ExpensesPage.jsx   # Expense CRUD + mark paid
-│       ├── DebtsPage.jsx      # Debt CRUD + make payment + progress bars
-│       ├── AccountsPage.jsx   # Account CRUD
-│       ├── InvestmentsPage.jsx# Vehicles + holdings with pie chart
-│       ├── BudgetPage.jsx     # Monthly budgets with bar chart + copy
-│       ├── CalendarPage.jsx   # Month view with color-coded event dots
-│       ├── SavingsFundsPage.jsx # Savings goals with progress bars
-│       ├── SettingsPage.jsx   # Categories, roles, entity users, entities
-│       └── OnboardingPage.jsx # 5-step setup wizard for new users
-├── services/                  # Microservices scaffolding (Docker-based)
-├── docker-compose.yml
-└── Makefile
+│   └── pages/                 # Feature pages (Dashboard, Income, Expenses, etc.)
+├── services/                  # Docker microservices
+│   ├── auth/                  # Auth service (port 8001)
+│   ├── core/                  # Core service (port 8002)
+│   ├── entity/                # Entity service (port 8003)
+│   ├── portfolio/             # Portfolio service (port 8004)
+│   ├── assets/                # Assets service (port 8005)
+│   ├── gateway-app/           # Node.js API gateway (port 8000)
+│   └── shared/                # Shared Python modules
+├── infrastructure/
+│   ├── nginx.conf             # Nginx edge gateway config
+│   ├── mongo-init.js          # MongoDB initialization
+│   └── ollama-init.sh         # Ollama model pull
+├── docker-compose.yml         # Full orchestration (13 services)
+├── Makefile                   # Build lifecycle management
+├── .env.template              # Environment variable template
+└── .dockerignore              # Docker build exclusions
 ```
 
-## What's Been Implemented (April 2026)
+## What's Been Implemented
 
 ### Authentication & RBAC
 - [x] JWT-based login/register/logout
@@ -45,6 +59,8 @@ Transform BlackieFi into a comprehensive personal/business finance management pl
 - [x] Per-entity role assignment
 - [x] Permission-based access control (20+ permissions)
 - [x] Demo user auto-seeding (demo@blackiefi.com / Demo123!)
+- [x] Password reset flow
+- [x] Password change
 
 ### Entity Management
 - [x] Personal entity (auto-created)
@@ -52,116 +68,57 @@ Transform BlackieFi into a comprehensive personal/business finance management pl
 - [x] Entity switcher in sidebar
 - [x] Invite users to entities
 - [x] Role assignment per entity
-- [x] User deactivation per entity
 
-### Income Tracking
-- [x] Add income sources (salary, freelance, rental, other)
-- [x] Frequency: weekly, biweekly, semimonthly, monthly, quarterly, yearly
-- [x] Mark income as received (creates transaction, advances next date)
-- [x] Variable amount flag
-- [x] CRUD operations
-
-### Expense Tracking
-- [x] Recurring and one-off expenses
-- [x] Category assignment
-- [x] Mark as paid (creates transaction, advances next date)
-- [x] Monthly total displayed
-- [x] CRUD operations
-
-### Debt Management
-- [x] Loan, credit card, line of credit tracking
-- [x] Original amount, current balance, interest rate, minimum payment
-- [x] Make payment (reduces balance, creates transaction)
-- [x] Progress bar showing payoff %
-- [x] CRUD operations
-
-### Account Management
-- [x] Checking, savings, credit card, investment, loan accounts
-- [x] Balance tracking with auto-updates from transactions
-- [x] Total balance display
-- [x] CRUD operations
-
-### Investment Tracking
-- [x] Investment vehicles (401k, IRA, brokerage, crypto)
-- [x] Holdings per vehicle (asset name, quantity, cost basis, current price)
-- [x] Portfolio value calculation
-- [x] Gain/loss display
-- [x] Pie chart breakdown by vehicle
-- [x] CRUD operations
-
-### Budgeting
-- [x] Monthly budgets per entity
-- [x] Category-based planned spending
-- [x] Year navigation + month selection grid
-- [x] Copy budget to another month
-- [x] Bar chart visualization
-- [x] CRUD operations
-
-### Calendar View
-- [x] Month grid with day cells
-- [x] Color-coded event dots (green=income, red=expense, orange=debt)
-- [x] Auto-generated events from recurring items
-- [x] Manual event creation
-- [x] Day detail panel on click
-- [x] Month navigation + Today button
-- [x] Event type filters
-
-### Savings Goals
-- [x] Target amount + current amount tracking
-- [x] Progress bars with percentage
-- [x] Contribute to fund (creates transaction)
-- [x] Target date tracking
-- [x] CRUD operations
+### Financial Features
+- [x] Income tracking (salary, freelance, etc.)
+- [x] Expense tracking (recurring and one-off)
+- [x] Debt management with payments
+- [x] Account management (checking, savings, credit card, etc.)
+- [x] Investment tracking (vehicles + holdings)
+- [x] Monthly budgets with bar chart
+- [x] Savings goals with progress bars
+- [x] Calendar view with color-coded events
+- [x] Transaction history with search/filter/sort
+- [x] Debt payoff estimator (avalanche/snowball)
+- [x] Budget variance reporting
 
 ### Dashboard
-- [x] Unified view (all entities) + per-entity view toggle
-- [x] Net worth, total balance, total debt, investments stat cards
-- [x] Income vs expenses summary
-- [x] Upcoming paydays + upcoming bills
-- [x] Budget utilization bar chart
-- [x] Debt breakdown pie chart
-- [x] Recent transactions list
+- [x] Unified + per-entity views
+- [x] Net worth, balances, debt, investments
+- [x] Budget utilization, debt breakdown charts
+- [x] Recent transactions
 
-### Settings & Admin
-- [x] Categories management (view defaults, add custom, delete)
-- [x] Roles & permissions display (admin, power_user, regular_user)
-- [x] Entity users management (invite, change role)
-- [x] Entity management (create business, delete)
-
-### Onboarding
-- [x] 5-step wizard for new users
-- [x] Add income sources, expenses, debts, optional business
-- [x] Skip option
-- [x] Auto-marks onboarding complete
-
-### Audit Trail
-- [x] Logs creation of entities, accounts, income, expenses, debts
-
-## Seeded Demo Data
-- 3 accounts (Chase Checking, Marcus Savings, Amex Credit Card)
-- 2 income sources (Employer Salary, Freelance Gigs)
-- 5 expenses (Rent, Car Insurance, Netflix, Gym, Groceries)
-- 2 debts (Auto Loan, Credit Card Balance)
-- 1 investment vehicle (Fidelity 401k) with 2 holdings (AAPL, VTI)
-- 1 savings fund (Vacation Fund)
-- Current month budget with 6 categories
-- 13 default categories
+### Microservices Architecture (Feb 2026)
+- [x] Docker Compose with 13 services
+- [x] Nginx edge gateway (rate limiting, CORS, TLS termination)
+- [x] Node.js gateway app (JWT validation, correlation IDs, routing)
+- [x] 5 Python microservices (auth, core, entity, portfolio, assets)
+- [x] MongoDB, Redis, ChromaDB, Ollama data/AI layers
+- [x] Dockerfiles with NO lock file dependencies
+- [x] Makefile lifecycle management (up, down, build, reset, clean, etc.)
+- [x] .env.template with all required variables
+- [x] .dockerignore for optimized builds
+- [x] Health checks on all services
 
 ## Testing Status
-- Backend: 42/42 tests pass (100%)
-- Frontend: All navigation, CRUD, mobile, auth flows pass
-- Test report: /app/test_reports/iteration_2.json
+- Infrastructure: 25/25 tests pass (100%)
+- Preview API: 6/6 tests pass (100%)
+- Frontend: Login and dashboard verified working
+- Test reports: /app/test_reports/iteration_3.json
+
+## Seeded Demo Data
+- 3 accounts, 2 income sources, 5 expenses, 2 debts
+- 1 investment vehicle with 2 holdings, 1 savings fund
+- Current month budget with 6 categories, 13 default categories
 
 ## P0 Backlog (Next Priority)
-- Transaction history page with filtering/sorting
-- Password reset flow
-- Debt payoff estimator (with interest calculations)
+- Migrate full business logic from server.py into microservices
+- Implement Ollama AI integration in core service
 
 ## P1 Backlog
-- Implement Ollama/AI integration in core service
-- Advanced budget variance reporting (planned vs actual per category)
 - Notification/reminder system for upcoming bills
 - Data export (CSV/PDF)
+- Settings page improvements
 
 ## P2 Backlog
 - Multi-currency support
@@ -170,4 +127,3 @@ Transform BlackieFi into a comprehensive personal/business finance management pl
 - RAG-based document Q&A using ChromaDB
 - Real-time notifications via WebSocket
 - Audit log viewer UI
-- Advanced role permission editing UI
