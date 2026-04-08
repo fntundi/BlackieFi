@@ -1,0 +1,15 @@
+**/node_modules
+**/__pycache__
+**/.pytest_cache
+**/*.pyc
+**/dist
+**/build
+.git
+.emergent
+.env
+data/
+*.log
+test_reports/
+memory/
+backend_test.py
+tests/

@@ -2,14 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install shared requirements first
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY services/shared/requirements.txt /app/shared-requirements.txt
 RUN pip install --no-cache-dir -r /app/shared-requirements.txt
 
-# Copy shared module
 COPY services/shared /app/services/shared
-
-# Copy service code
 COPY services/core /app/services/core
 
 WORKDIR /app/services/core

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = "https://ai-finance-hub-47.preview.emergentagent.com"
+    BASE_URL = "https://wealth-platform-40.preview.emergentagent.com"
 
 # Demo credentials
 DEMO_EMAIL = "demo@blackiefi.com"

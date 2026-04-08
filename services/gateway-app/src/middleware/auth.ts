@@ -3,7 +3,7 @@
  */
 import { Request, Response, NextFunction } from 'express';
 import * as jwt from 'jsonwebtoken';
-import { config } from './config';
+import { config } from '../config';
 
 export interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -14,6 +14,8 @@ export interface AuthenticatedRequest extends Request {
 const PUBLIC_PATHS = [
   '/api/auth/login',
   '/api/auth/register',
+  '/api/auth/password-reset/request',
+  '/api/auth/password-reset/confirm',
   '/api/health',
   '/api/',
   '/health',

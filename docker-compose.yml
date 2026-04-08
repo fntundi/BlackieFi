@@ -1,13 +1,11 @@
 # BlackieFi 3.0 - Docker Compose Configuration
-# Production-grade microservices architecture
-
-version: '3.8'
+# Microservices architecture with Nginx edge gateway
 
 services:
   # ===========================================
   # Data Layer
   # ===========================================
-  
+
   mongo:
     image: mongo:7.0
     container_name: blackiefi-mongo
@@ -57,7 +55,7 @@ services:
     volumes:
       - ./data/chroma:/chroma/chroma
     ports:
-      - "8000:8000"
+      - "8010:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
       interval: 10s
@@ -69,7 +67,7 @@ services:
   # ===========================================
   # AI Layer
   # ===========================================
-  
+
   ollama:
     image: ollama/ollama:latest
     container_name: blackiefi-ollama
@@ -112,7 +110,7 @@ services:
   # ===========================================
   # Backend Services
   # ===========================================
-  
+
   auth:
     build:
       context: .
@@ -120,7 +118,7 @@ services:
     container_name: blackiefi-auth
     restart: unless-stopped
     environment:
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-key-change-in-production}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - JWT_EXPIRATION_HOURS=${JWT_EXPIRATION_HOURS:-24}
       - MONGO_URL=mongodb://mongo:27017
@@ -148,7 +146,7 @@ services:
     container_name: blackiefi-core
     restart: unless-stopped
     environment:
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-key-change-in-production}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_DB=${MONGO_DB:-blackiefi}
@@ -180,7 +178,7 @@ services:
     container_name: blackiefi-entity
     restart: unless-stopped
     environment:
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-key-change-in-production}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_DB=${MONGO_DB:-blackiefi}
@@ -207,7 +205,7 @@ services:
     container_name: blackiefi-portfolio
     restart: unless-stopped
     environment:
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-key-change-in-production}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_DB=${MONGO_DB:-blackiefi}
@@ -234,7 +232,7 @@ services:
     container_name: blackiefi-assets
     restart: unless-stopped
     environment:
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-key-change-in-production}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - MONGO_URL=mongodb://mongo:27017
       - MONGO_DB=${MONGO_DB:-blackiefi}
@@ -255,9 +253,9 @@ services:
       - blackiefi-network
 
   # ===========================================
-  # Gateway App Layer
+  # Gateway App Layer (Node.js)
   # ===========================================
-  
+
   gateway-app:
     build:
       context: .
@@ -266,7 +264,7 @@ services:
     restart: unless-stopped
     environment:
       - GATEWAY_APP_PORT=8000
-      - JWT_SECRET=${JWT_SECRET}
+      - JWT_SECRET=${JWT_SECRET:-blackiefi-super-secret-key-change-in-production}
       - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
       - AUTH_SERVICE_URL=http://auth:8001
       - CORE_SERVICE_URL=http://core:8002
@@ -296,9 +294,9 @@ services:
       - blackiefi-network
 
   # ===========================================
-  # API Gateway Edge Layer
+  # Nginx Edge Gateway
   # ===========================================
-  
+
   nginx:
     image: nginx:alpine
     container_name: blackiefi-nginx
@@ -323,16 +321,15 @@ services:
   # ===========================================
   # Frontend
   # ===========================================
-  
+
   frontend:
     build:
       context: .
       dockerfile: frontend/Dockerfile.docker
+      args:
+        REACT_APP_BACKEND_URL: http://localhost:8080
     container_name: blackiefi-frontend
     restart: unless-stopped
-    environment:
-      - REACT_APP_BACKEND_URL=http://localhost:8080
-      - NODE_ENV=production
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000"]
       interval: 10s

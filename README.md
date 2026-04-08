@@ -105,20 +105,38 @@ MONGO_DB=blackiefi
 OLLAMA_MODEL=phi
 ```
 
+## Build Lifecycle
+
+Dockerfiles install all dependencies on **first build** (no lock files required):
+
+```bash
+make up          # First run: builds images, installs deps, starts services
+make up          # Subsequent runs: uses cached layers, updates only changed deps
+make build       # Build images without starting containers
+make clean       # Full teardown — removes images, volumes, and local data
+```
+
+- **Python services**: `pip install -r requirements.txt` (shared across services)
+- **Gateway app**: `npm install` from `package.json`
+- **Frontend**: `yarn install` from `package.json`
+
+No `yarn.lock`, `package-lock.json`, or `--frozen-lockfile` flags are used in any Dockerfile.
+
 ## Development
 
 The system is designed for local development with zero external dependencies:
 - All services run in Docker
 - Hot reload not available in containerized mode
 - Use `make logs-service SERVICE=auth` to debug specific services
+- Use `make shell-<service>` to open a shell in any running container
 
 ## Tech Stack
 
-- **Backend**: Python (FastAPI)
-- **Gateway**: Node.js (Express + TypeScript)
-- **Frontend**: React + TypeScript
-- **Database**: MongoDB
-- **Cache**: Redis
+- **Backend**: Python 3.11 (FastAPI + Uvicorn)
+- **Gateway**: Node.js 20 (Express + TypeScript)
+- **Frontend**: React (CRA + Tailwind CSS)
+- **Database**: MongoDB 7.0
+- **Cache**: Redis 7 (Alpine)
 - **Vector DB**: ChromaDB
-- **AI Runtime**: Ollama
-- **Gateway**: Nginx
+- **AI Runtime**: Ollama (phi model)
+- **Edge Gateway**: Nginx (Alpine)

@@ -2,17 +2,15 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY services/gateway-app/package*.json ./
+RUN apk add --no-cache curl
 
-# Install dependencies
+COPY services/gateway-app/package.json ./
+
 RUN npm install
 
-# Copy source
 COPY services/gateway-app/tsconfig.json ./
 COPY services/gateway-app/src ./src
 
-# Build TypeScript
 RUN npm run build
 
 EXPOSE 8000

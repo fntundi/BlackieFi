@@ -1,0 +1,85 @@
+{
+  "summary": "Completed Docker infrastructure validation and preview API regression testing for BlackieFi 3.0 microservices architecture. All 25 infrastructure file validation tests pass (100%). All 6 preview API tests pass (100%). Frontend login and dashboard verified working.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "Login button",
+        "issue": "Missing data-testid='login-button' attribute on submit button",
+        "selector": "button (3rd button in form)",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_docker_infrastructure.py",
+    "/app/backend/tests/test_preview_api.py",
+    "/app/test_reports/pytest/docker_infra_results.xml",
+    "/app/test_reports/pytest/preview_api_results.xml"
+  ],
+  "action_items": [
+    "Add data-testid='login-button' to the login form submit button for better test automation"
+  ],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_docker_infrastructure.py",
+    "/app/backend/tests/test_preview_api.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 API tests passed)",
+    "infrastructure": "100% (25/25 file validation tests passed)",
+    "frontend": "100% (login and dashboard working)"
+  },
+  "test_credentials": {
+    "demo_account": "demo@blackiefi.com / Demo123!"
+  },
+  "seed_data_creation": "Demo user with income, expenses, debts, accounts, investments, savings, budget seeded on backend startup",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Docker infrastructure files validated programmatically (Docker not available in preview pod). All Dockerfiles correctly avoid lock file dependencies. All Python services install curl for health checks. Gateway-app auth middleware correctly imports config from '../config' and includes password-reset routes. Preview API endpoints working: /api/health, /api/auth/health, /api/auth/login, /api/entities/, /api/dashboard/unified",
+  "infrastructure_validation_results": {
+    "docker_compose_yaml": {
+      "valid_yaml": "PASS",
+      "all_13_services": "PASS - auth, core, entity, portfolio, assets, gateway-app, nginx, mongo, redis, chroma, ollama, ollama-init, frontend",
+      "service_ports": "PASS - auth:8001, core:8002, entity:8003, portfolio:8004, assets:8005, gateway-app:8000, nginx:8080"
+    },
+    "dockerfiles_no_lock_files": {
+      "services/auth/Dockerfile": "PASS",
+      "services/core/Dockerfile": "PASS",
+      "services/entity/Dockerfile": "PASS",
+      "services/portfolio/Dockerfile": "PASS",
+      "services/assets/Dockerfile": "PASS",
+      "services/gateway-app/Dockerfile": "PASS",
+      "frontend/Dockerfile.docker": "PASS"
+    },
+    "python_dockerfiles_curl": {
+      "services/auth/Dockerfile": "PASS - installs curl",
+      "services/core/Dockerfile": "PASS - installs curl",
+      "services/entity/Dockerfile": "PASS - installs curl",
+      "services/portfolio/Dockerfile": "PASS - installs curl",
+      "services/assets/Dockerfile": "PASS - installs curl"
+    },
+    "gateway_app_dockerfile": "PASS - only copies package.json (not package*.json or lock files)",
+    "frontend_dockerfile": "PASS - does NOT use --frozen-lockfile",
+    "gateway_app_auth_middleware": {
+      "config_import": "PASS - imports from '../config'",
+      "password_reset_routes": "PASS - includes /api/auth/password-reset/request and /api/auth/password-reset/confirm"
+    },
+    "env_template": "PASS - exists with all 18+ required environment variables",
+    "dockerignore": "PASS - excludes node_modules, __pycache__, .git, data/",
+    "makefile": "PASS - has all required targets: up, down, build, logs, status, test-api, reset, clean, pull, shell-* commands"
+  },
+  "preview_api_results": {
+    "GET /api/health": "PASS - 200",
+    "GET /api/auth/health": "PASS - 200",
+    "POST /api/auth/login (valid)": "PASS - 200 with token",
+    "POST /api/auth/login (invalid)": "PASS - 401 rejected",
+    "GET /api/entities/": "PASS - 200 with entities list",
+    "GET /api/dashboard/unified": "PASS - 200 with dashboard data"
+  }
+}
