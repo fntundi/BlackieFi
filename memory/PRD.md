@@ -1,129 +1,91 @@
 # BlackieFi 3.0 - Product Requirements Document
 
 ## Original Problem Statement
-Transform BlackieFi into a comprehensive personal/business finance management platform that helps individuals and small businesses track recurring expenses, total debt, income, investments, and budgets, with a calendar view of financial events and role-based access control. Mobile-first UI with responsive web/desktop support. Single-currency (USD), no bank integrations; all data user-entered.
+Transform BlackieFi into a comprehensive personal/business finance management platform with microservices architecture, AI-powered financial assistant, multi-currency support, MFA, notification system, data import/export, and RAG-based document Q&A.
 
 ## Architecture
-- **Frontend**: React (with Recharts, Lucide React, date-fns)
-- **Backend (Preview)**: FastAPI (Python) on port 8001 (monolithic server.py)
-- **Backend (Docker)**: Microservices architecture with 5 Python services + Node.js gateway
-- **Database**: MongoDB
-- **Cache**: Redis
-- **Vector DB**: ChromaDB
-- **AI Runtime**: Ollama (phi model)
-- **Edge Gateway**: Nginx
-- **Theme**: Dark navy blue + amber/gold accent
-- **Auth**: JWT token-based, bcrypt password hashing
-- **Fonts**: Plus Jakarta Sans
+- **Frontend**: React (Recharts, Lucide React, date-fns)
+- **Backend (Preview)**: FastAPI monolith on port 8001 (server.py ~2600 lines)
+- **Backend (Docker)**: 5 Python microservices + Node.js gateway + Nginx edge
+- **Database**: MongoDB | **Cache**: Redis | **Vector DB**: ChromaDB | **AI**: Ollama
+- **Theme**: Dark navy blue + amber/gold accent | **Font**: Plus Jakarta Sans
 
-## Microservices Architecture (Docker)
+## Microservices Architecture
 ```
-Nginx (8080) -> Gateway App (Node.js, 8000) -> Auth (8001) | Core (8002) | Entity (8003) | Portfolio (8004) | Assets (8005)
-                                                All services -> MongoDB (27017) + Redis (6379) + ChromaDB (8000)
-                                                Core -> Ollama (11434)
+Nginx (8080) -> Gateway App (Node.js 8000) -> Auth (8001) | Core (8002) | Entity (8003) | Portfolio (8004) | Assets (8005)
+All services -> MongoDB (27017) + Redis (6379) + ChromaDB (8000) | Core -> Ollama (11434)
 ```
 
-## Code Structure
-```
-/app
-├── backend/server.py          # Monolithic backend for preview (~1950 lines)
-├── frontend/src/
-│   ├── App.js                 # Auth, sidebar nav, entity switcher
-│   ├── App.css                # Dark navy/amber theme
-│   ├── lib/api.js             # Axios client with auth interceptor
-│   └── pages/                 # Feature pages (Dashboard, Income, Expenses, etc.)
-├── services/                  # Docker microservices
-│   ├── auth/                  # Auth service (port 8001)
-│   ├── core/                  # Core service (port 8002)
-│   ├── entity/                # Entity service (port 8003)
-│   ├── portfolio/             # Portfolio service (port 8004)
-│   ├── assets/                # Assets service (port 8005)
-│   ├── gateway-app/           # Node.js API gateway (port 8000)
-│   └── shared/                # Shared Python modules
-├── infrastructure/
-│   ├── nginx.conf             # Nginx edge gateway config
-│   ├── mongo-init.js          # MongoDB initialization
-│   └── ollama-init.sh         # Ollama model pull
-├── docker-compose.yml         # Full orchestration (13 services)
-├── Makefile                   # Build lifecycle management
-├── .env.template              # Environment variable template
-└── .dockerignore              # Docker build exclusions
-```
+## Service Responsibilities
+- **Auth (8001)**: Login, register, logout, password reset/change, MFA (TOTP)
+- **Core (8002)**: Health, dashboard, AI chat/insights/categorize, notifications, currency, data import/export, RAG Q&A, categories, roles, calendar, onboarding, WebSocket
+- **Entity (8003)**: Entity CRUD, user invitation, role management
+- **Portfolio (8004)**: Accounts, income, expenses, debts, transactions, budgets, savings, investments (vehicles + holdings), debt payoff estimator, budget variance
+- **Assets (8005)**: Physical asset CRUD + summary
 
-## What's Been Implemented
+## Implemented Features
 
-### Authentication & RBAC
-- [x] JWT-based login/register/logout
+### Phase 1 - Core Financial (Complete)
+- [x] JWT auth with login/register/logout
 - [x] Auto-create personal entity on registration
-- [x] Three default roles: Admin, Power User, Regular User
-- [x] Per-entity role assignment
-- [x] Permission-based access control (20+ permissions)
-- [x] Demo user auto-seeding (demo@blackiefi.com / Demo123!)
-- [x] Password reset flow
-- [x] Password change
-
-### Entity Management
-- [x] Personal entity (auto-created)
-- [x] Business entity creation
-- [x] Entity switcher in sidebar
-- [x] Invite users to entities
-- [x] Role assignment per entity
-
-### Financial Features
-- [x] Income tracking (salary, freelance, etc.)
-- [x] Expense tracking (recurring and one-off)
-- [x] Debt management with payments
-- [x] Account management (checking, savings, credit card, etc.)
-- [x] Investment tracking (vehicles + holdings)
-- [x] Monthly budgets with bar chart
-- [x] Savings goals with progress bars
-- [x] Calendar view with color-coded events
+- [x] 3 default roles (Admin, Power User, Regular User) with 20+ permissions
+- [x] Entity switcher (personal + business)
+- [x] Income tracking, expense tracking, debt management
+- [x] Account management, investment tracking
+- [x] Monthly budgets, savings goals, calendar view
 - [x] Transaction history with search/filter/sort
 - [x] Debt payoff estimator (avalanche/snowball)
 - [x] Budget variance reporting
+- [x] Password reset flow
 
-### Dashboard
-- [x] Unified + per-entity views
-- [x] Net worth, balances, debt, investments
-- [x] Budget utilization, debt breakdown charts
-- [x] Recent transactions
-
-### Microservices Architecture (Feb 2026)
+### Phase 2 - Microservices Architecture (Complete)
 - [x] Docker Compose with 13 services
-- [x] Nginx edge gateway (rate limiting, CORS, TLS termination)
-- [x] Node.js gateway app (JWT validation, correlation IDs, routing)
-- [x] 5 Python microservices (auth, core, entity, portfolio, assets)
-- [x] MongoDB, Redis, ChromaDB, Ollama data/AI layers
-- [x] Dockerfiles with NO lock file dependencies
-- [x] Makefile lifecycle management (up, down, build, reset, clean, etc.)
-- [x] .env.template with all required variables
-- [x] .dockerignore for optimized builds
-- [x] Health checks on all services
+- [x] Nginx edge gateway (rate limiting, CORS, TLS)
+- [x] Node.js gateway (JWT validation, correlation IDs, proxy routing)
+- [x] All Dockerfiles lock-file-free
+- [x] Makefile lifecycle (up, down, build, reset, clean, etc.)
+
+### Phase 3 - New Features (Complete - Feb 2026)
+- [x] **AI/Ollama Integration**: Chat assistant, financial insights, auto-categorization; default OFF; Ollama as fallback LLM
+- [x] **MFA/TOTP**: Enable/disable via Settings; QR code for Google Authenticator; MFA-guarded login flow
+- [x] **Notification System**: In-app bell with unread count; mark read/all-read; upcoming bill reminders; WebSocket real-time push
+- [x] **Data Import/Export**: CSV import (transactions, expenses, income); CSV/JSON export per type; full data export
+- [x] **Multi-Currency**: 34 currencies (incl. BTC/ETH); static exchange rates; user-configurable base currency; built-in converter
+- [x] **RAG Document Q&A**: Upload .txt/.csv/.md/.json; chunk-based indexing (MongoDB fallback + ChromaDB when available); AI-powered Q&A
+- [x] **WebSocket Notifications**: Real-time push via WebSocket; polling fallback for preview
+
+### Phase 3 - Business Logic Migration (Complete)
+- [x] All financial CRUD migrated to portfolio service (income, expenses, debts, transactions, budgets, savings, investments)
+- [x] Auth service with full MFA support
+- [x] Core service with AI, notifications, currency, data, RAG, dashboard
+- [x] Entity service with user management
+- [x] Assets service with CRUD + summary
+- [x] Gateway routing for all new service endpoints
 
 ## Testing Status
-- Infrastructure: 25/25 tests pass (100%)
-- Preview API: 6/6 tests pass (100%)
-- Frontend: Login and dashboard verified working
-- Test reports: /app/test_reports/iteration_3.json
+- Backend: 31/31 API tests pass (100%)
+- Frontend: All pages verified (100%)
+- Test report: /app/test_reports/iteration_4.json
+- No regressions in existing features
 
-## Seeded Demo Data
-- 3 accounts, 2 income sources, 5 expenses, 2 debts
-- 1 investment vehicle with 2 holdings, 1 savings fund
-- Current month budget with 6 categories, 13 default categories
+## Demo Credentials
+- Email: demo@blackiefi.com | Password: Demo123!
 
-## P0 Backlog (Next Priority)
-- Migrate full business logic from server.py into microservices
-- Implement Ollama AI integration in core service
+## Frontend Pages (17 total)
+Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Budget, Budget Variance, Debt Payoff, Calendar, Savings Goals, AI Assistant, Document Q&A, Notifications, Import/Export, Settings (7 tabs: Categories, Roles, Entity Users, Entities, AI Features, Security MFA, Currency)
+
+## P0 Backlog
+- Integrate live exchange rate API (optional upgrade from static rates)
+- Add email delivery for password reset tokens
 
 ## P1 Backlog
-- Notification/reminder system for upcoming bills
-- Data export (CSV/PDF)
-- Settings page improvements
+- Portfolio analytics with historical charts
+- Recurring transaction auto-generation
+- Advanced role permission editing UI
+- Audit log viewer
 
 ## P2 Backlog
-- Multi-currency support
-- Portfolio analytics with historical charts
-- MFA/TOTP authentication
-- RAG-based document Q&A using ChromaDB
-- Real-time notifications via WebSocket
-- Audit log viewer UI
+- Multi-tenancy improvements
+- Advanced PDF export with charts
+- Mobile-optimized PWA wrapper
+- Automated bill pay scheduling
