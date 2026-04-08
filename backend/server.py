@@ -1,15 +1,19 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query, WebSocket, WebSocketDisconnect, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from passlib.context import CryptContext
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 from dateutil.relativedelta import relativedelta
-import os, logging, uuid, jwt, math, secrets, hashlib
+import os, logging, uuid, jwt, math, secrets, hashlib, json, csv, io, base64, asyncio
 from pathlib import Path
+import httpx
+import pyotp
+import qrcode
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -403,7 +407,61 @@ class DebtPayoffRequest(BaseModel):
     strategy: str = "avalanche"
 
 
-# ==================== HELPERS ====================
+# ==================== NEW FEATURE MODELS ====================
+class MFASetupResponse(BaseModel):
+    secret: str
+    qr_code: str
+    uri: str
+
+class MFAVerifyRequest(BaseModel):
+    code: str
+
+class NotificationCreate(BaseModel):
+    title: str
+    message: str
+    notification_type: str = "info"
+    link: Optional[str] = None
+
+class NotificationResponse(BaseModel):
+    id: str
+    title: str
+    message: str
+    notification_type: str
+    link: Optional[str] = None
+    read: bool = False
+    created_at: str
+
+class AISettingsUpdate(BaseModel):
+    ai_enabled: bool = False
+    ollama_model: str = "phi"
+
+class AIChatRequest(BaseModel):
+    message: str
+    context: Optional[str] = None
+
+class CurrencySettingsUpdate(BaseModel):
+    base_currency: str = "USD"
+    display_currencies: List[str] = ["USD", "EUR", "GBP"]
+
+class RAGUploadResponse(BaseModel):
+    id: str
+    filename: str
+    status: str
+
+class RAGQueryRequest(BaseModel):
+    question: str
+
+EXCHANGE_RATES = {
+    "USD": 1.0, "EUR": 0.92, "GBP": 0.79, "JPY": 149.50, "CAD": 1.36,
+    "AUD": 1.53, "CHF": 0.88, "CNY": 7.24, "INR": 83.12, "MXN": 17.15,
+    "BRL": 4.97, "KRW": 1320.0, "SGD": 1.34, "HKD": 7.82, "NOK": 10.55,
+    "SEK": 10.42, "DKK": 6.87, "NZD": 1.64, "ZAR": 18.63, "TRY": 30.25,
+    "RUB": 89.50, "PLN": 4.02, "THB": 35.20, "IDR": 15450.0, "PHP": 55.80,
+    "CZK": 22.85, "ILS": 3.65, "CLP": 880.0, "AED": 3.67, "SAR": 3.75,
+    "NGN": 780.0, "EGP": 30.90, "BTC": 0.000016, "ETH": 0.00032,
+}
+
+SUPPORTED_CURRENCIES = list(EXCHANGE_RATES.keys())
 def now_str():
     return datetime.now(timezone.utc).isoformat()
 
@@ -495,6 +553,42 @@ savings_router = APIRouter(prefix="/api/savings-funds", tags=["savings-funds"])
 calendar_router = APIRouter(prefix="/api/calendar", tags=["calendar"])
 dashboard_router = APIRouter(prefix="/api/dashboard", tags=["dashboard"])
 onboarding_router = APIRouter(prefix="/api/onboarding", tags=["onboarding"])
+ai_router = APIRouter(prefix="/api/ai", tags=["ai"])
+notifications_router = APIRouter(prefix="/api/notifications", tags=["notifications"])
+data_router = APIRouter(prefix="/api/data", tags=["data"])
+currency_router = APIRouter(prefix="/api/currency", tags=["currency"])
+rag_router = APIRouter(prefix="/api/rag", tags=["rag"])
+
+
+# ==================== WEBSOCKET MANAGER ====================
+class ConnectionManager:
+    def __init__(self):
+        self.active: Dict[str, List[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, user_id: str):
+        await websocket.accept()
+        if user_id not in self.active:
+            self.active[user_id] = []
+        self.active[user_id].append(websocket)
+
+    def disconnect(self, websocket: WebSocket, user_id: str):
+        if user_id in self.active:
+            self.active[user_id] = [ws for ws in self.active[user_id] if ws != websocket]
+            if not self.active[user_id]:
+                del self.active[user_id]
+
+    async def send_to_user(self, user_id: str, message: dict):
+        if user_id in self.active:
+            dead = []
+            for ws in self.active[user_id]:
+                try:
+                    await ws.send_json(message)
+                except Exception:
+                    dead.append(ws)
+            for ws in dead:
+                self.disconnect(ws, user_id)
+
+ws_manager = ConnectionManager()
 
 
 # ==================== AUTH ROUTES ====================
@@ -542,6 +636,8 @@ async def login(req: UserLogin):
     user = await db.users.find_one({"email": req.email}, {"_id": 0})
     if not user or not verify_password(req.password, user["hashed_password"]):
         raise HTTPException(401, "Invalid email or password")
+    if user.get("mfa_enabled"):
+        return {"mfa_required": True, "email": user["email"], "message": "MFA code required"}
     return LoginResponse(
         access_token=create_access_token(user["id"]),
         user=UserResponse(
@@ -1921,6 +2017,561 @@ async def budget_variance_report(
     }
 
 
+# ==================== MFA ROUTES ====================
+@auth_router.get("/mfa/status")
+async def mfa_status(user_id: str = Depends(get_current_user_id)):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "mfa_enabled": 1})
+    return {"mfa_enabled": user.get("mfa_enabled", False) if user else False}
+
+@auth_router.post("/mfa/setup")
+async def mfa_setup(user_id: str = Depends(get_current_user_id)):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.get("mfa_enabled"):
+        raise HTTPException(status_code=400, detail="MFA already enabled")
+    secret = pyotp.random_base32()
+    totp = pyotp.TOTP(secret)
+    uri = totp.provisioning_uri(name=user["email"], issuer_name="BlackieFi")
+    img = qrcode.make(uri)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    qr_b64 = base64.b64encode(buf.getvalue()).decode()
+    await db.users.update_one({"id": user_id}, {"$set": {"mfa_secret": secret}})
+    return {"secret": secret, "qr_code": f"data:image/png;base64,{qr_b64}", "uri": uri}
+
+@auth_router.post("/mfa/verify")
+async def mfa_verify(req: MFAVerifyRequest, user_id: str = Depends(get_current_user_id)):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user or not user.get("mfa_secret"):
+        raise HTTPException(status_code=400, detail="MFA not set up")
+    totp = pyotp.TOTP(user["mfa_secret"])
+    if not totp.verify(req.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid code")
+    await db.users.update_one({"id": user_id}, {"$set": {"mfa_enabled": True}})
+    return {"status": "ok", "message": "MFA enabled successfully"}
+
+@auth_router.post("/mfa/disable")
+async def mfa_disable(req: MFAVerifyRequest, user_id: str = Depends(get_current_user_id)):
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user or not user.get("mfa_enabled"):
+        raise HTTPException(status_code=400, detail="MFA not enabled")
+    totp = pyotp.TOTP(user["mfa_secret"])
+    if not totp.verify(req.code, valid_window=1):
+        raise HTTPException(status_code=400, detail="Invalid code")
+    await db.users.update_one({"id": user_id}, {"$set": {"mfa_enabled": False}, "$unset": {"mfa_secret": ""}})
+    return {"status": "ok", "message": "MFA disabled"}
+
+@auth_router.post("/mfa/validate")
+async def mfa_validate_login(req: MFAVerifyRequest, email: str = Query(...)):
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+    if not user or not user.get("mfa_enabled") or not user.get("mfa_secret"):
+        raise HTTPException(status_code=400, detail="MFA not configured")
+    totp = pyotp.TOTP(user["mfa_secret"])
+    if not totp.verify(req.code, valid_window=1):
+        raise HTTPException(status_code=401, detail="Invalid MFA code")
+    token = create_access_token(user["id"])
+    u = {k: user.get(k) for k in ["id","email","full_name","role","onboarding_complete","personal_entity_id"]}
+    return {"access_token": token, "user": u}
+
+
+# ==================== AI ROUTES ====================
+OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "localhost")
+OLLAMA_PORT = os.environ.get("OLLAMA_PORT", "11434")
+OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "phi")
+OLLAMA_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
+
+async def _ollama_available():
+    try:
+        async with httpx.AsyncClient(timeout=3) as c:
+            r = await c.get(f"{OLLAMA_URL}/api/tags")
+            return r.status_code == 200
+    except Exception:
+        return False
+
+async def _ollama_generate(prompt, model=None):
+    model = model or OLLAMA_MODEL
+    try:
+        async with httpx.AsyncClient(timeout=60) as c:
+            r = await c.post(f"{OLLAMA_URL}/api/generate", json={"model": model, "prompt": prompt, "stream": False})
+            if r.status_code == 200:
+                return r.json().get("response", "")
+    except Exception as e:
+        logger.warning(f"Ollama call failed: {e}")
+    return None
+
+@ai_router.get("/settings")
+async def get_ai_settings(user_id: str = Depends(get_current_user_id)):
+    settings = await db.user_settings.find_one({"user_id": user_id}, {"_id": 0})
+    ai_enabled = settings.get("ai_enabled", False) if settings else False
+    ai_model = settings.get("ai_model", OLLAMA_MODEL) if settings else OLLAMA_MODEL
+    available = await _ollama_available()
+    return {"ai_enabled": ai_enabled, "ai_model": ai_model, "ai_available": available}
+
+@ai_router.put("/settings")
+async def update_ai_settings(data: AISettingsUpdate, user_id: str = Depends(get_current_user_id)):
+    await db.user_settings.update_one(
+        {"user_id": user_id},
+        {"$set": {"ai_enabled": data.ai_enabled, "ai_model": data.ollama_model, "updated_at": now_str()}},
+        upsert=True
+    )
+    return {"status": "ok"}
+
+@ai_router.post("/chat")
+async def ai_chat(req: AIChatRequest, user_id: str = Depends(get_current_user_id)):
+    settings = await db.user_settings.find_one({"user_id": user_id}, {"_id": 0})
+    if not settings or not settings.get("ai_enabled"):
+        raise HTTPException(status_code=400, detail="AI features are disabled. Enable in Settings.")
+    if not await _ollama_available():
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+    entity_id = None
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(1)
+    if eus:
+        entity_id = eus[0]["entity_id"]
+    ctx_parts = []
+    if entity_id:
+        accounts = await db.accounts.find({"entity_id": entity_id}, {"_id": 0}).to_list(20)
+        if accounts:
+            ctx_parts.append("Accounts: " + ", ".join(f'{a["name"]}({a["type"]}): ${a["balance"]}' for a in accounts))
+        expenses = await db.expenses.find({"entity_id": entity_id}, {"_id": 0}).to_list(20)
+        if expenses:
+            total_exp = sum(e["amount"] for e in expenses)
+            ctx_parts.append(f"Total monthly expenses: ${total_exp:.2f}")
+        debts = await db.debts.find({"entity_id": entity_id}, {"_id": 0}).to_list(20)
+        if debts:
+            total_debt = sum(d["current_balance"] for d in debts)
+            ctx_parts.append(f"Total debt: ${total_debt:.2f}")
+    context_str = ". ".join(ctx_parts) if ctx_parts else "No financial data available yet."
+    prompt = f"""You are BlackieFi AI, a helpful financial assistant. Be concise and practical.
+User's financial context: {context_str}
+{f'Additional context: {req.context}' if req.context else ''}
+User question: {req.message}
+Provide a clear, actionable response:"""
+    response = await _ollama_generate(prompt, settings.get("ai_model"))
+    if not response:
+        raise HTTPException(status_code=503, detail="AI generation failed")
+    msg_id = new_id()
+    await db.ai_messages.insert_one({
+        "id": msg_id, "user_id": user_id, "role": "user", "content": req.message, "created_at": now_str()
+    })
+    await db.ai_messages.insert_one({
+        "id": new_id(), "user_id": user_id, "role": "assistant", "content": response, "created_at": now_str()
+    })
+    return {"response": response, "message_id": msg_id}
+
+@ai_router.get("/history")
+async def ai_history(limit: int = 50, user_id: str = Depends(get_current_user_id)):
+    msgs = await db.ai_messages.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return list(reversed(msgs))
+
+@ai_router.post("/insights")
+async def ai_insights(user_id: str = Depends(get_current_user_id)):
+    settings = await db.user_settings.find_one({"user_id": user_id}, {"_id": 0})
+    if not settings or not settings.get("ai_enabled"):
+        raise HTTPException(status_code=400, detail="AI features are disabled")
+    if not await _ollama_available():
+        raise HTTPException(status_code=503, detail="AI service unavailable")
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(1)
+    entity_id = eus[0]["entity_id"] if eus else None
+    data_summary = []
+    if entity_id:
+        accounts = await db.accounts.find({"entity_id": entity_id}, {"_id": 0}).to_list(50)
+        expenses = await db.expenses.find({"entity_id": entity_id}, {"_id": 0}).to_list(50)
+        income = await db.income_sources.find({"entity_id": entity_id}, {"_id": 0}).to_list(50)
+        debts = await db.debts.find({"entity_id": entity_id}, {"_id": 0}).to_list(50)
+        total_balance = sum(a.get("balance", 0) for a in accounts)
+        total_expense = sum(e.get("amount", 0) for e in expenses)
+        total_income = sum(i.get("amount", 0) for i in income)
+        total_debt = sum(d.get("current_balance", 0) for d in debts)
+        data_summary.append(f"Total account balance: ${total_balance:.2f}")
+        data_summary.append(f"Monthly income: ${total_income:.2f}")
+        data_summary.append(f"Monthly expenses: ${total_expense:.2f}")
+        data_summary.append(f"Total debt: ${total_debt:.2f}")
+        savings_rate = ((total_income - total_expense) / total_income * 100) if total_income > 0 else 0
+        data_summary.append(f"Savings rate: {savings_rate:.1f}%")
+    prompt = f"""Analyze this financial data and provide 3-5 actionable insights. Be specific and practical.
+Financial Summary: {'; '.join(data_summary) if data_summary else 'No data available'}
+Format as numbered list. Each insight should be 1-2 sentences."""
+    response = await _ollama_generate(prompt)
+    if not response:
+        raise HTTPException(status_code=503, detail="AI generation failed")
+    return {"insights": response, "generated_at": now_str()}
+
+@ai_router.post("/categorize")
+async def ai_categorize(description: str = Query(...), amount: float = Query(0), user_id: str = Depends(get_current_user_id)):
+    settings = await db.user_settings.find_one({"user_id": user_id}, {"_id": 0})
+    if not settings or not settings.get("ai_enabled"):
+        raise HTTPException(status_code=400, detail="AI features are disabled")
+    if not await _ollama_available():
+        return {"category": "Other", "confidence": 0, "ai_available": False}
+    prompt = f"""Categorize this financial transaction into exactly one category.
+Transaction: "{description}", Amount: ${amount}
+Categories: Housing, Transportation, Food, Utilities, Insurance, Healthcare, Entertainment, Shopping, Education, Personal, Savings, Debt, Income, Other
+Respond with ONLY the category name, nothing else."""
+    response = await _ollama_generate(prompt)
+    cat = (response or "Other").strip().split("\n")[0].strip()
+    return {"category": cat, "confidence": 0.8 if response else 0, "ai_available": True}
+
+
+# ==================== NOTIFICATION ROUTES ====================
+async def _create_notification(user_id, title, message, ntype="info", link=None):
+    nid = new_id()
+    doc = {
+        "id": nid, "user_id": user_id, "title": title, "message": message,
+        "notification_type": ntype, "link": link, "read": False, "created_at": now_str()
+    }
+    await db.notifications.insert_one(doc)
+    await ws_manager.send_to_user(user_id, {"type": "notification", "data": {k: doc[k] for k in doc if k != "_id"}})
+    return nid
+
+@notifications_router.get("/")
+async def list_notifications(unread_only: bool = False, limit: int = 50, user_id: str = Depends(get_current_user_id)):
+    q = {"user_id": user_id}
+    if unread_only:
+        q["read"] = False
+    items = await db.notifications.find(q, {"_id": 0}).sort("created_at", -1).to_list(limit)
+    return items
+
+@notifications_router.get("/unread-count")
+async def unread_count(user_id: str = Depends(get_current_user_id)):
+    count = await db.notifications.count_documents({"user_id": user_id, "read": False})
+    return {"count": count}
+
+@notifications_router.put("/{nid}/read")
+async def mark_read(nid: str, user_id: str = Depends(get_current_user_id)):
+    await db.notifications.update_one({"id": nid, "user_id": user_id}, {"$set": {"read": True}})
+    return {"status": "ok"}
+
+@notifications_router.put("/read-all")
+async def mark_all_read(user_id: str = Depends(get_current_user_id)):
+    await db.notifications.update_many({"user_id": user_id, "read": False}, {"$set": {"read": True}})
+    return {"status": "ok"}
+
+@notifications_router.delete("/{nid}")
+async def delete_notification(nid: str, user_id: str = Depends(get_current_user_id)):
+    await db.notifications.delete_one({"id": nid, "user_id": user_id})
+    return {"status": "ok"}
+
+@notifications_router.get("/upcoming")
+async def upcoming_reminders(days: int = 7, user_id: str = Depends(get_current_user_id)):
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(100)
+    entity_ids = [eu["entity_id"] for eu in eus]
+    upcoming = []
+    for eid in entity_ids:
+        expenses = await db.expenses.find({"entity_id": eid, "is_recurring": True}, {"_id": 0}).to_list(100)
+        for exp in expenses:
+            ndate = exp.get("next_date")
+            if ndate:
+                try:
+                    nd = datetime.fromisoformat(ndate.replace("Z", "+00:00")) if isinstance(ndate, str) else ndate
+                    if nd <= now_dt() + timedelta(days=days):
+                        upcoming.append({"type": "expense", "name": exp["name"], "amount": exp["amount"],
+                                        "date": ndate, "entity_id": eid})
+                except Exception:
+                    pass
+        debts = await db.debts.find({"entity_id": eid}, {"_id": 0}).to_list(100)
+        for debt in debts:
+            upcoming.append({"type": "debt_payment", "name": debt["name"],
+                            "amount": debt.get("min_payment", 0), "entity_id": eid})
+    return upcoming
+
+
+# ==================== DATA IMPORT / EXPORT ROUTES ====================
+@data_router.post("/import/csv")
+async def import_csv(file: UploadFile = File(...), data_type: str = Query("transactions"), user_id: str = Depends(get_current_user_id)):
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(1)
+    if not eus:
+        raise HTTPException(status_code=400, detail="No active entity")
+    entity_id = eus[0]["entity_id"]
+    content = await file.read()
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+    reader = csv.DictReader(io.StringIO(text))
+    rows = list(reader)
+    if not rows:
+        raise HTTPException(status_code=400, detail="CSV is empty")
+    imported = 0
+    errors = []
+    for i, row in enumerate(rows):
+        try:
+            if data_type == "transactions":
+                doc = {
+                    "id": new_id(), "entity_id": entity_id,
+                    "amount": float(row.get("amount", row.get("Amount", 0))),
+                    "type": row.get("type", row.get("Type", "expense")),
+                    "category": row.get("category", row.get("Category", "Other")),
+                    "description": row.get("description", row.get("Description", "")),
+                    "date": row.get("date", row.get("Date", now_str())),
+                    "account_id": row.get("account_id", ""),
+                    "created_at": now_str(),
+                }
+                await db.transactions.insert_one(doc)
+                imported += 1
+            elif data_type == "expenses":
+                doc = {
+                    "id": new_id(), "entity_id": entity_id,
+                    "name": row.get("name", row.get("Name", "Imported")),
+                    "amount": float(row.get("amount", row.get("Amount", 0))),
+                    "category": row.get("category", row.get("Category", "Other")),
+                    "frequency": row.get("frequency", row.get("Frequency", "monthly")),
+                    "is_recurring": row.get("is_recurring", "true").lower() == "true",
+                    "next_date": row.get("next_date", row.get("Next Date", now_str())),
+                    "created_at": now_str(),
+                }
+                await db.expenses.insert_one(doc)
+                imported += 1
+            elif data_type == "income":
+                doc = {
+                    "id": new_id(), "entity_id": entity_id,
+                    "name": row.get("name", row.get("Name", "Imported")),
+                    "amount": float(row.get("amount", row.get("Amount", 0))),
+                    "type": row.get("type", row.get("Type", "salary")),
+                    "frequency": row.get("frequency", row.get("Frequency", "monthly")),
+                    "is_active": True,
+                    "next_date": row.get("next_date", row.get("Next Date", now_str())),
+                    "created_at": now_str(),
+                }
+                await db.income_sources.insert_one(doc)
+                imported += 1
+        except Exception as e:
+            errors.append(f"Row {i+1}: {str(e)}")
+    await _create_notification(user_id, "Import Complete", f"Imported {imported} {data_type} records" + (f" with {len(errors)} errors" if errors else ""), "info")
+    return {"imported": imported, "errors": errors, "total_rows": len(rows)}
+
+@data_router.get("/export/{data_type}")
+async def export_data(data_type: str, fmt: str = Query("csv"), user_id: str = Depends(get_current_user_id)):
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(1)
+    if not eus:
+        raise HTTPException(status_code=400, detail="No active entity")
+    entity_id = eus[0]["entity_id"]
+    collection_map = {
+        "transactions": "transactions", "expenses": "expenses", "income": "income_sources",
+        "debts": "debts", "accounts": "accounts", "budgets": "budgets",
+        "investments": "investment_vehicles", "savings": "savings_funds",
+    }
+    if data_type not in collection_map:
+        raise HTTPException(status_code=400, detail=f"Invalid data type. Choose from: {list(collection_map.keys())}")
+    coll = collection_map[data_type]
+    docs = await db[coll].find({"entity_id": entity_id}, {"_id": 0}).to_list(10000)
+    if not docs:
+        raise HTTPException(status_code=404, detail="No data found")
+    if fmt == "json":
+        content = json.dumps(docs, indent=2, default=str)
+        return StreamingResponse(io.BytesIO(content.encode()), media_type="application/json",
+                                 headers={"Content-Disposition": f"attachment; filename={data_type}_export.json"})
+    output = io.StringIO()
+    if docs:
+        fieldnames = list(docs[0].keys())
+        writer = csv.DictWriter(output, fieldnames=fieldnames)
+        writer.writeheader()
+        for doc in docs:
+            writer.writerow({k: str(v) if not isinstance(v, (str, int, float, bool)) else v for k, v in doc.items()})
+    return StreamingResponse(io.BytesIO(output.getvalue().encode()), media_type="text/csv",
+                             headers={"Content-Disposition": f"attachment; filename={data_type}_export.csv"})
+
+@data_router.get("/export-all")
+async def export_all(fmt: str = Query("json"), user_id: str = Depends(get_current_user_id)):
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(1)
+    if not eus:
+        raise HTTPException(status_code=400, detail="No active entity")
+    entity_id = eus[0]["entity_id"]
+    all_data = {}
+    for dtype, coll in {"transactions": "transactions", "expenses": "expenses", "income": "income_sources",
+                        "debts": "debts", "accounts": "accounts"}.items():
+        docs = await db[coll].find({"entity_id": entity_id}, {"_id": 0}).to_list(10000)
+        all_data[dtype] = docs
+    content = json.dumps(all_data, indent=2, default=str)
+    return StreamingResponse(io.BytesIO(content.encode()), media_type="application/json",
+                             headers={"Content-Disposition": "attachment; filename=blackiefi_full_export.json"})
+
+
+# ==================== CURRENCY ROUTES ====================
+@currency_router.get("/rates")
+async def get_exchange_rates():
+    return {"base": "USD", "rates": EXCHANGE_RATES, "currencies": SUPPORTED_CURRENCIES}
+
+@currency_router.get("/convert")
+async def convert_currency(amount: float = Query(...), from_currency: str = Query("USD"), to_currency: str = Query("EUR")):
+    fr = EXCHANGE_RATES.get(from_currency.upper())
+    to = EXCHANGE_RATES.get(to_currency.upper())
+    if fr is None or to is None:
+        raise HTTPException(status_code=400, detail="Unsupported currency")
+    usd_amount = amount / fr
+    result = usd_amount * to
+    return {"amount": amount, "from": from_currency.upper(), "to": to_currency.upper(), "result": round(result, 4), "rate": round(to / fr, 6)}
+
+@currency_router.get("/settings")
+async def get_currency_settings(user_id: str = Depends(get_current_user_id)):
+    settings = await db.user_settings.find_one({"user_id": user_id}, {"_id": 0})
+    return {
+        "base_currency": settings.get("base_currency", "USD") if settings else "USD",
+        "display_currencies": settings.get("display_currencies", ["USD", "EUR", "GBP"]) if settings else ["USD", "EUR", "GBP"],
+        "supported": SUPPORTED_CURRENCIES,
+    }
+
+@currency_router.put("/settings")
+async def update_currency_settings(data: CurrencySettingsUpdate, user_id: str = Depends(get_current_user_id)):
+    for c in [data.base_currency] + data.display_currencies:
+        if c not in EXCHANGE_RATES:
+            raise HTTPException(status_code=400, detail=f"Unsupported currency: {c}")
+    await db.user_settings.update_one(
+        {"user_id": user_id},
+        {"$set": {"base_currency": data.base_currency, "display_currencies": data.display_currencies, "updated_at": now_str()}},
+        upsert=True
+    )
+    return {"status": "ok"}
+
+
+# ==================== RAG Q&A ROUTES ====================
+RAG_AVAILABLE = False
+
+async def _check_chroma():
+    global RAG_AVAILABLE
+    try:
+        async with httpx.AsyncClient(timeout=3) as c:
+            r = await c.get("http://localhost:8000/api/v1/heartbeat")
+            RAG_AVAILABLE = r.status_code == 200
+    except Exception:
+        RAG_AVAILABLE = False
+    return RAG_AVAILABLE
+
+@rag_router.get("/status")
+async def rag_status(user_id: str = Depends(get_current_user_id)):
+    available = await _check_chroma()
+    docs = await db.rag_documents.count_documents({"user_id": user_id})
+    return {"available": available, "documents_count": docs}
+
+@rag_router.post("/upload")
+async def rag_upload(file: UploadFile = File(...), user_id: str = Depends(get_current_user_id)):
+    content = await file.read()
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        text = content.decode("latin-1")
+    doc_id = new_id()
+    chunks = [text[i:i+1000] for i in range(0, len(text), 800)]
+    await db.rag_documents.insert_one({
+        "id": doc_id, "user_id": user_id, "filename": file.filename,
+        "chunk_count": len(chunks), "content_preview": text[:500],
+        "status": "indexed_local", "created_at": now_str()
+    })
+    for i, chunk in enumerate(chunks):
+        await db.rag_chunks.insert_one({
+            "id": new_id(), "document_id": doc_id, "user_id": user_id,
+            "chunk_index": i, "content": chunk, "created_at": now_str()
+        })
+    if await _check_chroma():
+        try:
+            import chromadb
+            chroma_client = chromadb.HttpClient(host="localhost", port=8000)
+            collection = chroma_client.get_or_create_collection(f"user_{user_id}")
+            collection.add(documents=chunks, ids=[f"{doc_id}_chunk_{i}" for i in range(len(chunks))],
+                          metadatas=[{"document_id": doc_id, "filename": file.filename}] * len(chunks))
+            await db.rag_documents.update_one({"id": doc_id}, {"$set": {"status": "indexed_chroma"}})
+        except Exception as e:
+            logger.warning(f"ChromaDB indexing failed: {e}")
+    return {"id": doc_id, "filename": file.filename, "chunks": len(chunks), "status": "indexed"}
+
+@rag_router.get("/documents")
+async def rag_list_documents(user_id: str = Depends(get_current_user_id)):
+    docs = await db.rag_documents.find({"user_id": user_id}, {"_id": 0}).sort("created_at", -1).to_list(100)
+    return docs
+
+@rag_router.delete("/documents/{doc_id}")
+async def rag_delete_document(doc_id: str, user_id: str = Depends(get_current_user_id)):
+    await db.rag_documents.delete_one({"id": doc_id, "user_id": user_id})
+    await db.rag_chunks.delete_many({"document_id": doc_id, "user_id": user_id})
+    return {"status": "ok"}
+
+@rag_router.post("/query")
+async def rag_query(req: RAGQueryRequest, user_id: str = Depends(get_current_user_id)):
+    settings = await db.user_settings.find_one({"user_id": user_id}, {"_id": 0})
+    if not settings or not settings.get("ai_enabled"):
+        raise HTTPException(status_code=400, detail="AI features are disabled. Enable in Settings.")
+    relevant_chunks = []
+    if await _check_chroma():
+        try:
+            import chromadb
+            chroma_client = chromadb.HttpClient(host="localhost", port=8000)
+            collection = chroma_client.get_or_create_collection(f"user_{user_id}")
+            results = collection.query(query_texts=[req.question], n_results=5)
+            if results and results.get("documents"):
+                relevant_chunks = results["documents"][0]
+        except Exception as e:
+            logger.warning(f"ChromaDB query failed: {e}")
+    if not relevant_chunks:
+        chunks = await db.rag_chunks.find({"user_id": user_id}, {"_id": 0, "content": 1}).to_list(20)
+        relevant_chunks = [c["content"] for c in chunks[:5]]
+    if not relevant_chunks:
+        return {"answer": "No documents uploaded yet. Upload documents to ask questions.", "sources": []}
+    if not await _ollama_available():
+        return {"answer": "AI service is currently unavailable. Please try later.", "sources": []}
+    context = "\n---\n".join(relevant_chunks)
+    prompt = f"""Based on the following document excerpts, answer the user's question.
+Document excerpts:
+{context}
+Question: {req.question}
+Provide a clear, accurate answer based only on the provided documents. If the answer isn't in the documents, say so."""
+    response = await _ollama_generate(prompt)
+    if not response:
+        return {"answer": "Could not generate a response. AI service may be overloaded.", "sources": []}
+    return {"answer": response, "sources": [c[:200] + "..." for c in relevant_chunks]}
+
+
+# ==================== WEBSOCKET NOTIFICATIONS ====================
+@app.websocket("/ws/notifications")
+async def websocket_notifications(websocket: WebSocket, token: str = Query(None)):
+    if not token:
+        await websocket.close(code=4001)
+        return
+    try:
+        payload = decode_token(token)
+        user_id = payload["sub"]
+    except Exception:
+        await websocket.close(code=4001)
+        return
+    await ws_manager.connect(websocket, user_id)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket, user_id)
+
+
+# ==================== NOTIFICATION GENERATION (BACKGROUND) ====================
+async def generate_bill_reminders():
+    """Generate notifications for upcoming bills - called periodically or on demand."""
+    users = await db.users.find({}, {"_id": 0, "id": 1}).to_list(1000)
+    for user in users:
+        user_id = user["id"]
+        eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(100)
+        for eu in eus:
+            entity_id = eu["entity_id"]
+            expenses = await db.expenses.find({"entity_id": entity_id, "is_recurring": True}, {"_id": 0}).to_list(100)
+            for exp in expenses:
+                ndate = exp.get("next_date")
+                if ndate:
+                    try:
+                        nd = datetime.fromisoformat(ndate.replace("Z", "+00:00")) if isinstance(ndate, str) else ndate
+                        days_until = (nd - now_dt()).days
+                        if 0 <= days_until <= 3:
+                            existing = await db.notifications.find_one({
+                                "user_id": user_id, "title": f"Bill Due: {exp['name']}",
+                                "created_at": {"$gte": (now_dt() - timedelta(days=1)).isoformat()}
+                            })
+                            if not existing:
+                                await _create_notification(
+                                    user_id, f"Bill Due: {exp['name']}",
+                                    f"${exp['amount']:.2f} due in {days_until} day(s)", "warning"
+                                )
+                    except Exception:
+                        pass
+
+
 # ==================== REGISTER ROUTERS ====================
 app.include_router(api_router)
 app.include_router(auth_router)
@@ -1939,6 +2590,11 @@ app.include_router(savings_router)
 app.include_router(calendar_router)
 app.include_router(dashboard_router)
 app.include_router(onboarding_router)
+app.include_router(ai_router)
+app.include_router(notifications_router)
+app.include_router(data_router)
+app.include_router(currency_router)
+app.include_router(rag_router)
 
 app.add_middleware(
     CORSMiddleware,

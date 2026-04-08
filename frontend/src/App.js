@@ -15,10 +15,14 @@ import OnboardingPage from "@/pages/OnboardingPage";
 import TransactionsPage from "@/pages/TransactionsPage";
 import DebtPayoffPage from "@/pages/DebtPayoffPage";
 import BudgetVariancePage from "@/pages/BudgetVariancePage";
+import AIAssistantPage from "@/pages/AIAssistantPage";
+import NotificationsPage from "@/pages/NotificationsPage";
+import DataManagementPage from "@/pages/DataManagementPage";
+import QAPage from "@/pages/QAPage";
 import {
   LayoutDashboard, DollarSign, Receipt, CreditCard, Wallet, TrendingUp,
   PieChart, CalendarDays, Target, Settings, LogOut, Menu, X, ChevronDown,
-  ArrowLeftRight, Calculator, BarChart3
+  ArrowLeftRight, Calculator, BarChart3, Bot, Bell, Database, FileQuestion
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -34,6 +38,10 @@ const NAV_ITEMS = [
   { key: "payoff", label: "Debt Payoff", icon: <Calculator size={18} /> },
   { key: "calendar", label: "Calendar", icon: <CalendarDays size={18} /> },
   { key: "savings", label: "Savings Goals", icon: <Target size={18} /> },
+  { key: "ai", label: "AI Assistant", icon: <Bot size={18} /> },
+  { key: "qa", label: "Document Q&A", icon: <FileQuestion size={18} /> },
+  { key: "notifications", label: "Notifications", icon: <Bell size={18} /> },
+  { key: "data", label: "Import / Export", icon: <Database size={18} /> },
   { key: "settings", label: "Settings", icon: <Settings size={18} /> },
 ];
 
@@ -52,6 +60,9 @@ const useAuth = () => {
 
   const login = async (email, password) => {
     const response = await api.post("/auth/login", { email, password });
+    if (response.data.mfa_required) {
+      return { mfa_required: true, email: response.data.email };
+    }
     const { access_token, user: u } = response.data;
     localStorage.setItem("token", access_token);
     localStorage.setItem("user", JSON.stringify(u));
@@ -84,9 +95,30 @@ const useAuth = () => {
   return { user, loading, login, register, logout, updateUser };
 };
 
+function NotificationBell({ onClick }) {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const fetchCount = async () => {
+      try { const r = await api.get("/notifications/unread-count"); setCount(r.data.count); } catch {}
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <button className="notification-bell" onClick={onClick} data-testid="notification-bell">
+      <Bell size={20} />
+      {count > 0 && <span className="bell-badge" data-testid="bell-badge">{count > 9 ? "9+" : count}</span>}
+    </button>
+  );
+}
+
 function AuthForm({ onLogin, onRegister }) {
   const [isLogin, setIsLogin] = useState(true);
   const [showReset, setShowReset] = useState(false);
+  const [showMFA, setShowMFA] = useState(false);
+  const [mfaEmail, setMfaEmail] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -103,10 +135,29 @@ function AuthForm({ onLogin, onRegister }) {
     setError("");
     setLoading(true);
     try {
-      if (isLogin) await onLogin(email, password);
-      else await onRegister(email, password, fullName);
+      const result = isLogin ? await onLogin(email, password) : await onRegister(email, password, fullName);
+      if (result?.mfa_required) {
+        setMfaEmail(result.email);
+        setShowMFA(true);
+      }
     } catch (err) {
       setError(err.response?.data?.detail || "An error occurred");
+    }
+    setLoading(false);
+  };
+
+  const handleMFASubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const r = await api.post(`/auth/mfa/validate?email=${encodeURIComponent(mfaEmail)}`, { code: mfaCode });
+      localStorage.setItem("token", r.data.access_token);
+      localStorage.setItem("user", JSON.stringify(r.data.user));
+      if (r.data.user.personal_entity_id) localStorage.setItem("currentEntityId", r.data.user.personal_entity_id);
+      window.location.reload();
+    } catch (err) {
+      setError(err.response?.data?.detail || "Invalid MFA code");
     }
     setLoading(false);
   };
@@ -137,6 +188,35 @@ function AuthForm({ onLogin, onRegister }) {
     }
     setLoading(false);
   };
+
+  if (showMFA) {
+    return (
+      <div className="auth-container" data-testid="mfa-container">
+        <div className="auth-card">
+          <div className="auth-header">
+            <div className="auth-brand">
+              <img src="/logo.png" alt="BlackieFi Logo" className="auth-logo" />
+              <h1>BlackieFi</h1>
+            </div>
+            <p>Two-Factor Authentication</p>
+          </div>
+          <form onSubmit={handleMFASubmit} data-testid="mfa-login-form">
+            <p className="reset-info">Enter the 6-digit code from your authenticator app.</p>
+            <input type="text" placeholder="000000" value={mfaCode} onChange={e => setMfaCode(e.target.value)}
+                   maxLength={6} required data-testid="mfa-login-code" style={{ textAlign: "center", fontSize: "1.5rem", letterSpacing: "0.5rem" }} />
+            {error && <div className="error-message" data-testid="mfa-error">{error}</div>}
+            <button type="submit" disabled={loading || mfaCode.length !== 6} data-testid="mfa-login-btn">
+              {loading ? "Verifying..." : "Verify & Login"}
+            </button>
+          </form>
+          <div className="reset-back">
+            <button className="btn-text" onClick={() => { setShowMFA(false); setMfaCode(""); setError(""); }}
+                    data-testid="back-from-mfa">Back to Login</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showReset) {
     return (
@@ -286,6 +366,10 @@ function MainLayout({ user, onLogout, onUpdateUser }) {
       case "payoff": return <DebtPayoffPage />;
       case "calendar": return <CalendarPage />;
       case "savings": return <SavingsFundsPage />;
+      case "ai": return <AIAssistantPage />;
+      case "qa": return <QAPage />;
+      case "notifications": return <NotificationsPage />;
+      case "data": return <DataManagementPage />;
       case "settings": return <SettingsPage entities={entities} currentEntityId={currentEntityId} onRefreshEntities={fetchEntities} />;
       default: return <DashboardPage entityId={currentEntityId} entities={entities} />;
     }
@@ -356,6 +440,7 @@ function MainLayout({ user, onLogout, onUpdateUser }) {
             <h1>{NAV_ITEMS.find(i => i.key === activePage)?.label || "Dashboard"}</h1>
           </div>
           <div className="header-right-area">
+            <NotificationBell onClick={() => setActivePage("notifications")} />
             <span className="user-name-header" data-testid="user-name">{user?.full_name}</span>
           </div>
         </header>

@@ -1,213 +1,149 @@
 """
-BlackieFi 3.0 - Entity Service
-Manages LLCs, trusts, and corporations.
+BlackieFi Entity Service - Port 8003
+Handles: entity CRUD, entity user management (invite, roles, deactivate)
 """
-import sys
+import sys, os
 sys.path.insert(0, '/app/services')
 
-from fastapi import FastAPI, APIRouter, HTTPException, status, Depends
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from starlette.middleware.cors import CORSMiddleware
-from typing import List, Optional
-from datetime import datetime, timezone
-import uuid
-import logging
-
+from shared.database import get_mongo_db
 from shared.config import settings
-from shared.database import get_db, MongoDB
-from shared.auth_utils import decode_token, is_token_blacklisted
-from shared.models import (
-    HealthCheck, EntityCreate, EntityResponse
-)
+from pydantic import BaseModel
+from typing import Optional, List
+from datetime import datetime, timezone
+import uuid, jwt, logging
 
-# Configure logging
-logging.basicConfig(level=settings.LOG_LEVEL)
-logger = logging.getLogger(__name__)
-
-app = FastAPI(
-    title="BlackieFi Entity Service",
-    version="3.0.0",
-    description="Entity management service for LLCs, trusts, and corporations"
-)
-
+app = FastAPI(title="BlackieFi Entity Service", version="3.0.0")
 router = APIRouter()
 security = HTTPBearer()
+logger = logging.getLogger(__name__)
 
+def now_str():
+    return datetime.now(timezone.utc).isoformat()
 
-async def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(security)) -> str:
-    token = credentials.credentials
-    if await is_token_blacklisted(token):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalidated")
-    payload = decode_token(token)
-    user_id = payload.get("sub")
-    if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
-    return user_id
+def new_id():
+    return str(uuid.uuid4())
 
+def decode_token(token: str):
+    return jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
+
+async def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        return decode_token(credentials.credentials)["sub"]
+    except Exception:
+        raise HTTPException(401, "Invalid token")
+
+class EntityCreate(BaseModel):
+    name: str; entity_type: str = "personal"; business_type: Optional[str] = None
+    jurisdiction: Optional[str] = None; description: Optional[str] = None
+
+class InviteRequest(BaseModel):
+    email: str; role_name: str = "regular_user"
+
+class HealthCheck(BaseModel):
+    status: str = "healthy"; service: str = "entity"; version: str = "3.0.0"
 
 @router.get("/health", response_model=HealthCheck)
-async def health_check():
-    return HealthCheck(service="entity", status="healthy")
+async def health():
+    return HealthCheck()
 
-
-@router.post("/", response_model=EntityResponse, status_code=status.HTTP_201_CREATED)
-async def create_entity(entity: EntityCreate, user_id: str = Depends(get_current_user_id)):
-    """Create a new entity."""
-    db = get_db()
-    now = datetime.now(timezone.utc)
-    
-    entity_doc = {
-        "id": str(uuid.uuid4()),
-        "name": entity.name,
-        "entity_type": entity.entity_type,
-        "jurisdiction": entity.jurisdiction,
-        "description": entity.description,
-        "owner_id": user_id,
-        "status": "active",
-        "created_at": now.isoformat(),
-        "updated_at": now.isoformat()
-    }
-    
-    await db.entities.insert_one(entity_doc)
-    
-    return EntityResponse(
-        id=entity_doc["id"],
-        name=entity_doc["name"],
-        entity_type=entity_doc["entity_type"],
-        jurisdiction=entity_doc["jurisdiction"],
-        description=entity_doc["description"],
-        owner_id=entity_doc["owner_id"],
-        status=entity_doc["status"],
-        created_at=now,
-        updated_at=now
-    )
-
-
-@router.get("/", response_model=List[EntityResponse])
+@router.get("/")
 async def list_entities(user_id: str = Depends(get_current_user_id)):
-    """List all entities for the current user."""
-    db = get_db()
-    entities = await db.entities.find({"owner_id": user_id}, {"_id": 0}).to_list(100)
-    
-    result = []
-    for e in entities:
-        created_at = e.get("created_at")
-        updated_at = e.get("updated_at")
-        if isinstance(created_at, str):
-            created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-        if isinstance(updated_at, str):
-            updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
-        
-        result.append(EntityResponse(
-            id=e["id"],
-            name=e["name"],
-            entity_type=e["entity_type"],
-            jurisdiction=e.get("jurisdiction"),
-            description=e.get("description"),
-            owner_id=e["owner_id"],
-            status=e.get("status", "active"),
-            created_at=created_at or datetime.now(timezone.utc),
-            updated_at=updated_at or datetime.now(timezone.utc)
-        ))
-    
-    return result
+    db = await get_mongo_db()
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(100)
+    eids = [eu["entity_id"] for eu in eus]
+    entities = await db.entities.find({"id": {"$in": eids}}, {"_id": 0}).to_list(100)
+    return entities
 
+@router.post("/", status_code=201)
+async def create_entity(data: EntityCreate, user_id: str = Depends(get_current_user_id)):
+    db = await get_mongo_db()
+    eid = new_id()
+    n = now_str()
+    doc = {"id": eid, "name": data.name, "entity_type": data.entity_type,
+           "business_type": data.business_type, "jurisdiction": data.jurisdiction,
+           "description": data.description, "owner_id": user_id, "status": "active",
+           "is_personal": data.entity_type == "personal", "created_at": n, "updated_at": n}
+    await db.entities.insert_one(doc)
+    admin_role = await db.roles.find_one({"name": "admin"}, {"_id": 0})
+    if admin_role:
+        await db.entity_users.insert_one({
+            "id": new_id(), "entity_id": eid, "user_id": user_id,
+            "role_id": admin_role["id"], "role_name": "admin", "is_active": True,
+            "invited_by": user_id, "created_at": n
+        })
+    return {k: v for k, v in doc.items() if k != "_id"}
 
-@router.get("/{entity_id}", response_model=EntityResponse)
-async def get_entity(entity_id: str, user_id: str = Depends(get_current_user_id)):
-    """Get a specific entity."""
-    db = get_db()
-    entity = await db.entities.find_one({"id": entity_id, "owner_id": user_id}, {"_id": 0})
-    
+@router.get("/{eid}")
+async def get_entity(eid: str, user_id: str = Depends(get_current_user_id)):
+    db = await get_mongo_db()
+    entity = await db.entities.find_one({"id": eid}, {"_id": 0})
     if not entity:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
-    
-    created_at = entity.get("created_at")
-    updated_at = entity.get("updated_at")
-    if isinstance(created_at, str):
-        created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-    if isinstance(updated_at, str):
-        updated_at = datetime.fromisoformat(updated_at.replace('Z', '+00:00'))
-    
-    return EntityResponse(
-        id=entity["id"],
-        name=entity["name"],
-        entity_type=entity["entity_type"],
-        jurisdiction=entity.get("jurisdiction"),
-        description=entity.get("description"),
-        owner_id=entity["owner_id"],
-        status=entity.get("status", "active"),
-        created_at=created_at or datetime.now(timezone.utc),
-        updated_at=updated_at or datetime.now(timezone.utc)
+        raise HTTPException(404, "Entity not found")
+    return entity
+
+@router.delete("/{eid}")
+async def delete_entity(eid: str, user_id: str = Depends(get_current_user_id)):
+    db = await get_mongo_db()
+    entity = await db.entities.find_one({"id": eid}, {"_id": 0})
+    if not entity:
+        raise HTTPException(404, "Entity not found")
+    if entity.get("is_personal"):
+        raise HTTPException(400, "Cannot delete personal entity")
+    await db.entities.delete_one({"id": eid})
+    await db.entity_users.delete_many({"entity_id": eid})
+    return {"status": "ok"}
+
+@router.get("/{eid}/users")
+async def list_entity_users(eid: str, entity_id: Optional[str] = Query(None), user_id: str = Depends(get_current_user_id)):
+    db = await get_mongo_db()
+    eid = entity_id or eid
+    eus = await db.entity_users.find({"entity_id": eid}, {"_id": 0}).to_list(200)
+    enriched = []
+    for eu in eus:
+        user = await db.users.find_one({"id": eu["user_id"]}, {"_id": 0})
+        role = await db.roles.find_one({"id": eu.get("role_id")}, {"_id": 0})
+        enriched.append({
+            **eu, "user_name": user.get("full_name", "") if user else "",
+            "user_email": user.get("email", "") if user else "",
+            "role_name": role.get("name", "") if role else eu.get("role_name", ""),
+        })
+    return enriched
+
+@router.post("/{eid}/invite")
+async def invite_user(eid: str, data: InviteRequest, entity_id: Optional[str] = Query(None), user_id: str = Depends(get_current_user_id)):
+    db = await get_mongo_db()
+    eid = entity_id or eid
+    target = await db.users.find_one({"email": data.email}, {"_id": 0})
+    if not target:
+        raise HTTPException(404, "User not found")
+    existing = await db.entity_users.find_one({"entity_id": eid, "user_id": target["id"]})
+    if existing:
+        raise HTTPException(400, "User already in entity")
+    role = await db.roles.find_one({"name": data.role_name}, {"_id": 0})
+    await db.entity_users.insert_one({
+        "id": new_id(), "entity_id": eid, "user_id": target["id"],
+        "role_id": role["id"] if role else None, "role_name": data.role_name,
+        "is_active": True, "invited_by": user_id, "created_at": now_str()
+    })
+    return {"status": "ok", "message": f"Invited {data.email}"}
+
+@router.put("/{eid}/users/{uid}/role")
+async def change_user_role(eid: str, uid: str, role_name: str = Query(...), entity_id: Optional[str] = Query(None), user_id: str = Depends(get_current_user_id)):
+    db = await get_mongo_db()
+    eid = entity_id or eid
+    role = await db.roles.find_one({"name": role_name}, {"_id": 0})
+    await db.entity_users.update_one(
+        {"entity_id": eid, "user_id": uid},
+        {"$set": {"role_id": role["id"] if role else None, "role_name": role_name}}
     )
+    return {"status": "ok"}
 
-
-@router.put("/{entity_id}", response_model=EntityResponse)
-async def update_entity(entity_id: str, entity: EntityCreate, user_id: str = Depends(get_current_user_id)):
-    """Update an entity."""
-    db = get_db()
-    
-    existing = await db.entities.find_one({"id": entity_id, "owner_id": user_id})
-    if not existing:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
-    
-    now = datetime.now(timezone.utc)
-    update_data = {
-        "name": entity.name,
-        "entity_type": entity.entity_type,
-        "jurisdiction": entity.jurisdiction,
-        "description": entity.description,
-        "updated_at": now.isoformat()
-    }
-    
-    await db.entities.update_one({"id": entity_id}, {"$set": update_data})
-    
-    created_at = existing.get("created_at")
-    if isinstance(created_at, str):
-        created_at = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-    
-    return EntityResponse(
-        id=entity_id,
-        name=entity.name,
-        entity_type=entity.entity_type,
-        jurisdiction=entity.jurisdiction,
-        description=entity.description,
-        owner_id=user_id,
-        status=existing.get("status", "active"),
-        created_at=created_at or datetime.now(timezone.utc),
-        updated_at=now
-    )
-
-
-@router.delete("/{entity_id}")
-async def delete_entity(entity_id: str, user_id: str = Depends(get_current_user_id)):
-    """Delete an entity."""
-    db = get_db()
-    
-    result = await db.entities.delete_one({"id": entity_id, "owner_id": user_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Entity not found")
-    
-    return {"message": "Entity deleted successfully"}
-
-
-# Include router
 app.include_router(router, prefix="/api/entities", tags=["entities"])
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
-@app.on_event("shutdown")
-async def shutdown():
-    await MongoDB.close()
-
+from starlette.middleware.cors import CORSMiddleware
+app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 if __name__ == "__main__":
     import uvicorn
