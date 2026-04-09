@@ -24,11 +24,12 @@ import AuditLogPage from "@/pages/AuditLogPage";
 import RecurringPage from "@/pages/RecurringPage";
 import CrossEntityPage from "@/pages/CrossEntityPage";
 import PDFExportPage from "@/pages/PDFExportPage";
+import BillPayPage from "@/pages/BillPayPage";
 import {
   LayoutDashboard, DollarSign, Receipt, CreditCard, Wallet, TrendingUp,
   PieChart, CalendarDays, Target, Settings, LogOut, Menu, X, ChevronDown,
   ArrowLeftRight, Calculator, BarChart3, Bot, Bell, Database, FileQuestion,
-  LineChart, History, Clock, Building2, FileDown
+  LineChart, History, Clock, Building2, FileDown, CalendarClock
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -44,6 +45,7 @@ const NAV_ITEMS = [
   { key: "variance", label: "Budget Variance", icon: <BarChart3 size={18} /> },
   { key: "payoff", label: "Debt Payoff", icon: <Calculator size={18} /> },
   { key: "recurring", label: "Recurring", icon: <Clock size={18} /> },
+  { key: "billpay", label: "Bill Pay", icon: <CalendarClock size={18} /> },
   { key: "calendar", label: "Calendar", icon: <CalendarDays size={18} /> },
   { key: "savings", label: "Savings Goals", icon: <Target size={18} /> },
   { key: "entities", label: "Multi-Entity", icon: <Building2 size={18} /> },
@@ -377,6 +379,7 @@ function MainLayout({ user, onLogout, onUpdateUser }) {
       case "variance": return <BudgetVariancePage />;
       case "payoff": return <DebtPayoffPage />;
       case "recurring": return <RecurringPage />;
+      case "billpay": return <BillPayPage />;
       case "calendar": return <CalendarPage />;
       case "savings": return <SavingsFundsPage />;
       case "entities": return <CrossEntityPage />;

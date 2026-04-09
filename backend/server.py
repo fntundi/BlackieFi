@@ -29,7 +29,18 @@ from passlib.context import CryptContext
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone, timedelta
 from dateutil.relativedelta import relativedelta
-import os, logging, uuid, jwt, math, secrets, hashlib, json, csv, io, base64, asyncio
+import os
+import logging
+import uuid
+import jwt
+import math
+import secrets
+import hashlib
+import json
+import csv
+import io
+import base64
+import asyncio
 from pathlib import Path
 import httpx
 import pyotp
@@ -780,7 +791,7 @@ async def invite_user(entity_id: str, req: InviteRequest, user_id: str = Depends
 
 @entities_router.get("/{entity_id}/users", response_model=List[EntityUserResponse])
 async def list_entity_users(entity_id: str, user_id: str = Depends(get_current_user_id)):
-    ctx = await _resolve_entity_access(entity_id, user_id)
+    await _resolve_entity_access(entity_id, user_id)
     eus = await db.entity_users.find({"entity_id": entity_id}, {"_id": 0}).to_list(100)
     results = []
     for eu in eus:
@@ -1393,9 +1404,7 @@ async def unified_dashboard(user_id: str = Depends(get_current_user_id)):
     monthly_expenses = sum(e.get("amount", 0) for e in expenses_list)
 
     n = now_dt()
-    next_7 = (n + timedelta(days=7)).isoformat()
     next_30 = (n + timedelta(days=30)).isoformat()
-    today = n.isoformat()[:10]
 
     upcoming_income = [{"name": i["name"], "amount": i["amount"], "date": i.get("next_pay_date")}
                        for i in income_sources if i.get("next_pay_date") and i["next_pay_date"] <= next_30]
@@ -1838,7 +1847,6 @@ async def debt_payoff_estimate(req: DebtPayoffRequest, ctx: dict = Depends(get_e
     else:
         sorted_debts = sorted(results, key=lambda d: d["current_balance"])
 
-    accelerated = []
     remaining_extra = extra
     debt_balances = {d["id"]: d["current_balance"] for d in sorted_debts}
     debt_rates = {d["id"]: d["interest_rate"] / 100 / 12 for d in sorted_debts}
@@ -2602,6 +2610,7 @@ audit_router = APIRouter(prefix="/api/audit", tags=["audit"])
 recurring_router = APIRouter(prefix="/api/recurring", tags=["recurring"])
 pdf_router = APIRouter(prefix="/api/pdf", tags=["pdf"])
 multitenancy_router = APIRouter(prefix="/api/multitenancy", tags=["multitenancy"])
+billpay_router = APIRouter(prefix="/api/billpay", tags=["billpay"])
 
 
 # ==================== PORTFOLIO ANALYTICS ====================
@@ -2982,7 +2991,7 @@ async def export_dashboard_pdf(user_id: str = Depends(get_current_user_id)):
     title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=24, spaceAfter=20, textColor=colors.HexColor('#1e3a5f'))
     
     elements = []
-    elements.append(Paragraph(f"BlackieFi Dashboard Report", title_style))
+    elements.append(Paragraph("BlackieFi Dashboard Report", title_style))
     elements.append(Paragraph(f"Generated: {now_dt().strftime('%B %d, %Y')}", styles['Normal']))
     elements.append(Paragraph(f"User: {user.get('full_name', 'Unknown')}", styles['Normal']))
     elements.append(Spacer(1, 20))
@@ -3352,6 +3361,304 @@ async def switch_entity(entity_id: str, user_id: str = Depends(get_current_user_
     }
 
 
+# ==================== AUTOMATED BILL PAY SCHEDULING ====================
+class BillScheduleCreate(BaseModel):
+    name: str
+    amount: float
+    frequency: str = "monthly"
+    day_of_month: int = 1
+    account_id: Optional[str] = None
+    category_id: Optional[str] = None
+    source_type: str = "expense"
+    source_id: Optional[str] = None
+    enabled: bool = True
+
+
+@billpay_router.get("/schedules")
+async def list_bill_schedules(ctx: dict = Depends(get_entity_access)):
+    """List all bill pay schedules for the current entity"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    schedules = await db.bill_schedules.find(
+        {"entity_id": eid, "owner_id": uid}, {"_id": 0}
+    ).to_list(200)
+
+    # Enrich with account names
+    for s in schedules:
+        if s.get("account_id"):
+            acct = await db.accounts.find_one({"id": s["account_id"]}, {"_id": 0, "name": 1})
+            s["account_name"] = acct.get("name", "Unknown") if acct else "Unknown"
+        else:
+            s["account_name"] = None
+
+    return {"schedules": schedules}
+
+
+@billpay_router.post("/schedules")
+async def create_bill_schedule(data: BillScheduleCreate, ctx: dict = Depends(get_entity_access)):
+    """Create a new automated bill pay schedule"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    n = now_dt()
+
+    # Calculate next payment date
+    day = min(data.day_of_month, 28)
+    next_date = n.replace(day=day)
+    if next_date <= n:
+        next_date = (next_date + relativedelta(months=1)).replace(day=day)
+
+    schedule = {
+        "id": new_id(),
+        "entity_id": eid,
+        "owner_id": uid,
+        "name": data.name,
+        "amount": data.amount,
+        "frequency": data.frequency,
+        "day_of_month": day,
+        "account_id": data.account_id,
+        "category_id": data.category_id,
+        "source_type": data.source_type,
+        "source_id": data.source_id,
+        "enabled": data.enabled,
+        "next_payment_date": next_date.isoformat()[:10],
+        "last_paid_date": None,
+        "total_paid": 0,
+        "payment_count": 0,
+        "created_at": n.isoformat(),
+        "updated_at": n.isoformat(),
+    }
+    await db.bill_schedules.insert_one(schedule)
+    del schedule["_id"]
+    await log_audit(eid, uid, "create", "bill_schedule", schedule["id"], {"name": data.name, "amount": data.amount})
+    return schedule
+
+
+@billpay_router.put("/schedules/{schedule_id}")
+async def update_bill_schedule(schedule_id: str, data: BillScheduleCreate, ctx: dict = Depends(get_entity_access)):
+    """Update an existing bill pay schedule"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    existing = await db.bill_schedules.find_one({"id": schedule_id, "entity_id": eid, "owner_id": uid})
+    if not existing:
+        raise HTTPException(404, "Schedule not found")
+
+    day = min(data.day_of_month, 28)
+    n = now_dt()
+    next_date = n.replace(day=day)
+    if next_date <= n:
+        next_date = (next_date + relativedelta(months=1)).replace(day=day)
+
+    updates = {
+        "name": data.name,
+        "amount": data.amount,
+        "frequency": data.frequency,
+        "day_of_month": day,
+        "account_id": data.account_id,
+        "category_id": data.category_id,
+        "source_type": data.source_type,
+        "source_id": data.source_id,
+        "enabled": data.enabled,
+        "next_payment_date": next_date.isoformat()[:10],
+        "updated_at": n.isoformat(),
+    }
+    await db.bill_schedules.update_one({"id": schedule_id}, {"$set": updates})
+    await log_audit(eid, uid, "update", "bill_schedule", schedule_id, {"name": data.name})
+    return {"message": "Schedule updated"}
+
+
+@billpay_router.delete("/schedules/{schedule_id}")
+async def delete_bill_schedule(schedule_id: str, ctx: dict = Depends(get_entity_access)):
+    """Delete a bill pay schedule"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    result = await db.bill_schedules.delete_one({"id": schedule_id, "entity_id": eid, "owner_id": uid})
+    if result.deleted_count == 0:
+        raise HTTPException(404, "Schedule not found")
+    await log_audit(eid, uid, "delete", "bill_schedule", schedule_id, {})
+    return {"message": "Schedule deleted"}
+
+
+@billpay_router.post("/schedules/{schedule_id}/toggle")
+async def toggle_bill_schedule(schedule_id: str, ctx: dict = Depends(get_entity_access)):
+    """Enable or disable a bill pay schedule"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    existing = await db.bill_schedules.find_one({"id": schedule_id, "entity_id": eid, "owner_id": uid}, {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "Schedule not found")
+    new_state = not existing.get("enabled", True)
+    await db.bill_schedules.update_one({"id": schedule_id}, {"$set": {"enabled": new_state, "updated_at": now_str()}})
+    await log_audit(eid, uid, "toggle", "bill_schedule", schedule_id, {"enabled": new_state})
+    return {"enabled": new_state, "message": f"Schedule {'enabled' if new_state else 'disabled'}"}
+
+
+@billpay_router.post("/schedules/{schedule_id}/pay-now")
+async def execute_bill_payment(schedule_id: str, ctx: dict = Depends(get_entity_access)):
+    """Execute immediate payment for a scheduled bill"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    schedule = await db.bill_schedules.find_one({"id": schedule_id, "entity_id": eid, "owner_id": uid}, {"_id": 0})
+    if not schedule:
+        raise HTTPException(404, "Schedule not found")
+
+    n = now_dt()
+
+    # Create the transaction
+    tx = {
+        "id": new_id(),
+        "entity_id": eid,
+        "owner_id": uid,
+        "transaction_type": schedule.get("source_type", "expense"),
+        "amount": schedule["amount"],
+        "description": f"Bill Pay: {schedule['name']}",
+        "account_id": schedule.get("account_id"),
+        "source_id": schedule["id"],
+        "source_type": "bill_schedule",
+        "category_id": schedule.get("category_id"),
+        "date": n.isoformat(),
+        "created_at": n.isoformat(),
+    }
+    await db.transactions.insert_one(tx)
+
+    # Update account balance if linked
+    if schedule.get("account_id"):
+        amt_change = schedule["amount"] if schedule.get("source_type") == "income" else -schedule["amount"]
+        await db.accounts.update_one({"id": schedule["account_id"]}, {"$inc": {"balance": amt_change}})
+
+    # Advance next payment date
+    next_date = _advance_date(schedule.get("next_payment_date"), schedule.get("frequency", "monthly"))
+
+    # Update schedule stats
+    await db.bill_schedules.update_one({"id": schedule_id}, {"$set": {
+        "last_paid_date": n.isoformat()[:10],
+        "next_payment_date": next_date,
+        "updated_at": n.isoformat(),
+    }, "$inc": {
+        "total_paid": schedule["amount"],
+        "payment_count": 1,
+    }})
+
+    await log_audit(eid, uid, "bill_pay", "bill_schedule", schedule_id, {"amount": schedule["amount"]})
+
+    return {
+        "message": f"Paid {schedule['name']}: ${schedule['amount']:.2f}",
+        "transaction_id": tx["id"],
+        "next_payment_date": next_date,
+    }
+
+
+@billpay_router.post("/process-due")
+async def process_due_bill_schedules(ctx: dict = Depends(get_entity_access)):
+    """Process all due bill schedules for the current entity"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    n = now_dt()
+    today = n.isoformat()[:10]
+
+    due_schedules = await db.bill_schedules.find(
+        {"entity_id": eid, "owner_id": uid, "enabled": True, "next_payment_date": {"$lte": today}}, {"_id": 0}
+    ).to_list(200)
+
+    processed = []
+    for schedule in due_schedules:
+        tx = {
+            "id": new_id(),
+            "entity_id": eid,
+            "owner_id": uid,
+            "transaction_type": schedule.get("source_type", "expense"),
+            "amount": schedule["amount"],
+            "description": f"Auto Bill Pay: {schedule['name']}",
+            "account_id": schedule.get("account_id"),
+            "source_id": schedule["id"],
+            "source_type": "bill_schedule_auto",
+            "category_id": schedule.get("category_id"),
+            "date": n.isoformat(),
+            "created_at": n.isoformat(),
+        }
+        await db.transactions.insert_one(tx)
+
+        if schedule.get("account_id"):
+            amt_change = schedule["amount"] if schedule.get("source_type") == "income" else -schedule["amount"]
+            await db.accounts.update_one({"id": schedule["account_id"]}, {"$inc": {"balance": amt_change}})
+
+        next_date = _advance_date(schedule.get("next_payment_date"), schedule.get("frequency", "monthly"))
+        await db.bill_schedules.update_one({"id": schedule["id"]}, {"$set": {
+            "last_paid_date": n.isoformat()[:10],
+            "next_payment_date": next_date,
+            "updated_at": n.isoformat(),
+        }, "$inc": {
+            "total_paid": schedule["amount"],
+            "payment_count": 1,
+        }})
+        processed.append(schedule["name"])
+        await log_audit(eid, uid, "auto_bill_pay", "bill_schedule", schedule["id"], {"amount": schedule["amount"]})
+
+    return {
+        "processed": processed,
+        "total_processed": len(processed),
+        "message": f"Processed {len(processed)} bill payment(s)",
+    }
+
+
+@billpay_router.get("/history")
+async def get_bill_pay_history(limit: int = Query(50, le=200), ctx: dict = Depends(get_entity_access)):
+    """Get recent bill pay transaction history"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    txns = await db.transactions.find(
+        {"entity_id": eid, "owner_id": uid, "source_type": {"$in": ["bill_schedule", "bill_schedule_auto"]}},
+        {"_id": 0}
+    ).sort("date", -1).to_list(limit)
+    return {"history": txns, "total": len(txns)}
+
+
+# ==================== ROLES: CREATE CUSTOM ROLE & UPDATE DISPLAY NAME ====================
+class RoleCreate(BaseModel):
+    name: str
+    display_name: str = ""
+    permissions: Dict[str, bool] = {}
+
+
+@roles_router.post("/")
+async def create_custom_role(data: RoleCreate, ctx: dict = Depends(get_entity_access)):
+    """Create a new custom role"""
+    check_perm(ctx, "manage_roles")
+    existing = await db.roles.find_one({"name": data.name, "entity_id": None})
+    if existing:
+        raise HTTPException(400, f"Role '{data.name}' already exists")
+    role = {
+        "id": new_id(),
+        "name": data.name,
+        "display_name": data.display_name or data.name.replace("_", " ").title(),
+        "permissions": data.permissions or {k: False for k in DEFAULT_ROLE_PERMISSIONS["regular_user"]},
+        "entity_id": None,
+        "is_default": False,
+        "created_at": now_str(),
+    }
+    await db.roles.insert_one(role)
+    del role["_id"]
+    await log_audit(ctx["entity_id"], ctx["user_id"], "create", "role", role["id"], {"name": data.name})
+    return role
+
+
+@roles_router.delete("/{role_id}")
+async def delete_custom_role(role_id: str, ctx: dict = Depends(get_entity_access)):
+    """Delete a custom (non-default) role"""
+    check_perm(ctx, "manage_roles")
+    role = await db.roles.find_one({"id": role_id}, {"_id": 0})
+    if not role:
+        raise HTTPException(404, "Role not found")
+    if role.get("is_default", True):
+        raise HTTPException(400, "Cannot delete default roles")
+    # Check if any entity_users are using this role
+    user_count = await db.entity_users.count_documents({"role_id": role_id})
+    if user_count > 0:
+        raise HTTPException(400, f"Role is assigned to {user_count} user(s). Reassign them first.")
+    await db.roles.delete_one({"id": role_id})
+    await log_audit(ctx["entity_id"], ctx["user_id"], "delete", "role", role_id, {"name": role.get("name")})
+    return {"message": "Role deleted"}
+
+
 # ==================== REGISTER ROUTERS ====================
 app.include_router(api_router)
 app.include_router(auth_router)
@@ -3380,6 +3687,7 @@ app.include_router(audit_router)
 app.include_router(recurring_router)
 app.include_router(pdf_router)
 app.include_router(multitenancy_router)
+app.include_router(billpay_router)
 
 app.add_middleware(
     CORSMiddleware,

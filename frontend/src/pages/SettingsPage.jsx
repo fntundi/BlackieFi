@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
-import { Plus, Trash2, Users, Shield, Tag, Building2, Sparkles, Lock, Globe, Loader2, Check, X, Copy } from "lucide-react";
+import { Plus, Trash2, Users, Shield, Tag, Building2, Sparkles, Lock, Globe, Loader2, Check, X, Copy, CheckCircle, XCircle } from "lucide-react";
 
 export default function SettingsPage({ entities, currentEntityId, onRefreshEntities }) {
   const [tab, setTab] = useState("categories");
@@ -335,23 +335,187 @@ function CategoriesTab({ categories, onRefresh }) {
 }
 
 function RolesTab({ roles }) {
+  const [editingRole, setEditingRole] = useState(null);
+  const [editPerms, setEditPerms] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newDisplayName, setNewDisplayName] = useState("");
+  const [localRoles, setLocalRoles] = useState(roles);
+
+  useEffect(() => { setLocalRoles(roles); }, [roles]);
+
+  const PERM_GROUPS = {
+    "Financial": ["view_transactions", "create_transaction", "edit_transaction", "delete_transaction", "manage_income", "manage_expenses", "manage_debts"],
+    "Budgets & Savings": ["view_budgets", "manage_budgets", "manage_savings_funds"],
+    "Investments": ["view_investments", "manage_investments", "manage_accounts"],
+    "Administration": ["manage_categories", "manage_entities", "manage_users", "manage_roles"],
+    "Other": ["view_reports", "manage_calendar"],
+  };
+
+  const startEdit = (role) => {
+    setEditingRole(role.id);
+    setEditPerms({ ...role.permissions });
+  };
+
+  const cancelEdit = () => {
+    setEditingRole(null);
+    setEditPerms({});
+  };
+
+  const savePermissions = async (roleId) => {
+    setSaving(true);
+    try {
+      await api.put(`/roles/${roleId}/permissions`, editPerms);
+      setLocalRoles(prev => prev.map(r => r.id === roleId ? { ...r, permissions: { ...editPerms } } : r));
+      setEditingRole(null);
+    } catch (err) {
+      alert(err.response?.data?.detail || "Error saving permissions");
+    }
+    setSaving(false);
+  };
+
+  const togglePerm = (key) => {
+    setEditPerms(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const toggleAll = (keys, value) => {
+    setEditPerms(prev => {
+      const updated = { ...prev };
+      keys.forEach(k => { updated[k] = value; });
+      return updated;
+    });
+  };
+
+  const handleCreateRole = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const defaultPerms = {};
+      Object.values(PERM_GROUPS).flat().forEach(k => { defaultPerms[k] = false; });
+      const res = await api.post("/roles/", { name: newRoleName.toLowerCase().replace(/\s+/g, "_"), display_name: newDisplayName || newRoleName, permissions: defaultPerms });
+      setLocalRoles(prev => [...prev, res.data]);
+      setShowCreate(false);
+      setNewRoleName("");
+      setNewDisplayName("");
+    } catch (err) {
+      alert(err.response?.data?.detail || "Error creating role");
+    }
+    setSaving(false);
+  };
+
+  const handleDeleteRole = async (roleId) => {
+    if (!window.confirm("Delete this custom role?")) return;
+    try {
+      await api.delete(`/roles/${roleId}`);
+      setLocalRoles(prev => prev.filter(r => r.id !== roleId));
+    } catch (err) {
+      alert(err.response?.data?.detail || "Error deleting role");
+    }
+  };
+
   return (
     <div data-testid="roles-section">
-      <h3>Roles & Permissions</h3>
+      <div className="section-header">
+        <h3>Roles & Permissions</h3>
+        <button className="btn-primary btn-sm" onClick={() => setShowCreate(!showCreate)} data-testid="create-role-btn">
+          <Plus size={14} /> Create Role
+        </button>
+      </div>
+
+      {showCreate && (
+        <form onSubmit={handleCreateRole} className="inline-form" style={{ marginBottom: "1rem" }}>
+          <input type="text" placeholder="Role name (e.g. viewer)" value={newRoleName}
+            onChange={e => setNewRoleName(e.target.value)} required data-testid="new-role-name" />
+          <input type="text" placeholder="Display name (e.g. Viewer)" value={newDisplayName}
+            onChange={e => setNewDisplayName(e.target.value)} data-testid="new-role-display" />
+          <button type="submit" className="btn-sm btn-primary" disabled={saving} data-testid="submit-create-role">Create</button>
+          <button type="button" className="btn-sm" onClick={() => setShowCreate(false)}>Cancel</button>
+        </form>
+      )}
+
       <div className="roles-grid">
-        {roles.map(role => (
-          <div key={role.id} className="role-card">
-            <h4>{role.display_name || role.name}</h4>
-            <div className="permissions-list">
-              {Object.entries(role.permissions || {}).map(([key, val]) => (
-                <div key={key} className="perm-row">
-                  <span>{key.replace(/_/g, " ")}</span>
-                  <span className={val ? "perm-on" : "perm-off"}>{val ? "Yes" : "No"}</span>
+        {localRoles.map(role => {
+          const isEditing = editingRole === role.id;
+          const perms = isEditing ? editPerms : (role.permissions || {});
+
+          return (
+            <div key={role.id} className={`role-card ${isEditing ? "editing" : ""}`} data-testid={`role-card-${role.name}`}>
+              <div className="role-card-header">
+                <h4>{role.display_name || role.name}</h4>
+                <div className="role-card-actions">
+                  {isEditing ? (
+                    <>
+                      <button className="btn-icon-xs btn-success-icon" onClick={() => savePermissions(role.id)}
+                        disabled={saving} data-testid={`save-perms-${role.name}`} title="Save">
+                        {saving ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
+                      </button>
+                      <button className="btn-icon-xs" onClick={cancelEdit} data-testid={`cancel-perms-${role.name}`} title="Cancel">
+                        <X size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="btn-icon-xs" onClick={() => startEdit(role)} data-testid={`edit-perms-${role.name}`} title="Edit">
+                        <Shield size={14} />
+                      </button>
+                      {!role.is_default && (
+                        <button className="btn-icon-xs btn-danger-icon" onClick={() => handleDeleteRole(role.id)}
+                          data-testid={`delete-role-${role.name}`} title="Delete role">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </>
+                  )}
                 </div>
-              ))}
+              </div>
+
+              {Object.entries(PERM_GROUPS).map(([group, keys]) => {
+                const groupPerms = keys.filter(k => k in perms);
+                if (groupPerms.length === 0) return null;
+                const allOn = groupPerms.every(k => perms[k]);
+                const allOff = groupPerms.every(k => !perms[k]);
+
+                return (
+                  <div key={group} className="perm-group">
+                    <div className="perm-group-header">
+                      <span className="perm-group-label">{group}</span>
+                      {isEditing && (
+                        <button
+                          className={`perm-group-toggle ${allOn ? "all-on" : allOff ? "all-off" : "mixed"}`}
+                          onClick={() => toggleAll(groupPerms, !allOn)}
+                          data-testid={`toggle-group-${group.replace(/\s+/g, "-").toLowerCase()}-${role.name}`}
+                        >
+                          {allOn ? "All On" : allOff ? "All Off" : "Mixed"}
+                        </button>
+                      )}
+                    </div>
+                    <div className="permissions-list">
+                      {groupPerms.map(key => (
+                        <div key={key} className="perm-row">
+                          <span>{key.replace(/_/g, " ")}</span>
+                          {isEditing ? (
+                            <button
+                              className={`perm-toggle ${perms[key] ? "on" : "off"}`}
+                              onClick={() => togglePerm(key)}
+                              data-testid={`perm-${key}-${role.name}`}
+                            >
+                              {perms[key] ? <CheckCircle size={16} /> : <XCircle size={16} />}
+                            </button>
+                          ) : (
+                            <span className={perms[key] ? "perm-on" : "perm-off"}>{perms[key] ? "Yes" : "No"}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {role.is_default && <span className="role-default-badge">Default</span>}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
