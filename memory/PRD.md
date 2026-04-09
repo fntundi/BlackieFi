@@ -63,16 +63,16 @@ All services -> MongoDB (27017) + Redis (6379) + ChromaDB (8000) | Core -> Ollam
 - [x] Gateway routing for all new service endpoints
 
 ## Testing Status
-- Backend: 31/31 API tests pass (iteration_4) + 28/28 new feature tests pass (iteration_5) = 100%
-- Frontend: All 22 pages verified (100%)
-- Test reports: /app/test_reports/iteration_4.json, /app/test_reports/iteration_5.json
+- Backend: 31/31 API tests pass (iteration_4) + 28/28 new feature tests pass (iteration_5) + 14/14 bill pay & roles tests (iteration_6) = 100%
+- Frontend: All 24 pages verified (100%)
+- Test reports: /app/test_reports/iteration_4.json, /app/test_reports/iteration_5.json, /app/test_reports/iteration_6.json
 - No regressions in existing features
 
 ## Demo Credentials
 - Email: demo@blackiefi.com | Password: Demo123!
 
-## Frontend Pages (22 total)
-Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Portfolio Analytics, Budget, Budget Variance, Debt Payoff, Recurring, Calendar, Savings Goals, Multi-Entity, AI Assistant, Document Q&A, Notifications, Import/Export, PDF Reports, Audit Log, Settings (7 tabs: Categories, Roles, Entity Users, Entities, AI Features, Security MFA, Currency)
+## Frontend Pages (24 total)
+Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Portfolio Analytics, Budget, Budget Variance, Debt Payoff, Recurring, Bill Pay, Calendar, Savings Goals, Multi-Entity, AI Assistant, Document Q&A, Notifications, Import/Export, PDF Reports, Audit Log, Settings (7 tabs), Onboarding
 
 ## Maintenance (Dec 2025)
 - [x] Fixed pydantic dependency conflict (`pydantic[email]>=2.9.0` for google-genai compatibility)
@@ -117,6 +117,28 @@ Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Portfol
 - [x] Offline fallback for cached static assets
 - [x] Apple/Android meta tags for install prompt
 
+### Automated Bill Pay Scheduling (P2) - COMPLETE (April 2026)
+- [x] CRUD for bill pay schedules (create, read, update, delete)
+- [x] Toggle enable/disable per schedule
+- [x] Pay Now: Execute immediate payment from schedule
+- [x] Process Due: Batch process all due bill payments
+- [x] Payment history tracking with auto/manual badges
+- [x] Stats cards: active schedules, due now, monthly total
+- [x] Link schedules to accounts and categories
+- [x] Configurable frequency (weekly, bi-weekly, monthly, quarterly, annually)
+
+### Advanced Role Permission Editing UI (P1) - COMPLETE (April 2026)
+- [x] Permission toggles grouped by category (Financial, Budgets & Savings, Investments, Administration, Other)
+- [x] Toggle all permissions per group
+- [x] Edit/Save/Cancel flow per role card
+- [x] Create custom roles with default permissions
+- [x] Delete custom (non-default) roles with safety checks
+- [x] Visual glow effect on editing role card
+
+### Server.py Cleanup (April 2026) - COMPLETE
+- [x] Fixed 6 lint errors: multi-import split, unused variables removed, f-string placeholder fix
+- [x] 0 lint errors remaining (ruff verified)
+
 ## P0 Backlog
 - Integrate live exchange rate API (optional upgrade from static rates)
 - Add email delivery for password reset tokens
@@ -124,11 +146,14 @@ Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Portfol
 ## P1 Backlog (Cleared)
 - ~~Portfolio analytics with historical charts~~ DONE
 - ~~Recurring transaction auto-generation~~ DONE
-- Advanced role permission editing UI
+- ~~Advanced role permission editing UI~~ DONE
 - ~~Audit log viewer~~ DONE
 
 ## P2 Backlog (Cleared)
 - ~~Multi-tenancy improvements~~ DONE
 - ~~Advanced PDF export with charts~~ DONE
 - ~~Mobile-optimized PWA wrapper~~ DONE
-- Automated bill pay scheduling
+- ~~Automated bill pay scheduling~~ DONE
+
+## Frontend Pages (24 total)
+Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Portfolio Analytics, Budget, Budget Variance, Debt Payoff, Recurring, Bill Pay, Calendar, Savings Goals, Multi-Entity, AI Assistant, Document Q&A, Notifications, Import/Export, PDF Reports, Audit Log, Settings (7 tabs), Onboarding
