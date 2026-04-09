@@ -63,16 +63,16 @@ All services -> MongoDB (27017) + Redis (6379) + ChromaDB (8000) | Core -> Ollam
 - [x] Gateway routing for all new service endpoints
 
 ## Testing Status
-- Backend: 31/31 API tests pass (100%)
-- Frontend: All pages verified (100%)
-- Test report: /app/test_reports/iteration_4.json
+- Backend: 31/31 API tests pass (iteration_4) + 28/28 new feature tests pass (iteration_5) = 100%
+- Frontend: All 22 pages verified (100%)
+- Test reports: /app/test_reports/iteration_4.json, /app/test_reports/iteration_5.json
 - No regressions in existing features
 
 ## Demo Credentials
 - Email: demo@blackiefi.com | Password: Demo123!
 
-## Frontend Pages (17 total)
-Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Budget, Budget Variance, Debt Payoff, Calendar, Savings Goals, AI Assistant, Document Q&A, Notifications, Import/Export, Settings (7 tabs: Categories, Roles, Entity Users, Entities, AI Features, Security MFA, Currency)
+## Frontend Pages (22 total)
+Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Portfolio Analytics, Budget, Budget Variance, Debt Payoff, Recurring, Calendar, Savings Goals, Multi-Entity, AI Assistant, Document Q&A, Notifications, Import/Export, PDF Reports, Audit Log, Settings (7 tabs: Categories, Roles, Entity Users, Entities, AI Features, Security MFA, Currency)
 
 ## Maintenance (Dec 2025)
 - [x] Fixed pydantic dependency conflict (`pydantic[email]>=2.9.0` for google-genai compatibility)
@@ -80,18 +80,55 @@ Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Budget,
 - [x] Added deprecation notice to monolithic server.py with microservices migration guide
 - [x] Server.py now clearly documented as preview-only; production uses docker-compose microservices
 
+## Feature Release (April 2026) - P1/P2 Features Complete
+### Portfolio Analytics (P1) - COMPLETE
+- [x] Line chart: Net worth over time (configurable 6/12/24 months)
+- [x] Pie chart: Asset allocation breakdown (checking, savings, investment vehicles)
+- [x] Bar chart: Monthly income vs expenses comparison
+- [x] Summary cards: Net worth, total cash, investments, investment gain/loss percentage
+
+### Recurring Transaction Auto-Generation (P1) - COMPLETE
+- [x] Status dashboard showing due income, expenses, and debt payments
+- [x] One-click "Process All Due" button to auto-generate transactions
+- [x] Auto-advance next due dates based on frequency
+- [x] Settings: Enable auto-processing at midnight UTC, configurable notification days
+
+### Audit Log Viewer (P1) - COMPLETE
+- [x] Filterable by action type, resource type, date range
+- [x] Pagination with 25 items per page
+- [x] User name/email enrichment
+- [x] Action badges (color-coded: create=green, delete=red, update=blue, auto=amber)
+
+### Multi-Tenancy Improvements (P2) - COMPLETE
+- [x] Cross-entity summary with combined net worth
+- [x] Entity comparison chart (horizontal bar) showing monthly income/expenses
+- [x] Entity cards with cash/investments/debt/net worth breakdown
+- [x] One-click entity switching from cross-entity view
+
+### PDF Export with Charts (P2) - COMPLETE
+- [x] Dashboard PDF: Summary table + asset allocation pie chart
+- [x] Transactions PDF: Filterable by date range + income/expense summary
+- [x] Portfolio PDF: Holdings table + vehicle allocation pie chart
+- [x] Server-side generation using reportlab + matplotlib
+
+### Mobile PWA Wrapper (P2) - COMPLETE
+- [x] manifest.json with app name, icons, theme colors, shortcuts
+- [x] Service worker with network-first caching strategy
+- [x] Offline fallback for cached static assets
+- [x] Apple/Android meta tags for install prompt
+
 ## P0 Backlog
 - Integrate live exchange rate API (optional upgrade from static rates)
 - Add email delivery for password reset tokens
 
-## P1 Backlog
-- Portfolio analytics with historical charts
-- Recurring transaction auto-generation
+## P1 Backlog (Cleared)
+- ~~Portfolio analytics with historical charts~~ DONE
+- ~~Recurring transaction auto-generation~~ DONE
 - Advanced role permission editing UI
-- Audit log viewer
+- ~~Audit log viewer~~ DONE
 
-## P2 Backlog
-- Multi-tenancy improvements
-- Advanced PDF export with charts
-- Mobile-optimized PWA wrapper
+## P2 Backlog (Cleared)
+- ~~Multi-tenancy improvements~~ DONE
+- ~~Advanced PDF export with charts~~ DONE
+- ~~Mobile-optimized PWA wrapper~~ DONE
 - Automated bill pay scheduling
