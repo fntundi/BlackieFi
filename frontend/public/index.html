@@ -2,11 +2,22 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#020617" />
-        <meta name="description" content="BlackieFi - Premium Asset Management Platform" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta name="theme-color" content="#1e3a5f" />
+        <meta name="description" content="BlackieFi - Comprehensive Personal & Business Finance Management Platform" />
+        
+        <!-- PWA Meta Tags -->
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="BlackieFi" />
+        <meta name="application-name" content="BlackieFi" />
+        <meta name="msapplication-TileColor" content="#1e3a5f" />
+        
         <link rel="icon" type="image/png" href="%PUBLIC_URL%/logo.png" />
         <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo.png" />
+        <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+        
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -17,6 +28,21 @@
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <div id="root"></div>
+        
+        <!-- Service Worker Registration -->
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then(function(registration) {
+                            console.log('BlackieFi SW registered:', registration.scope);
+                        })
+                        .catch(function(error) {
+                            console.log('BlackieFi SW registration failed:', error);
+                        });
+                });
+            }
+        </script>
         <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

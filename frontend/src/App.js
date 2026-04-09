@@ -19,10 +19,16 @@ import AIAssistantPage from "@/pages/AIAssistantPage";
 import NotificationsPage from "@/pages/NotificationsPage";
 import DataManagementPage from "@/pages/DataManagementPage";
 import QAPage from "@/pages/QAPage";
+import PortfolioAnalyticsPage from "@/pages/PortfolioAnalyticsPage";
+import AuditLogPage from "@/pages/AuditLogPage";
+import RecurringPage from "@/pages/RecurringPage";
+import CrossEntityPage from "@/pages/CrossEntityPage";
+import PDFExportPage from "@/pages/PDFExportPage";
 import {
   LayoutDashboard, DollarSign, Receipt, CreditCard, Wallet, TrendingUp,
   PieChart, CalendarDays, Target, Settings, LogOut, Menu, X, ChevronDown,
-  ArrowLeftRight, Calculator, BarChart3, Bot, Bell, Database, FileQuestion
+  ArrowLeftRight, Calculator, BarChart3, Bot, Bell, Database, FileQuestion,
+  LineChart, History, Clock, Building2, FileDown
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -33,15 +39,20 @@ const NAV_ITEMS = [
   { key: "transactions", label: "Transactions", icon: <ArrowLeftRight size={18} /> },
   { key: "accounts", label: "Accounts", icon: <Wallet size={18} /> },
   { key: "investments", label: "Investments", icon: <TrendingUp size={18} /> },
+  { key: "analytics", label: "Portfolio Analytics", icon: <LineChart size={18} /> },
   { key: "budget", label: "Budget", icon: <PieChart size={18} /> },
   { key: "variance", label: "Budget Variance", icon: <BarChart3 size={18} /> },
   { key: "payoff", label: "Debt Payoff", icon: <Calculator size={18} /> },
+  { key: "recurring", label: "Recurring", icon: <Clock size={18} /> },
   { key: "calendar", label: "Calendar", icon: <CalendarDays size={18} /> },
   { key: "savings", label: "Savings Goals", icon: <Target size={18} /> },
+  { key: "entities", label: "Multi-Entity", icon: <Building2 size={18} /> },
   { key: "ai", label: "AI Assistant", icon: <Bot size={18} /> },
   { key: "qa", label: "Document Q&A", icon: <FileQuestion size={18} /> },
   { key: "notifications", label: "Notifications", icon: <Bell size={18} /> },
   { key: "data", label: "Import / Export", icon: <Database size={18} /> },
+  { key: "pdf", label: "PDF Reports", icon: <FileDown size={18} /> },
+  { key: "audit", label: "Audit Log", icon: <History size={18} /> },
   { key: "settings", label: "Settings", icon: <Settings size={18} /> },
 ];
 
@@ -361,15 +372,20 @@ function MainLayout({ user, onLogout, onUpdateUser }) {
       case "transactions": return <TransactionsPage />;
       case "accounts": return <AccountsPage />;
       case "investments": return <InvestmentsPage />;
+      case "analytics": return <PortfolioAnalyticsPage />;
       case "budget": return <BudgetPage />;
       case "variance": return <BudgetVariancePage />;
       case "payoff": return <DebtPayoffPage />;
+      case "recurring": return <RecurringPage />;
       case "calendar": return <CalendarPage />;
       case "savings": return <SavingsFundsPage />;
+      case "entities": return <CrossEntityPage />;
       case "ai": return <AIAssistantPage />;
       case "qa": return <QAPage />;
       case "notifications": return <NotificationsPage />;
       case "data": return <DataManagementPage />;
+      case "pdf": return <PDFExportPage />;
+      case "audit": return <AuditLogPage />;
       case "settings": return <SettingsPage entities={entities} currentEntityId={currentEntityId} onRefreshEntities={fetchEntities} />;
       default: return <DashboardPage entityId={currentEntityId} entities={entities} />;
     }

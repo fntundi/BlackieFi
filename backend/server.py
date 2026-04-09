@@ -2596,6 +2596,762 @@ async def generate_bill_reminders():
                         pass
 
 
+# ==================== NEW FEATURE ROUTERS ====================
+portfolio_analytics_router = APIRouter(prefix="/api/portfolio-analytics", tags=["portfolio-analytics"])
+audit_router = APIRouter(prefix="/api/audit", tags=["audit"])
+recurring_router = APIRouter(prefix="/api/recurring", tags=["recurring"])
+pdf_router = APIRouter(prefix="/api/pdf", tags=["pdf"])
+multitenancy_router = APIRouter(prefix="/api/multitenancy", tags=["multitenancy"])
+
+
+# ==================== PORTFOLIO ANALYTICS ====================
+@portfolio_analytics_router.get("/history")
+async def get_portfolio_history(months: int = Query(12, le=24), ctx: dict = Depends(get_entity_access)):
+    """Get portfolio value history over time for line charts"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    n = now_dt()
+    
+    # Get all transactions to compute historical values
+    txns = await db.transactions.find(
+        {"entity_id": eid, "owner_id": uid}, {"_id": 0}
+    ).sort("date", 1).to_list(5000)
+    
+    # Get all holdings for investment tracking
+    holdings = await db.investment_holdings.find(
+        {"entity_id": eid, "owner_id": uid}, {"_id": 0}
+    ).to_list(200)
+    
+    # Build monthly snapshots
+    history = []
+    for i in range(months - 1, -1, -1):
+        target_date = (n - relativedelta(months=i)).replace(day=1)
+        month_end = (target_date + relativedelta(months=1) - timedelta(days=1)).isoformat()
+        month_label = target_date.strftime("%b %Y")
+        
+        # Sum transactions up to this month
+        income_total = sum(t["amount"] for t in txns if t.get("transaction_type") == "income" and t.get("date", "") <= month_end)
+        expense_total = sum(t["amount"] for t in txns if t.get("transaction_type") in ("expense", "debt_payment") and t.get("date", "") <= month_end)
+        net_cash = income_total - expense_total
+        
+        # Investment value (simplified - using current prices)
+        investment_value = sum((h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0) for h in holdings)
+        
+        history.append({
+            "month": month_label,
+            "date": target_date.isoformat()[:10],
+            "net_worth": net_cash + investment_value,
+            "investments": investment_value,
+            "cash_flow": net_cash
+        })
+    
+    return {"history": history}
+
+
+@portfolio_analytics_router.get("/allocation")
+async def get_asset_allocation(ctx: dict = Depends(get_entity_access)):
+    """Get asset allocation breakdown for pie chart"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    
+    # Get accounts by type
+    accounts = await db.accounts.find({"entity_id": eid, "owner_id": uid}, {"_id": 0}).to_list(100)
+    
+    # Get investment holdings
+    holdings = await db.investment_holdings.find({"entity_id": eid, "owner_id": uid}, {"_id": 0}).to_list(200)
+    vehicles = await db.investment_vehicles.find({"entity_id": eid, "owner_id": uid}, {"_id": 0}).to_list(50)
+    vehicle_map = {v["id"]: v for v in vehicles}
+    
+    allocation = []
+    
+    # Cash accounts
+    checking = sum(a["balance"] for a in accounts if a.get("account_type") == "checking" and a.get("balance", 0) > 0)
+    savings = sum(a["balance"] for a in accounts if a.get("account_type") == "savings" and a.get("balance", 0) > 0)
+    
+    if checking > 0:
+        allocation.append({"name": "Checking", "value": checking, "color": "#3b82f6"})
+    if savings > 0:
+        allocation.append({"name": "Savings", "value": savings, "color": "#22c55e"})
+    
+    # Investment vehicles
+    vehicle_values = {}
+    for h in holdings:
+        vid = h.get("vehicle_id")
+        value = (h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0)
+        vehicle_values[vid] = vehicle_values.get(vid, 0) + value
+    
+    colors = ["#f59e0b", "#8b5cf6", "#06b6d4", "#ec4899", "#ef4444", "#14b8a6"]
+    for i, (vid, value) in enumerate(vehicle_values.items()):
+        if value > 0:
+            v = vehicle_map.get(vid, {})
+            allocation.append({
+                "name": v.get("name", "Unknown"),
+                "value": value,
+                "color": colors[i % len(colors)]
+            })
+    
+    total = sum(a["value"] for a in allocation)
+    for a in allocation:
+        a["percentage"] = round((a["value"] / total * 100) if total > 0 else 0, 1)
+    
+    return {"allocation": allocation, "total": total}
+
+
+@portfolio_analytics_router.get("/monthly-performance")
+async def get_monthly_performance(months: int = Query(12, le=24), ctx: dict = Depends(get_entity_access)):
+    """Get monthly income vs expenses for bar chart"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    n = now_dt()
+    
+    performance = []
+    for i in range(months - 1, -1, -1):
+        target_date = (n - relativedelta(months=i)).replace(day=1)
+        month_start = target_date.isoformat()
+        month_end = (target_date + relativedelta(months=1) - timedelta(days=1)).isoformat()
+        month_label = target_date.strftime("%b %Y")
+        
+        txns = await db.transactions.find(
+            {"entity_id": eid, "owner_id": uid, "date": {"$gte": month_start, "$lte": month_end}}, {"_id": 0}
+        ).to_list(500)
+        
+        income = sum(t["amount"] for t in txns if t.get("transaction_type") == "income")
+        expenses = sum(t["amount"] for t in txns if t.get("transaction_type") in ("expense", "debt_payment"))
+        
+        performance.append({
+            "month": month_label,
+            "income": income,
+            "expenses": expenses,
+            "net": income - expenses
+        })
+    
+    return {"performance": performance}
+
+
+@portfolio_analytics_router.get("/summary")
+async def get_portfolio_summary(ctx: dict = Depends(get_entity_access)):
+    """Get overall portfolio summary stats"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    
+    accounts = await db.accounts.find({"entity_id": eid, "owner_id": uid}, {"_id": 0}).to_list(100)
+    holdings = await db.investment_holdings.find({"entity_id": eid, "owner_id": uid}, {"_id": 0}).to_list(200)
+    debts = await db.debts.find({"entity_id": eid, "owner_id": uid, "is_active": True}, {"_id": 0}).to_list(100)
+    
+    total_cash = sum(a.get("balance", 0) for a in accounts if a.get("balance", 0) > 0)
+    total_investments = sum((h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0) for h in holdings)
+    total_cost_basis = sum(h.get("cost_basis", 0) * h.get("quantity", 0) for h in holdings)
+    total_debt = sum(d.get("current_balance", 0) for d in debts)
+    
+    return {
+        "total_cash": total_cash,
+        "total_investments": total_investments,
+        "investment_gain": total_investments - total_cost_basis,
+        "investment_gain_pct": ((total_investments - total_cost_basis) / total_cost_basis * 100) if total_cost_basis > 0 else 0,
+        "total_debt": total_debt,
+        "net_worth": total_cash + total_investments - total_debt
+    }
+
+
+# ==================== AUDIT LOG VIEWER ====================
+@audit_router.get("/")
+async def get_audit_logs(
+    action: Optional[str] = None,
+    resource_type: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    limit: int = Query(100, le=500),
+    offset: int = Query(0),
+    ctx: dict = Depends(get_entity_access)
+):
+    """Get audit logs with filtering"""
+    q = {"entity_id": ctx["entity_id"]}
+    
+    if action:
+        q["action"] = action
+    if resource_type:
+        q["resource_type"] = resource_type
+    if start_date:
+        q["created_at"] = q.get("created_at", {})
+        q["created_at"]["$gte"] = start_date
+    if end_date:
+        q.setdefault("created_at", {})
+        q["created_at"]["$lte"] = end_date
+    
+    total = await db.audit_log.count_documents(q)
+    logs = await db.audit_log.find(q, {"_id": 0}).sort("created_at", -1).skip(offset).limit(limit).to_list(limit)
+    
+    # Enrich with user names
+    user_ids = list(set(log.get("user_id") for log in logs if log.get("user_id")))
+    users = await db.users.find({"id": {"$in": user_ids}}, {"_id": 0, "id": 1, "email": 1, "full_name": 1}).to_list(100)
+    user_map = {u["id"]: u for u in users}
+    
+    for log in logs:
+        user = user_map.get(log.get("user_id"), {})
+        log["user_email"] = user.get("email", "Unknown")
+        log["user_name"] = user.get("full_name", "Unknown")
+    
+    return {"logs": logs, "total": total, "limit": limit, "offset": offset}
+
+
+@audit_router.get("/actions")
+async def get_audit_actions():
+    """Get list of unique actions for filtering"""
+    actions = await db.audit_log.distinct("action")
+    return {"actions": actions}
+
+
+@audit_router.get("/resource-types")
+async def get_audit_resource_types():
+    """Get list of unique resource types for filtering"""
+    types = await db.audit_log.distinct("resource_type")
+    return {"resource_types": types}
+
+
+# ==================== RECURRING TRANSACTION AUTO-GENERATION ====================
+@recurring_router.get("/status")
+async def get_recurring_status(ctx: dict = Depends(get_entity_access)):
+    """Get status of recurring items and what's due"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    today = now_dt().isoformat()[:10]
+    
+    # Find items that are due today or overdue
+    due_income = await db.income_sources.find(
+        {"entity_id": eid, "owner_id": uid, "is_active": True, "next_pay_date": {"$lte": today}}, {"_id": 0}
+    ).to_list(50)
+    
+    due_expenses = await db.expenses.find(
+        {"entity_id": eid, "owner_id": uid, "is_active": True, "is_recurring": True, "next_due_date": {"$lte": today}}, {"_id": 0}
+    ).to_list(100)
+    
+    due_debts = await db.debts.find(
+        {"entity_id": eid, "owner_id": uid, "is_active": True, "due_date": {"$lte": today}, "current_balance": {"$gt": 0}}, {"_id": 0}
+    ).to_list(50)
+    
+    return {
+        "due_income": [{"id": i["id"], "name": i["name"], "amount": i["amount"], "date": i.get("next_pay_date")} for i in due_income],
+        "due_expenses": [{"id": e["id"], "name": e["name"], "amount": e["amount"], "date": e.get("next_due_date")} for e in due_expenses],
+        "due_debts": [{"id": d["id"], "name": d["name"], "amount": d.get("minimum_payment", 0), "date": d.get("due_date")} for d in due_debts],
+        "total_due": len(due_income) + len(due_expenses) + len(due_debts)
+    }
+
+
+@recurring_router.post("/process")
+async def process_recurring_transactions(ctx: dict = Depends(get_entity_access)):
+    """Process all due recurring transactions at once"""
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    today = now_dt().isoformat()[:10]
+    n = now_dt()
+    
+    processed = {"income": [], "expenses": [], "debts": []}
+    
+    # Process due income
+    due_income = await db.income_sources.find(
+        {"entity_id": eid, "owner_id": uid, "is_active": True, "next_pay_date": {"$lte": today}}, {"_id": 0}
+    ).to_list(50)
+    
+    for inc in due_income:
+        tx = {
+            "id": new_id(), "entity_id": eid, "owner_id": uid,
+            "transaction_type": "income", "amount": inc["amount"],
+            "description": f"Auto: {inc['name']}", "account_id": inc.get("account_id"),
+            "source_id": inc["id"], "source_type": "income_auto",
+            "date": n.isoformat(), "category_id": None, "created_at": n.isoformat()
+        }
+        await db.transactions.insert_one(tx)
+        if inc.get("account_id"):
+            await db.accounts.update_one({"id": inc["account_id"]}, {"$inc": {"balance": inc["amount"]}})
+        next_date = _advance_date(inc.get("next_pay_date"), inc.get("frequency", "monthly"))
+        await db.income_sources.update_one({"id": inc["id"]}, {"$set": {"next_pay_date": next_date, "updated_at": n.isoformat()}})
+        processed["income"].append(inc["name"])
+        await log_audit(eid, uid, "auto_receive", "income", inc["id"], {"amount": inc["amount"]})
+    
+    # Process due expenses
+    due_expenses = await db.expenses.find(
+        {"entity_id": eid, "owner_id": uid, "is_active": True, "is_recurring": True, "next_due_date": {"$lte": today}}, {"_id": 0}
+    ).to_list(100)
+    
+    for exp in due_expenses:
+        tx = {
+            "id": new_id(), "entity_id": eid, "owner_id": uid,
+            "transaction_type": "expense", "amount": exp["amount"],
+            "description": f"Auto: {exp['name']}", "account_id": exp.get("account_id"),
+            "source_id": exp["id"], "source_type": "expense_auto",
+            "date": n.isoformat(), "category_id": exp.get("category_id"), "created_at": n.isoformat()
+        }
+        await db.transactions.insert_one(tx)
+        if exp.get("account_id"):
+            await db.accounts.update_one({"id": exp["account_id"]}, {"$inc": {"balance": -exp["amount"]}})
+        next_date = _advance_date(exp.get("next_due_date"), exp.get("frequency", "monthly"))
+        await db.expenses.update_one({"id": exp["id"]}, {"$set": {"next_due_date": next_date, "updated_at": n.isoformat()}})
+        processed["expenses"].append(exp["name"])
+        await log_audit(eid, uid, "auto_pay", "expense", exp["id"], {"amount": exp["amount"]})
+    
+    # Process due debt payments
+    due_debts = await db.debts.find(
+        {"entity_id": eid, "owner_id": uid, "is_active": True, "due_date": {"$lte": today}, "current_balance": {"$gt": 0}}, {"_id": 0}
+    ).to_list(50)
+    
+    for debt in due_debts:
+        payment = min(debt.get("minimum_payment", 0), debt["current_balance"])
+        if payment > 0:
+            new_balance = max(0, debt["current_balance"] - payment)
+            await db.debts.update_one({"id": debt["id"]}, {"$set": {"current_balance": new_balance, "updated_at": n.isoformat()}})
+            next_date = _advance_date(debt.get("due_date"), debt.get("frequency", "monthly"))
+            await db.debts.update_one({"id": debt["id"]}, {"$set": {"due_date": next_date}})
+            tx = {
+                "id": new_id(), "entity_id": eid, "owner_id": uid,
+                "transaction_type": "debt_payment", "amount": payment,
+                "description": f"Auto: {debt['name']}", "account_id": debt.get("account_id"),
+                "source_id": debt["id"], "source_type": "debt_auto",
+                "date": n.isoformat(), "category_id": None, "created_at": n.isoformat()
+            }
+            await db.transactions.insert_one(tx)
+            if debt.get("account_id"):
+                await db.accounts.update_one({"id": debt["account_id"]}, {"$inc": {"balance": -payment}})
+            processed["debts"].append(debt["name"])
+            await log_audit(eid, uid, "auto_payment", "debt", debt["id"], {"amount": payment})
+    
+    return {
+        "processed": processed,
+        "total_processed": len(processed["income"]) + len(processed["expenses"]) + len(processed["debts"]),
+        "message": "Recurring transactions processed successfully"
+    }
+
+
+@recurring_router.get("/settings")
+async def get_recurring_settings(user_id: str = Depends(get_current_user_id)):
+    """Get user's recurring transaction settings"""
+    settings = await db.user_settings.find_one({"user_id": user_id, "setting_type": "recurring"}, {"_id": 0})
+    return settings or {"user_id": user_id, "auto_process": False, "notify_before_days": 3}
+
+
+@recurring_router.put("/settings")
+async def update_recurring_settings(
+    auto_process: bool = False,
+    notify_before_days: int = 3,
+    user_id: str = Depends(get_current_user_id)
+):
+    """Update recurring transaction settings"""
+    await db.user_settings.update_one(
+        {"user_id": user_id, "setting_type": "recurring"},
+        {"$set": {"auto_process": auto_process, "notify_before_days": notify_before_days, "updated_at": now_str()}},
+        upsert=True
+    )
+    return {"message": "Settings updated"}
+
+
+# ==================== PDF EXPORT WITH CHARTS ====================
+@pdf_router.get("/dashboard")
+async def export_dashboard_pdf(user_id: str = Depends(get_current_user_id)):
+    """Export dashboard summary as PDF"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    entity_ids = [user.get("personal_entity_id")]
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(50)
+    entity_ids.extend([eu["entity_id"] for eu in eus if eu["entity_id"] not in entity_ids])
+    entity_ids = [e for e in entity_ids if e]
+    
+    # Fetch data
+    accounts = await db.accounts.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id}, {"_id": 0}).to_list(200)
+    holdings = await db.investment_holdings.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id}, {"_id": 0}).to_list(200)
+    debts = await db.debts.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id, "is_active": True}, {"_id": 0}).to_list(200)
+    
+    total_balance = sum(a.get("balance", 0) for a in accounts if a.get("balance", 0) > 0)
+    total_investments = sum((h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0) for h in holdings)
+    total_debt = sum(d.get("current_balance", 0) for d in debts)
+    net_worth = total_balance + total_investments - total_debt
+    
+    # Create PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=24, spaceAfter=20, textColor=colors.HexColor('#1e3a5f'))
+    
+    elements = []
+    elements.append(Paragraph(f"BlackieFi Dashboard Report", title_style))
+    elements.append(Paragraph(f"Generated: {now_dt().strftime('%B %d, %Y')}", styles['Normal']))
+    elements.append(Paragraph(f"User: {user.get('full_name', 'Unknown')}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Summary table
+    summary_data = [
+        ["Metric", "Value"],
+        ["Total Cash", f"${total_balance:,.2f}"],
+        ["Total Investments", f"${total_investments:,.2f}"],
+        ["Total Debt", f"${total_debt:,.2f}"],
+        ["Net Worth", f"${net_worth:,.2f}"],
+    ]
+    summary_table = Table(summary_data, colWidths=[3*inch, 2*inch])
+    summary_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 12),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8fafc')),
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+    ]))
+    elements.append(summary_table)
+    elements.append(Spacer(1, 30))
+    
+    # Create pie chart for allocation
+    if total_balance > 0 or total_investments > 0:
+        fig, ax = plt.subplots(figsize=(5, 3))
+        labels = []
+        values = []
+        chart_colors = []
+        if total_balance > 0:
+            labels.append('Cash')
+            values.append(total_balance)
+            chart_colors.append('#22c55e')
+        if total_investments > 0:
+            labels.append('Investments')
+            values.append(total_investments)
+            chart_colors.append('#3b82f6')
+        
+        ax.pie(values, labels=labels, colors=chart_colors, autopct='%1.1f%%', startangle=90)
+        ax.set_title('Asset Allocation')
+        
+        chart_buffer = io.BytesIO()
+        plt.savefig(chart_buffer, format='png', dpi=100, bbox_inches='tight', facecolor='white')
+        chart_buffer.seek(0)
+        plt.close(fig)
+        
+        elements.append(Paragraph("Asset Allocation", styles['Heading2']))
+        elements.append(Image(chart_buffer, width=4*inch, height=2.4*inch))
+    
+    # Accounts table
+    if accounts:
+        elements.append(Spacer(1, 20))
+        elements.append(Paragraph("Accounts", styles['Heading2']))
+        acc_data = [["Account", "Type", "Balance"]]
+        for a in accounts[:10]:
+            acc_data.append([a.get("name", ""), a.get("account_type", ""), f"${a.get('balance', 0):,.2f}"])
+        acc_table = Table(acc_data, colWidths=[2.5*inch, 1.5*inch, 1.5*inch])
+        acc_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (2, 0), (2, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#e2e8f0')),
+        ]))
+        elements.append(acc_table)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=blackiefi_dashboard_{now_dt().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@pdf_router.get("/transactions")
+async def export_transactions_pdf(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    ctx: dict = Depends(get_entity_access)
+):
+    """Export transactions as PDF"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    
+    q = {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"]}
+    if start_date:
+        q["date"] = q.get("date", {})
+        q["date"]["$gte"] = start_date
+    if end_date:
+        q.setdefault("date", {})
+        q["date"]["$lte"] = end_date
+    
+    txns = await db.transactions.find(q, {"_id": 0}).sort("date", -1).to_list(500)
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=20, spaceAfter=20, textColor=colors.HexColor('#1e3a5f'))
+    
+    elements = []
+    elements.append(Paragraph("Transaction Report", title_style))
+    elements.append(Paragraph(f"Generated: {now_dt().strftime('%B %d, %Y')}", styles['Normal']))
+    if start_date or end_date:
+        elements.append(Paragraph(f"Period: {start_date or 'Beginning'} to {end_date or 'Now'}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Summary
+    income = sum(t["amount"] for t in txns if t.get("transaction_type") == "income")
+    expenses = sum(t["amount"] for t in txns if t.get("transaction_type") in ("expense", "debt_payment"))
+    elements.append(Paragraph(f"Total Income: ${income:,.2f} | Total Expenses: ${expenses:,.2f} | Net: ${income - expenses:,.2f}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Transactions table
+    if txns:
+        txn_data = [["Date", "Type", "Description", "Amount"]]
+        for t in txns[:100]:
+            date_str = t.get("date", "")[:10] if t.get("date") else ""
+            amount_str = f"${t.get('amount', 0):,.2f}"
+            if t.get("transaction_type") in ("expense", "debt_payment"):
+                amount_str = f"-{amount_str}"
+            txn_data.append([date_str, t.get("transaction_type", ""), t.get("description", "")[:30], amount_str])
+        
+        txn_table = Table(txn_data, colWidths=[1*inch, 1.2*inch, 2.8*inch, 1*inch])
+        txn_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('ALIGN', (3, 0), (3, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ]))
+        elements.append(txn_table)
+    else:
+        elements.append(Paragraph("No transactions found.", styles['Normal']))
+    
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=blackiefi_transactions_{now_dt().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+@pdf_router.get("/portfolio")
+async def export_portfolio_pdf(ctx: dict = Depends(get_entity_access)):
+    """Export portfolio/investments as PDF with charts"""
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    
+    eid = ctx["entity_id"]
+    uid = ctx["user_id"]
+    
+    vehicles = await db.investment_vehicles.find({"entity_id": eid, "owner_id": uid}, {"_id": 0}).to_list(50)
+    holdings = await db.investment_holdings.find({"entity_id": eid, "owner_id": uid}, {"_id": 0}).to_list(200)
+    vehicle_map = {v["id"]: v["name"] for v in vehicles}
+    
+    total_value = sum((h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0) for h in holdings)
+    total_cost = sum(h.get("cost_basis", 0) * h.get("quantity", 0) for h in holdings)
+    total_gain = total_value - total_cost
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch)
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=20, spaceAfter=20, textColor=colors.HexColor('#1e3a5f'))
+    
+    elements = []
+    elements.append(Paragraph("Investment Portfolio Report", title_style))
+    elements.append(Paragraph(f"Generated: {now_dt().strftime('%B %d, %Y')}", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Summary
+    gain_color = "green" if total_gain >= 0 else "red"
+    elements.append(Paragraph(f"<b>Total Value:</b> ${total_value:,.2f}", styles['Normal']))
+    elements.append(Paragraph(f"<b>Total Cost Basis:</b> ${total_cost:,.2f}", styles['Normal']))
+    elements.append(Paragraph(f"<b>Total Gain/Loss:</b> <font color='{gain_color}'>${total_gain:,.2f} ({(total_gain/total_cost*100) if total_cost > 0 else 0:.1f}%)</font>", styles['Normal']))
+    elements.append(Spacer(1, 20))
+    
+    # Pie chart by vehicle
+    if vehicles and holdings:
+        vehicle_values = {}
+        for h in holdings:
+            vid = h.get("vehicle_id")
+            value = (h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0)
+            vehicle_values[vid] = vehicle_values.get(vid, 0) + value
+        
+        fig, ax = plt.subplots(figsize=(5, 3))
+        labels = [vehicle_map.get(vid, "Unknown") for vid in vehicle_values.keys()]
+        values = list(vehicle_values.values())
+        chart_colors = ['#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#8b5cf6', '#06b6d4']
+        
+        ax.pie(values, labels=labels, colors=chart_colors[:len(values)], autopct='%1.1f%%', startangle=90)
+        ax.set_title('Portfolio by Vehicle')
+        
+        chart_buffer = io.BytesIO()
+        plt.savefig(chart_buffer, format='png', dpi=100, bbox_inches='tight', facecolor='white')
+        chart_buffer.seek(0)
+        plt.close(fig)
+        
+        elements.append(Image(chart_buffer, width=4*inch, height=2.4*inch))
+        elements.append(Spacer(1, 20))
+    
+    # Holdings table
+    if holdings:
+        elements.append(Paragraph("Holdings", styles['Heading2']))
+        hold_data = [["Asset", "Vehicle", "Qty", "Cost", "Value", "Gain"]]
+        for h in holdings:
+            value = (h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0)
+            cost = h.get("cost_basis", 0) * h.get("quantity", 0)
+            gain = value - cost
+            hold_data.append([
+                h.get("asset_name", "")[:15],
+                vehicle_map.get(h.get("vehicle_id"), "")[:12],
+                f"{h.get('quantity', 0):.2f}",
+                f"${cost:,.0f}",
+                f"${value:,.0f}",
+                f"${gain:,.0f}"
+            ])
+        
+        hold_table = Table(hold_data, colWidths=[1.2*inch, 1*inch, 0.7*inch, 0.9*inch, 0.9*inch, 0.8*inch])
+        hold_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('ALIGN', (2, 0), (-1, -1), 'RIGHT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+        ]))
+        elements.append(hold_table)
+    
+    doc.build(elements)
+    buffer.seek(0)
+    
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename=blackiefi_portfolio_{now_dt().strftime('%Y%m%d')}.pdf"}
+    )
+
+
+# ==================== MULTI-TENANCY IMPROVEMENTS ====================
+@multitenancy_router.get("/cross-entity-summary")
+async def get_cross_entity_summary(user_id: str = Depends(get_current_user_id)):
+    """Get summary across all entities user has access to"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    entity_ids = [user.get("personal_entity_id")]
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(50)
+    entity_ids.extend([eu["entity_id"] for eu in eus if eu["entity_id"] not in entity_ids])
+    entity_ids = [e for e in entity_ids if e]
+    
+    entities = await db.entities.find({"id": {"$in": entity_ids}}, {"_id": 0}).to_list(50)
+    
+    summaries = []
+    for entity in entities:
+        eid = entity["id"]
+        accounts = await db.accounts.find({"entity_id": eid, "owner_id": user_id}, {"_id": 0}).to_list(100)
+        debts = await db.debts.find({"entity_id": eid, "owner_id": user_id, "is_active": True}, {"_id": 0}).to_list(100)
+        holdings = await db.investment_holdings.find({"entity_id": eid, "owner_id": user_id}, {"_id": 0}).to_list(100)
+        
+        total_cash = sum(a.get("balance", 0) for a in accounts if a.get("balance", 0) > 0)
+        total_debt = sum(d.get("current_balance", 0) for d in debts)
+        total_investments = sum((h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0) for h in holdings)
+        
+        summaries.append({
+            "entity_id": eid,
+            "entity_name": entity.get("name"),
+            "entity_type": entity.get("entity_type"),
+            "is_personal": entity.get("is_personal", False),
+            "total_cash": total_cash,
+            "total_debt": total_debt,
+            "total_investments": total_investments,
+            "net_worth": total_cash + total_investments - total_debt
+        })
+    
+    total_net_worth = sum(s["net_worth"] for s in summaries)
+    
+    return {
+        "entities": summaries,
+        "total_net_worth": total_net_worth,
+        "entity_count": len(summaries)
+    }
+
+
+@multitenancy_router.get("/entity-comparison")
+async def get_entity_comparison(user_id: str = Depends(get_current_user_id)):
+    """Compare financial metrics across entities"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    entity_ids = [user.get("personal_entity_id")]
+    eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(50)
+    entity_ids.extend([eu["entity_id"] for eu in eus if eu["entity_id"] not in entity_ids])
+    entity_ids = [e for e in entity_ids if e]
+    
+    entities = await db.entities.find({"id": {"$in": entity_ids}}, {"_id": 0}).to_list(50)
+    
+    n = now_dt()
+    month_start = n.replace(day=1).isoformat()
+    
+    comparisons = []
+    for entity in entities:
+        eid = entity["id"]
+        
+        # Get monthly transactions
+        txns = await db.transactions.find(
+            {"entity_id": eid, "owner_id": user_id, "date": {"$gte": month_start}}, {"_id": 0}
+        ).to_list(500)
+        
+        income = sum(t["amount"] for t in txns if t.get("transaction_type") == "income")
+        expenses = sum(t["amount"] for t in txns if t.get("transaction_type") in ("expense", "debt_payment"))
+        
+        comparisons.append({
+            "entity_id": eid,
+            "entity_name": entity.get("name"),
+            "monthly_income": income,
+            "monthly_expenses": expenses,
+            "monthly_net": income - expenses,
+            "transaction_count": len(txns)
+        })
+    
+    return {"comparisons": comparisons, "month": n.strftime("%B %Y")}
+
+
+@multitenancy_router.post("/switch-entity")
+async def switch_entity(entity_id: str, user_id: str = Depends(get_current_user_id)):
+    """Validate entity access for switching"""
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(404, "User not found")
+    
+    # Check if user has access
+    if entity_id == user.get("personal_entity_id"):
+        return {"message": "Switched to personal entity", "entity_id": entity_id}
+    
+    eu = await db.entity_users.find_one({"entity_id": entity_id, "user_id": user_id, "is_active": True}, {"_id": 0})
+    if not eu:
+        raise HTTPException(403, "No access to this entity")
+    
+    entity = await db.entities.find_one({"id": entity_id}, {"_id": 0})
+    
+    return {
+        "message": f"Switched to {entity.get('name', 'Unknown')}",
+        "entity_id": entity_id,
+        "entity_name": entity.get("name"),
+        "entity_type": entity.get("entity_type")
+    }
+
+
 # ==================== REGISTER ROUTERS ====================
 app.include_router(api_router)
 app.include_router(auth_router)
@@ -2619,6 +3375,11 @@ app.include_router(notifications_router)
 app.include_router(data_router)
 app.include_router(currency_router)
 app.include_router(rag_router)
+app.include_router(portfolio_analytics_router)
+app.include_router(audit_router)
+app.include_router(recurring_router)
+app.include_router(pdf_router)
+app.include_router(multitenancy_router)
 
 app.add_middleware(
     CORSMiddleware,
