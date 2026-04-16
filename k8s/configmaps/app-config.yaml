@@ -1,0 +1,41 @@
+# Shared application ConfigMap consumed by every Python microservice and the gateway
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blackiefi-app-config
+  namespace: blackiefi
+  labels:
+    app.kubernetes.io/part-of: blackiefi-platform
+data:
+  # JWT
+  JWT_ALGORITHM: "HS256"
+  JWT_EXPIRATION_HOURS: "24"
+
+  # MongoDB — services connect via the headless Service DNS name
+  MONGO_URL: "mongodb://mongo.blackiefi.svc.cluster.local:27017"
+  MONGO_DB: "blackiefi"
+
+  # Redis
+  REDIS_URL: "redis://redis.blackiefi.svc.cluster.local:6379"
+
+  # Ollama AI
+  OLLAMA_HOST: "ollama.blackiefi.svc.cluster.local"
+  OLLAMA_PORT: "11434"
+  OLLAMA_MODEL: "phi"
+
+  # ChromaDB
+  CHROMA_HOST: "chroma.blackiefi.svc.cluster.local"
+  CHROMA_PORT: "8000"
+
+  # Inter-service URLs (ClusterIP DNS)
+  AUTH_SERVICE_URL: "http://auth.blackiefi.svc.cluster.local:8001"
+  CORE_SERVICE_URL: "http://core.blackiefi.svc.cluster.local:8002"
+  ENTITY_SERVICE_URL: "http://entity.blackiefi.svc.cluster.local:8003"
+  PORTFOLIO_SERVICE_URL: "http://portfolio.blackiefi.svc.cluster.local:8004"
+  ASSETS_SERVICE_URL: "http://assets.blackiefi.svc.cluster.local:8005"
+
+  # CORS — update with your actual domain
+  CORS_ORIGINS: "http://localhost:8080,https://blackiefi.local"
+
+  # Logging
+  LOG_LEVEL: "INFO"

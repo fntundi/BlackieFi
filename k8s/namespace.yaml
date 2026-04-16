@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: blackiefi
+  labels:
+    app.kubernetes.io/name: blackiefi
+    app.kubernetes.io/part-of: blackiefi-platform
+    app.kubernetes.io/managed-by: jenkins

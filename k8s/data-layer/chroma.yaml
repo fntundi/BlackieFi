@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chroma
+  namespace: blackiefi
+  labels:
+    app.kubernetes.io/name: chroma
+    app.kubernetes.io/component: vectordb
+    app.kubernetes.io/part-of: blackiefi-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chroma
+  template:
+    metadata:
+      labels:
+        app: chroma
+        app.kubernetes.io/name: chroma
+    spec:
+      containers:
+        - name: chroma
+          image: chromadb/chroma:latest
+          ports:
+            - containerPort: 8000
+              name: chroma
+          env:
+            - name: ANONYMIZED_TELEMETRY
+              value: "false"
+            - name: ALLOW_RESET
+              value: "true"
+          volumeMounts:
+            - name: chroma-persistent
+              mountPath: /chroma/chroma
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /api/v1/heartbeat
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          livenessProbe:
+            httpGet:
+              path: /api/v1/heartbeat
+              port: 8000
+            initialDelaySeconds: 20
+            periodSeconds: 30
+      volumes:
+        - name: chroma-persistent
+          persistentVolumeClaim:
+            claimName: chroma-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chroma
+  namespace: blackiefi
+  labels:
+    app.kubernetes.io/name: chroma
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: chroma
+  selector:
+    app: chroma

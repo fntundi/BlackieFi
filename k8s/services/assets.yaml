@@ -1,0 +1,65 @@
+# Assets microservice — /api/assets/*
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assets
+  namespace: blackiefi
+  labels: &assets-labels
+    app: assets
+    app.kubernetes.io/name: assets
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: blackiefi-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: assets
+  template:
+    metadata:
+      labels: *assets-labels
+    spec:
+      containers:
+        - name: assets
+          image: ${REGISTRY}/blackiefi-assets:${IMAGE_TAG}
+          ports:
+            - containerPort: 8005
+          envFrom:
+            - configMapRef:
+                name: blackiefi-app-config
+          env:
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: blackiefi-secrets
+                  key: jwt-secret
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /api/assets/health
+              port: 8005
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/assets/health
+              port: 8005
+            initialDelaySeconds: 15
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: assets
+  namespace: blackiefi
+spec:
+  ports:
+    - port: 8005
+      targetPort: 8005
+  selector:
+    app: assets

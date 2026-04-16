@@ -1,0 +1,71 @@
+# Nginx Edge Gateway — TLS termination, rate limiting, CORS, logging
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: blackiefi
+  labels: &nginx-labels
+    app: nginx
+    app.kubernetes.io/name: nginx
+    app.kubernetes.io/component: edge-gateway
+    app.kubernetes.io/part-of: blackiefi-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nginx
+  template:
+    metadata:
+      labels: *nginx-labels
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 8080
+              name: http
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: nginx-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+  namespace: blackiefi
+  labels:
+    app.kubernetes.io/name: nginx
+spec:
+  type: NodePort
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080
+      name: http
+  selector:
+    app: nginx

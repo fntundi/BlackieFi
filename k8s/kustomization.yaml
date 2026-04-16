@@ -1,0 +1,47 @@
+# Kustomize base — apply the full stack with:
+#   kubectl apply -k k8s/
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: blackiefi
+
+resources:
+  # Foundation
+  - namespace.yaml
+  - secrets.yaml
+
+  # ConfigMaps
+  - configmaps/app-config.yaml
+  - configmaps/nginx-config.yaml
+  - configmaps/mongo-init.yaml
+
+  # Storage
+  - storage/persistent-volumes.yaml
+
+  # Data Layer
+  - data-layer/mongo.yaml
+  - data-layer/redis.yaml
+  - data-layer/chroma.yaml
+
+  # AI Layer
+  - ai-layer/ollama.yaml
+
+  # Microservices
+  - services/auth.yaml
+  - services/core.yaml
+  - services/entity.yaml
+  - services/portfolio.yaml
+  - services/assets.yaml
+
+  # Gateway
+  - gateway/gateway-app.yaml
+  - gateway/nginx.yaml
+
+  # Frontend
+  - frontend/frontend.yaml
+
+  # Ingress (optional — comment out if using NodePort only)
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize

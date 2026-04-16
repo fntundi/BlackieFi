@@ -139,6 +139,14 @@ Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Portfol
 - [x] Fixed 6 lint errors: multi-import split, unused variables removed, f-string placeholder fix
 - [x] 0 lint errors remaining (ruff verified)
 
+### Kubernetes + Jenkins CI/CD (April 2026) - COMPLETE
+- [x] 20 Kubernetes manifests: namespace, secrets, 3 configmaps, 4 PVCs, 3 data-layer, 1 AI-layer, 5 microservices, 2 gateway, 1 frontend, 1 ingress, 1 kustomization
+- [x] Jenkinsfile: 8-stage declarative pipeline (checkout, lint, test, build, security-scan, push, deploy, smoke-test)
+- [x] 4 deployment scripts (build-images.sh, push-images.sh, deploy.sh, smoke-test.sh)
+- [x] Full environment variable documentation (jenkins/environment.env)
+- [x] Comprehensive DEPLOYMENT.md guide with architecture, prerequisites, quick-start, rollback instructions
+- [x] Zero functional code changes — purely infrastructure
+
 ## P0 Backlog
 - Integrate live exchange rate API (optional upgrade from static rates)
 - Add email delivery for password reset tokens

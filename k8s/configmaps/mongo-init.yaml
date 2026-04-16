@@ -1,0 +1,75 @@
+# MongoDB initialization script — runs once via an init container
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongo-init-config
+  namespace: blackiefi
+  labels:
+    app.kubernetes.io/part-of: blackiefi-platform
+data:
+  mongo-init.js: |
+    db = db.getSiblingDB('blackiefi');
+
+    db.createCollection('users', {
+      validator: {
+        $jsonSchema: {
+          bsonType: 'object',
+          required: ['id', 'email', 'hashed_password', 'full_name'],
+          properties: {
+            id: { bsonType: 'string' },
+            email: { bsonType: 'string' },
+            hashed_password: { bsonType: 'string' },
+            full_name: { bsonType: 'string' },
+            is_active: { bsonType: 'bool' },
+            is_admin: { bsonType: 'bool' },
+            created_at: { bsonType: 'string' },
+            updated_at: { bsonType: 'string' }
+          }
+        }
+      }
+    });
+
+    db.createCollection('entities');
+    db.createCollection('accounts');
+    db.createCollection('assets');
+    db.createCollection('transactions');
+    db.createCollection('status_checks');
+    db.createCollection('bill_schedules');
+    db.createCollection('audit_log');
+    db.createCollection('roles');
+    db.createCollection('entity_users');
+    db.createCollection('notifications');
+    db.createCollection('budgets');
+    db.createCollection('savings_funds');
+    db.createCollection('income_sources');
+    db.createCollection('expenses');
+    db.createCollection('debts');
+    db.createCollection('investment_vehicles');
+    db.createCollection('investment_holdings');
+    db.createCollection('calendar_events');
+    db.createCollection('categories');
+    db.createCollection('user_settings');
+    db.createCollection('rag_documents');
+    db.createCollection('rag_chunks');
+
+    db.users.createIndex({ 'id': 1 }, { unique: true });
+    db.users.createIndex({ 'email': 1 }, { unique: true });
+    db.entities.createIndex({ 'id': 1 }, { unique: true });
+    db.entities.createIndex({ 'owner_id': 1 });
+    db.accounts.createIndex({ 'id': 1 }, { unique: true });
+    db.accounts.createIndex({ 'entity_id': 1 });
+    db.assets.createIndex({ 'id': 1 }, { unique: true });
+    db.assets.createIndex({ 'entity_id': 1 });
+    db.transactions.createIndex({ 'id': 1 }, { unique: true });
+    db.transactions.createIndex({ 'entity_id': 1, 'owner_id': 1 });
+    db.transactions.createIndex({ 'date': -1 });
+    db.bill_schedules.createIndex({ 'id': 1 }, { unique: true });
+    db.bill_schedules.createIndex({ 'entity_id': 1, 'owner_id': 1 });
+    db.audit_log.createIndex({ 'entity_id': 1 });
+    db.audit_log.createIndex({ 'created_at': -1 });
+    db.roles.createIndex({ 'id': 1 }, { unique: true });
+    db.roles.createIndex({ 'name': 1, 'entity_id': 1 });
+    db.notifications.createIndex({ 'user_id': 1, 'is_read': 1 });
+    db.categories.createIndex({ 'id': 1 }, { unique: true });
+
+    print('BlackieFi database initialized successfully!');
