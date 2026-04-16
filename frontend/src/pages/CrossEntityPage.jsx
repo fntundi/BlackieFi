@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "@/lib/api";
+import { tokenStorage } from "@/lib/tokenStorage";
 import { Building2, TrendingUp, TrendingDown, RefreshCw, ArrowRight } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
@@ -32,7 +33,7 @@ export default function CrossEntityPage() {
   const handleSwitchEntity = async (entityId) => {
     try {
       await api.post(`/multitenancy/switch-entity?entity_id=${entityId}`);
-      localStorage.setItem("currentEntityId", entityId);
+      tokenStorage.setEntityId(entityId);
       window.location.reload();
     } catch (e) {
       alert(e.response?.data?.detail || "Error switching entity");

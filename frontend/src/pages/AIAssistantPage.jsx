@@ -16,14 +16,14 @@ export default function AIAssistantPage() {
     try {
       const r = await api.get("/ai/settings");
       setSettings(r.data);
-    } catch {}
+    } catch (e) { console.error("Failed to load AI settings:", e.message); }
   }, []);
 
   const loadHistory = useCallback(async () => {
     try {
       const r = await api.get("/ai/history?limit=50");
       setMessages(r.data);
-    } catch {}
+    } catch (e) { console.error("Failed to load AI history:", e.message); }
   }, []);
 
   useEffect(() => { loadSettings(); loadHistory(); }, [loadSettings, loadHistory]);

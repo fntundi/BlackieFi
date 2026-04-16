@@ -39,7 +39,7 @@ export default function TransactionsPage() {
   const PAGE_SIZE = 25;
 
   const fetchCategories = useCallback(async () => {
-    try { const r = await api.get("/categories/"); setCategories(r.data); } catch (e) {}
+    try { const r = await api.get("/categories/"); setCategories(r.data); } catch (e) { console.error("Failed to load categories:", e.message); }
   }, []);
 
   const fetchTransactions = useCallback(async () => {

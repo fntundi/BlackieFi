@@ -88,8 +88,8 @@ export default function DashboardPage({ entityId, entities }) {
           <div className="dash-card" data-testid="upcoming-income-card">
             <h3><Calendar size={16} /> Upcoming Paydays</h3>
             <ul className="upcoming-list">
-              {data.upcoming_income.map((item, i) => (
-                <li key={i}>
+              {data.upcoming_income.map((item) => (
+                <li key={item.id || `${item.name}-${item.date}`}>
                   <span>{item.name}</span>
                   <span className="text-green">${item.amount?.toLocaleString()}</span>
                   <span className="text-muted">{item.date?.slice(0, 10)}</span>
@@ -103,8 +103,8 @@ export default function DashboardPage({ entityId, entities }) {
           <div className="dash-card" data-testid="upcoming-expenses-card">
             <h3><Calendar size={16} /> Upcoming Bills</h3>
             <ul className="upcoming-list">
-              {data.upcoming_expenses.map((item, i) => (
-                <li key={i}>
+              {data.upcoming_expenses.map((item) => (
+                <li key={item.id || `${item.name}-${item.date}`}>
                   <span>{item.name}</span>
                   <span className="text-red">${item.amount?.toLocaleString()}</span>
                   <span className="text-muted">{item.date?.slice(0, 10)}</span>
@@ -136,14 +136,14 @@ export default function DashboardPage({ entityId, entities }) {
               <PieChart>
                 <Pie data={debtData} dataKey="value" nameKey="name" cx="50%" cy="50%"
                      innerRadius={50} outerRadius={80} paddingAngle={3}>
-                  {debtData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                  {debtData.map((entry, i) => <Cell key={entry.name} fill={COLORS[i % COLORS.length]} />)}
                 </Pie>
                 <Tooltip contentStyle={{background: '#1e293b', border: '1px solid #334155', borderRadius: 8, color: '#f8fafc'}} />
               </PieChart>
             </ResponsiveContainer>
             <div className="pie-legend">
               {debtData.map((d, i) => (
-                <span key={i}><span className="dot" style={{background: COLORS[i % COLORS.length]}} />{d.name}: ${d.value.toLocaleString()}</span>
+                <span key={d.name}><span className="dot" style={{background: COLORS[i % COLORS.length]}} />{d.name}: ${d.value.toLocaleString()}</span>
               ))}
             </div>
           </div>

@@ -98,14 +98,14 @@ export default function CalendarPage() {
       <div className="cal-grid" data-testid="cal-grid">
         {DAYS.map(d => <div key={d} className="cal-header-cell">{d}</div>)}
         {cells.map((day, i) => (
-          <div key={i} className={`cal-cell ${day ? 'has-day' : 'empty'} ${day && isToday(day) ? 'today' : ''} ${day === selectedDay ? 'selected' : ''}`}
+          <div key={day ? `day-${day}` : `empty-${i}`} className={`cal-cell ${day ? 'has-day' : 'empty'} ${day && isToday(day) ? 'today' : ''} ${day === selectedDay ? 'selected' : ''}`}
                onClick={() => day && setSelectedDay(day === selectedDay ? null : day)}>
             {day && (
               <>
                 <span className="cal-day-num">{day}</span>
                 <div className="cal-dots">
-                  {getEventsForDay(day).slice(0, 3).map((e, j) => (
-                    <span key={j} className="cal-event-dot" style={{ background: e.color || EVENT_COLORS[e.event_type] || "#64748b" }} />
+                  {getEventsForDay(day).slice(0, 3).map((e) => (
+                    <span key={e.id || `${e.title}-${e.event_type}`} className="cal-event-dot" style={{ background: e.color || EVENT_COLORS[e.event_type] || "#64748b" }} />
                   ))}
                   {getEventsForDay(day).length > 3 && <span className="cal-more">+{getEventsForDay(day).length - 3}</span>}
                 </div>
@@ -122,8 +122,8 @@ export default function CalendarPage() {
             <p className="text-muted">No events this day.</p>
           ) : (
             <div className="cal-event-list">
-              {selectedEvents.map((e, i) => (
-                <div key={i} className="cal-event-item" style={{ borderLeftColor: e.color || EVENT_COLORS[e.event_type] }}>
+              {selectedEvents.map((e) => (
+                <div key={e.id || `${e.title}-${e.event_type}`} className="cal-event-item" style={{ borderLeftColor: e.color || EVENT_COLORS[e.event_type] }}>
                   <div>
                     <span className="cal-event-title">{e.title}</span>
                     <span className="cal-event-type">{e.event_type}</span>

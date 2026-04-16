@@ -14,9 +14,9 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
-# Test credentials
-TEST_EMAIL = "demo@blackiefi.com"
-TEST_PASSWORD = "Demo123!"
+# Test credentials — loaded from env or test_credentials.md defaults
+TEST_EMAIL = os.environ.get("TEST_EMAIL", "demo@blackiefi.com")
+TEST_PASSWORD = os.environ.get("TEST_PASSWORD", "Demo123!")
 
 
 class TestAuthAndMFA:

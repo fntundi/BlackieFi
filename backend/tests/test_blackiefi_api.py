@@ -11,9 +11,9 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
     BASE_URL = "https://portfolio-analytics-33.preview.emergentagent.com"
 
-# Demo credentials
-DEMO_EMAIL = "demo@blackiefi.com"
-DEMO_PASSWORD = "Demo123!"
+# Demo credentials — loaded from env or test_credentials.md defaults
+DEMO_EMAIL = os.environ.get("TEST_EMAIL", "demo@blackiefi.com")
+DEMO_PASSWORD = os.environ.get("TEST_PASSWORD", "Demo123!")
 
 
 class TestAuthEndpoints:

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import "@/App.css";
 import { api } from "@/lib/api";
+import { tokenStorage } from "@/lib/tokenStorage";
 import DashboardPage from "@/pages/DashboardPage";
 import IncomePage from "@/pages/IncomePage";
 import ExpensesPage from "@/pages/ExpensesPage";
@@ -63,10 +64,10 @@ const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const savedUser = localStorage.getItem("user");
+    const token = tokenStorage.getToken();
+    const savedUser = tokenStorage.getUser();
     if (token && savedUser) {
-      try { setUser(JSON.parse(savedUser)); } catch (e) { localStorage.clear(); }
+      setUser(savedUser);
     }
     setLoading(false);
   }, []);
@@ -77,9 +78,9 @@ const useAuth = () => {
       return { mfa_required: true, email: response.data.email };
     }
     const { access_token, user: u } = response.data;
-    localStorage.setItem("token", access_token);
-    localStorage.setItem("user", JSON.stringify(u));
-    if (u.personal_entity_id) localStorage.setItem("currentEntityId", u.personal_entity_id);
+    tokenStorage.setToken(access_token);
+    tokenStorage.setUser(u);
+    if (u.personal_entity_id) tokenStorage.setEntityId(u.personal_entity_id);
     setUser(u);
     return response.data;
   };
@@ -87,21 +88,21 @@ const useAuth = () => {
   const register = async (email, password, fullName) => {
     const response = await api.post("/auth/register", { email, password, full_name: fullName });
     const { access_token, user: u } = response.data;
-    localStorage.setItem("token", access_token);
-    localStorage.setItem("user", JSON.stringify(u));
-    if (u.personal_entity_id) localStorage.setItem("currentEntityId", u.personal_entity_id);
+    tokenStorage.setToken(access_token);
+    tokenStorage.setUser(u);
+    if (u.personal_entity_id) tokenStorage.setEntityId(u.personal_entity_id);
     setUser(u);
     return response.data;
   };
 
   const logout = () => {
-    try { api.post("/auth/logout"); } catch (e) {}
-    localStorage.clear();
+    api.post("/auth/logout").catch((err) => console.warn("Logout call failed:", err.message));
+    tokenStorage.clear();
     setUser(null);
   };
 
   const updateUser = (u) => {
-    localStorage.setItem("user", JSON.stringify(u));
+    tokenStorage.setUser(u);
     setUser(u);
   };
 
@@ -112,7 +113,7 @@ function NotificationBell({ onClick }) {
   const [count, setCount] = useState(0);
   useEffect(() => {
     const fetchCount = async () => {
-      try { const r = await api.get("/notifications/unread-count"); setCount(r.data.count); } catch {}
+      try { const r = await api.get("/notifications/unread-count"); setCount(r.data.count); } catch (err) { console.warn("Notification count fetch failed:", err.message); }
     };
     fetchCount();
     const interval = setInterval(fetchCount, 30000);
@@ -165,9 +166,9 @@ function AuthForm({ onLogin, onRegister }) {
     setLoading(true);
     try {
       const r = await api.post(`/auth/mfa/validate?email=${encodeURIComponent(mfaEmail)}`, { code: mfaCode });
-      localStorage.setItem("token", r.data.access_token);
-      localStorage.setItem("user", JSON.stringify(r.data.user));
-      if (r.data.user.personal_entity_id) localStorage.setItem("currentEntityId", r.data.user.personal_entity_id);
+      tokenStorage.setToken(r.data.access_token);
+      tokenStorage.setUser(r.data.user);
+      if (r.data.user.personal_entity_id) tokenStorage.setEntityId(r.data.user.personal_entity_id);
       window.location.reload();
     } catch (err) {
       setError(err.response?.data?.detail || "Invalid MFA code");
@@ -327,7 +328,7 @@ function MainLayout({ user, onLogout, onUpdateUser }) {
   const [activePage, setActivePage] = useState("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [entities, setEntities] = useState([]);
-  const [currentEntityId, setCurrentEntityId] = useState(localStorage.getItem("currentEntityId") || user?.personal_entity_id || "");
+  const [currentEntityId, setCurrentEntityId] = useState(tokenStorage.getEntityId() || user?.personal_entity_id || "");
   const [entityDropOpen, setEntityDropOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(!user?.onboarding_complete);
 
@@ -339,7 +340,7 @@ function MainLayout({ user, onLogout, onUpdateUser }) {
         const personal = r.data.find(e => e.is_personal);
         const eid = personal?.id || r.data[0].id;
         setCurrentEntityId(eid);
-        localStorage.setItem("currentEntityId", eid);
+        tokenStorage.setEntityId(eid);
       }
     } catch (e) { console.error(e); }
   }, [currentEntityId]);
@@ -348,7 +349,7 @@ function MainLayout({ user, onLogout, onUpdateUser }) {
 
   const switchEntity = (eid) => {
     setCurrentEntityId(eid);
-    localStorage.setItem("currentEntityId", eid);
+    tokenStorage.setEntityId(eid);
     setEntityDropOpen(false);
   };
 

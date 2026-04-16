@@ -1378,45 +1378,62 @@ async def delete_calendar_event(event_id: str, ctx: dict = Depends(get_entity_ac
 
 
 # ==================== DASHBOARD ROUTES ====================
-@dashboard_router.get("/unified")
-async def unified_dashboard(user_id: str = Depends(get_current_user_id)):
+async def _get_user_entity_ids(user_id):
+    """Resolve all entity IDs a user has access to."""
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(404, "User not found")
     entity_ids = [user.get("personal_entity_id")]
     eus = await db.entity_users.find({"user_id": user_id, "is_active": True}, {"_id": 0}).to_list(50)
     entity_ids.extend([eu["entity_id"] for eu in eus if eu["entity_id"] not in entity_ids])
-    entity_ids = [e for e in entity_ids if e]
+    return user, [e for e in entity_ids if e]
 
+
+async def _fetch_dashboard_totals(entity_ids, user_id):
+    """Fetch aggregated balances for accounts, debts, investments, income, expenses."""
     accounts = await db.accounts.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id}, {"_id": 0}).to_list(200)
-    total_balance = sum(a.get("balance", 0) for a in accounts)
-
     debts = await db.debts.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id, "is_active": True}, {"_id": 0}).to_list(200)
-    total_debt = sum(d.get("current_balance", 0) for d in debts)
-
     holdings = await db.investment_holdings.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id}, {"_id": 0}).to_list(200)
-    total_investments = sum((h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0) for h in holdings)
-
     income_sources = await db.income_sources.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id, "is_active": True}, {"_id": 0}).to_list(100)
-    monthly_income = sum(i.get("amount", 0) for i in income_sources)
-
     expenses_list = await db.expenses.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id, "is_active": True}, {"_id": 0}).to_list(200)
-    monthly_expenses = sum(e.get("amount", 0) for e in expenses_list)
+
+    return {
+        "accounts": accounts,
+        "debts": debts,
+        "holdings": holdings,
+        "income_sources": income_sources,
+        "expenses_list": expenses_list,
+        "total_balance": sum(a.get("balance", 0) for a in accounts),
+        "total_debt": sum(d.get("current_balance", 0) for d in debts),
+        "total_investments": sum((h.get("current_price") or h.get("cost_basis", 0)) * h.get("quantity", 0) for h in holdings),
+        "monthly_income": sum(i.get("amount", 0) for i in income_sources),
+        "monthly_expenses": sum(e.get("amount", 0) for e in expenses_list),
+    }
+
+
+def _compute_upcoming(income_sources, expenses_list, debts, cutoff_date):
+    """Compute upcoming income, expenses, and debt payments within a date cutoff."""
+    upcoming_income = [{"id": i.get("id"), "name": i["name"], "amount": i["amount"], "date": i.get("next_pay_date")}
+                       for i in income_sources if i.get("next_pay_date") and i["next_pay_date"] <= cutoff_date]
+    upcoming_expenses = [{"id": e.get("id"), "name": e["name"], "amount": e["amount"], "date": e.get("next_due_date")}
+                         for e in expenses_list if e.get("next_due_date") and e["next_due_date"] <= cutoff_date]
+    upcoming_debts = [{"id": d.get("id"), "name": d["name"], "amount": d.get("minimum_payment", 0), "date": d.get("due_date")}
+                      for d in debts if d.get("due_date") and d["due_date"] <= cutoff_date]
+    return upcoming_income, upcoming_expenses, upcoming_debts
+
+
+@dashboard_router.get("/unified")
+async def unified_dashboard(user_id: str = Depends(get_current_user_id)):
+    user, entity_ids = await _get_user_entity_ids(user_id)
+    totals = await _fetch_dashboard_totals(entity_ids, user_id)
 
     n = now_dt()
     next_30 = (n + timedelta(days=30)).isoformat()
-
-    upcoming_income = [{"name": i["name"], "amount": i["amount"], "date": i.get("next_pay_date")}
-                       for i in income_sources if i.get("next_pay_date") and i["next_pay_date"] <= next_30]
-    upcoming_expenses = [{"name": e["name"], "amount": e["amount"], "date": e.get("next_due_date")}
-                         for e in expenses_list if e.get("next_due_date") and e["next_due_date"] <= next_30]
-    upcoming_debts = [{"name": d["name"], "amount": d.get("minimum_payment", 0), "date": d.get("due_date")}
-                      for d in debts if d.get("due_date") and d["due_date"] <= next_30]
+    upcoming_income, upcoming_expenses, upcoming_debts = _compute_upcoming(
+        totals["income_sources"], totals["expenses_list"], totals["debts"], next_30
+    )
 
     savings = await db.savings_funds.find({"entity_id": {"$in": entity_ids}, "owner_id": user_id, "is_active": True}, {"_id": 0}).to_list(50)
-    total_savings_target = sum(s.get("target_amount", 0) for s in savings)
-    total_savings_current = sum(s.get("current_amount", 0) for s in savings)
-
     recent_txns = await db.transactions.find(
         {"entity_id": {"$in": entity_ids}, "owner_id": user_id}, {"_id": 0}
     ).sort("date", -1).to_list(10)
@@ -1430,23 +1447,23 @@ async def unified_dashboard(user_id: str = Depends(get_current_user_id)):
     actual_expenses = sum(t["amount"] for t in month_txns if t.get("transaction_type") in ("expense", "debt_payment"))
 
     return {
-        "total_balance": total_balance,
-        "total_debt": total_debt,
-        "total_investments": total_investments,
-        "monthly_income": monthly_income,
-        "monthly_expenses": monthly_expenses,
-        "net_worth": total_balance + total_investments - total_debt,
+        "total_balance": totals["total_balance"],
+        "total_debt": totals["total_debt"],
+        "total_investments": totals["total_investments"],
+        "monthly_income": totals["monthly_income"],
+        "monthly_expenses": totals["monthly_expenses"],
+        "net_worth": totals["total_balance"] + totals["total_investments"] - totals["total_debt"],
         "upcoming_income": sorted(upcoming_income, key=lambda x: x.get("date", ""))[:5],
         "upcoming_expenses": sorted(upcoming_expenses, key=lambda x: x.get("date", ""))[:5],
         "upcoming_debts": sorted(upcoming_debts, key=lambda x: x.get("date", ""))[:5],
-        "savings_target": total_savings_target,
-        "savings_current": total_savings_current,
+        "savings_target": sum(s.get("target_amount", 0) for s in savings),
+        "savings_current": sum(s.get("current_amount", 0) for s in savings),
         "recent_transactions": recent_txns[:10],
         "actual_income_this_month": actual_income,
         "actual_expenses_this_month": actual_expenses,
         "entities_count": len(entity_ids),
-        "accounts_count": len(accounts),
-        "debts_count": len(debts),
+        "accounts_count": len(totals["accounts"]),
+        "debts_count": len(totals["debts"]),
     }
 
 @dashboard_router.get("/entity/{entity_id}")
@@ -1547,6 +1564,13 @@ async def health():
 # ==================== STARTUP ====================
 @app.on_event("startup")
 async def startup():
+    await _seed_default_roles()
+    await _seed_default_categories()
+    await _seed_demo_user()
+
+
+async def _seed_default_roles():
+    """Ensure default roles exist in the database."""
     for role_name, perms in DEFAULT_ROLE_PERMISSIONS.items():
         existing = await db.roles.find_one({"name": role_name, "entity_id": None})
         if not existing:
@@ -1556,6 +1580,10 @@ async def startup():
                 "permissions": perms, "entity_id": None, "is_default": True,
                 "created_at": now_str(), "updated_at": now_str()
             })
+
+
+async def _seed_default_categories():
+    """Ensure default expense categories exist in the database."""
     for cat in DEFAULT_CATEGORIES:
         existing = await db.categories.find_one({"name": cat["name"], "entity_id": None})
         if not existing:
@@ -1565,134 +1593,145 @@ async def startup():
                 "created_at": now_str()
             })
 
+
+async def _seed_demo_user():
+    """Create the demo user with sample data if it doesn't already exist."""
     demo_email = "demo@blackiefi.com"
     demo = await db.users.find_one({"email": demo_email})
-    if not demo:
-        uid = new_id()
-        eid = new_id()
-        n = now_dt()
-        hashed = hash_password("Demo123!")
-        await db.users.insert_one({
-            "id": uid, "email": demo_email, "full_name": "Demo User",
-            "phone": None, "hashed_password": hashed, "is_active": True,
-            "is_admin": False, "personal_entity_id": eid,
-            "onboarding_complete": True, "created_at": n.isoformat(), "updated_at": n.isoformat()
-        })
-        await db.entities.insert_one({
-            "id": eid, "name": "Demo User's Personal", "entity_type": "personal",
-            "business_type": None, "jurisdiction": None, "description": "Personal finance",
-            "owner_id": uid, "status": "active", "is_personal": True,
-            "created_at": n.isoformat(), "updated_at": n.isoformat()
-        })
-        admin_role = await db.roles.find_one({"name": "admin", "entity_id": None}, {"_id": 0})
-        if admin_role:
-            await db.entity_users.insert_one({
-                "id": new_id(), "entity_id": eid, "user_id": uid,
-                "role_id": admin_role["id"], "is_active": True,
-                "invited_by": uid, "created_at": n.isoformat()
-            })
-        checking_id = new_id()
-        savings_id = new_id()
-        cc_id = new_id()
-        for acc in [
-            {"id": checking_id, "name": "Chase Checking", "account_type": "checking", "institution": "Chase", "balance": 5420.50, "currency": "USD"},
-            {"id": savings_id, "name": "Marcus Savings", "account_type": "savings", "institution": "Goldman Sachs", "balance": 15000.00, "currency": "USD"},
-            {"id": cc_id, "name": "Amex Credit Card", "account_type": "credit_card", "institution": "American Express", "balance": -2340.00, "currency": "USD"},
-        ]:
-            await db.accounts.insert_one({**acc, "owner_id": uid, "entity_id": eid,
-                                           "created_at": n.isoformat(), "updated_at": n.isoformat()})
+    if demo:
+        return
 
-        cats = await db.categories.find({"entity_id": None}, {"_id": 0}).to_list(20)
-        cat_map = {c["name"]: c["id"] for c in cats}
-
-        d15 = (n.replace(day=15) if n.day < 15 else n.replace(day=15) + relativedelta(months=1)).isoformat()
-        d1 = (n.replace(day=1) + relativedelta(months=1)).isoformat()
-
-        await db.income_sources.insert_one({
-            "id": new_id(), "entity_id": eid, "owner_id": uid, "name": "Employer Salary",
-            "income_type": "salary", "amount": 6500.00, "is_variable": False,
-            "frequency": "biweekly", "next_pay_date": d15,
-            "account_id": checking_id, "is_active": True,
-            "created_at": n.isoformat(), "updated_at": n.isoformat()
-        })
-        await db.income_sources.insert_one({
-            "id": new_id(), "entity_id": eid, "owner_id": uid, "name": "Freelance Gigs",
-            "income_type": "freelance", "amount": 1200.00, "is_variable": True,
-            "frequency": "monthly", "next_pay_date": d1,
-            "account_id": checking_id, "is_active": True,
-            "created_at": n.isoformat(), "updated_at": n.isoformat()
+    uid = new_id()
+    eid = new_id()
+    n = now_dt()
+    hashed = hash_password("Demo123!")
+    await db.users.insert_one({
+        "id": uid, "email": demo_email, "full_name": "Demo User",
+        "phone": None, "hashed_password": hashed, "is_active": True,
+        "is_admin": False, "personal_entity_id": eid,
+        "onboarding_complete": True, "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+    await db.entities.insert_one({
+        "id": eid, "name": "Demo User's Personal", "entity_type": "personal",
+        "business_type": None, "jurisdiction": None, "description": "Personal finance",
+        "owner_id": uid, "status": "active", "is_personal": True,
+        "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+    admin_role = await db.roles.find_one({"name": "admin", "entity_id": None}, {"_id": 0})
+    if admin_role:
+        await db.entity_users.insert_one({
+            "id": new_id(), "entity_id": eid, "user_id": uid,
+            "role_id": admin_role["id"], "is_active": True,
+            "invited_by": uid, "created_at": n.isoformat()
         })
 
-        for exp in [
-            {"name": "Rent", "amount": 2200.00, "frequency": "monthly", "category": "Home", "recurring": True},
-            {"name": "Car Insurance", "amount": 180.00, "frequency": "monthly", "category": "Vehicle", "recurring": True},
-            {"name": "Netflix", "amount": 15.99, "frequency": "monthly", "category": "Subscriptions", "recurring": True},
-            {"name": "Gym Membership", "amount": 49.99, "frequency": "monthly", "category": "Healthcare", "recurring": True},
-            {"name": "Groceries", "amount": 600.00, "frequency": "monthly", "category": "Food & Dining", "recurring": True},
-        ]:
-            await db.expenses.insert_one({
-                "id": new_id(), "entity_id": eid, "owner_id": uid,
-                "name": exp["name"], "description": None, "amount": exp["amount"],
-                "is_variable": False, "is_recurring": exp["recurring"],
-                "frequency": exp["frequency"], "next_due_date": d1,
-                "category_id": cat_map.get(exp["category"]), "account_id": checking_id,
-                "is_active": True, "created_at": n.isoformat(), "updated_at": n.isoformat()
-            })
+    await _seed_demo_accounts(uid, eid, n)
 
-        await db.debts.insert_one({
+
+async def _seed_demo_accounts(uid, eid, n):
+    """Seed demo financial accounts, income, expenses, debts, investments, and budget."""
+    checking_id = new_id()
+    savings_id = new_id()
+    cc_id = new_id()
+    for acc in [
+        {"id": checking_id, "name": "Chase Checking", "account_type": "checking", "institution": "Chase", "balance": 5420.50, "currency": "USD"},
+        {"id": savings_id, "name": "Marcus Savings", "account_type": "savings", "institution": "Goldman Sachs", "balance": 15000.00, "currency": "USD"},
+        {"id": cc_id, "name": "Amex Credit Card", "account_type": "credit_card", "institution": "American Express", "balance": -2340.00, "currency": "USD"},
+    ]:
+        await db.accounts.insert_one({**acc, "owner_id": uid, "entity_id": eid,
+                                       "created_at": n.isoformat(), "updated_at": n.isoformat()})
+
+    cats = await db.categories.find({"entity_id": None}, {"_id": 0}).to_list(20)
+    cat_map = {c["name"]: c["id"] for c in cats}
+
+    d15 = (n.replace(day=15) if n.day < 15 else n.replace(day=15) + relativedelta(months=1)).isoformat()
+    d1 = (n.replace(day=1) + relativedelta(months=1)).isoformat()
+
+    await db.income_sources.insert_one({
+        "id": new_id(), "entity_id": eid, "owner_id": uid, "name": "Employer Salary",
+        "income_type": "salary", "amount": 6500.00, "is_variable": False,
+        "frequency": "biweekly", "next_pay_date": d15,
+        "account_id": checking_id, "is_active": True,
+        "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+    await db.income_sources.insert_one({
+        "id": new_id(), "entity_id": eid, "owner_id": uid, "name": "Freelance Gigs",
+        "income_type": "freelance", "amount": 1200.00, "is_variable": True,
+        "frequency": "monthly", "next_pay_date": d1,
+        "account_id": checking_id, "is_active": True,
+        "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+
+    for exp in [
+        {"name": "Rent", "amount": 2200.00, "frequency": "monthly", "category": "Home", "recurring": True},
+        {"name": "Car Insurance", "amount": 180.00, "frequency": "monthly", "category": "Vehicle", "recurring": True},
+        {"name": "Netflix", "amount": 15.99, "frequency": "monthly", "category": "Subscriptions", "recurring": True},
+        {"name": "Gym Membership", "amount": 49.99, "frequency": "monthly", "category": "Healthcare", "recurring": True},
+        {"name": "Groceries", "amount": 600.00, "frequency": "monthly", "category": "Food & Dining", "recurring": True},
+    ]:
+        await db.expenses.insert_one({
             "id": new_id(), "entity_id": eid, "owner_id": uid,
-            "name": "Auto Loan", "debt_type": "loan", "original_amount": 28000.00,
-            "current_balance": 18500.00, "interest_rate": 4.5,
-            "minimum_payment": 450.00, "due_date": d15, "frequency": "monthly",
-            "account_id": checking_id, "is_active": True,
-            "created_at": n.isoformat(), "updated_at": n.isoformat()
-        })
-        await db.debts.insert_one({
-            "id": new_id(), "entity_id": eid, "owner_id": uid,
-            "name": "Credit Card Balance", "debt_type": "credit_card", "original_amount": 5000.00,
-            "current_balance": 2340.00, "interest_rate": 19.9,
-            "minimum_payment": 75.00, "due_date": d1, "frequency": "monthly",
-            "account_id": cc_id, "is_active": True,
-            "created_at": n.isoformat(), "updated_at": n.isoformat()
-        })
-
-        veh_id = new_id()
-        await db.investment_vehicles.insert_one({
-            "id": veh_id, "entity_id": eid, "owner_id": uid,
-            "name": "Fidelity 401(k)", "vehicle_type": "401k", "provider": "Fidelity",
-            "created_at": n.isoformat(), "updated_at": n.isoformat()
-        })
-        for hold in [
-            {"asset_name": "AAPL", "quantity": 15, "cost_basis": 142.50, "current_price": 178.30},
-            {"asset_name": "VTI", "quantity": 50, "cost_basis": 195.00, "current_price": 228.40},
-        ]:
-            await db.investment_holdings.insert_one({
-                "id": new_id(), "vehicle_id": veh_id, "entity_id": eid, "owner_id": uid,
-                **hold, "created_at": n.isoformat(), "updated_at": n.isoformat()
-            })
-
-        await db.savings_funds.insert_one({
-            "id": new_id(), "entity_id": eid, "owner_id": uid,
-            "name": "Vacation Fund", "target_amount": 5000.00, "current_amount": 1850.00,
-            "target_date": (n + relativedelta(months=6)).isoformat(),
+            "name": exp["name"], "description": None, "amount": exp["amount"],
+            "is_variable": False, "is_recurring": exp["recurring"],
+            "frequency": exp["frequency"], "next_due_date": d1,
+            "category_id": cat_map.get(exp["category"]), "account_id": checking_id,
             "is_active": True, "created_at": n.isoformat(), "updated_at": n.isoformat()
         })
 
-        budget_items = [
-            {"category_id": cat_map.get("Home", ""), "category_name": "Home", "planned_amount": 2200},
-            {"category_id": cat_map.get("Food & Dining", ""), "category_name": "Food & Dining", "planned_amount": 700},
-            {"category_id": cat_map.get("Vehicle", ""), "category_name": "Vehicle", "planned_amount": 650},
-            {"category_id": cat_map.get("Entertainment", ""), "category_name": "Entertainment", "planned_amount": 200},
-            {"category_id": cat_map.get("Utilities", ""), "category_name": "Utilities", "planned_amount": 250},
-            {"category_id": cat_map.get("Savings", ""), "category_name": "Savings", "planned_amount": 500},
-        ]
-        await db.budgets.insert_one({
-            "id": new_id(), "entity_id": eid, "owner_id": uid,
-            "month": n.month, "year": n.year, "items": budget_items,
-            "created_at": n.isoformat(), "updated_at": n.isoformat()
+    await db.debts.insert_one({
+        "id": new_id(), "entity_id": eid, "owner_id": uid,
+        "name": "Auto Loan", "debt_type": "loan", "original_amount": 28000.00,
+        "current_balance": 18500.00, "interest_rate": 4.5,
+        "minimum_payment": 450.00, "due_date": d15, "frequency": "monthly",
+        "account_id": checking_id, "is_active": True,
+        "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+    await db.debts.insert_one({
+        "id": new_id(), "entity_id": eid, "owner_id": uid,
+        "name": "Credit Card Balance", "debt_type": "credit_card", "original_amount": 5000.00,
+        "current_balance": 2340.00, "interest_rate": 19.9,
+        "minimum_payment": 75.00, "due_date": d1, "frequency": "monthly",
+        "account_id": cc_id, "is_active": True,
+        "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+
+    veh_id = new_id()
+    await db.investment_vehicles.insert_one({
+        "id": veh_id, "entity_id": eid, "owner_id": uid,
+        "name": "Fidelity 401(k)", "vehicle_type": "401k", "provider": "Fidelity",
+        "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+    for hold in [
+        {"asset_name": "AAPL", "quantity": 15, "cost_basis": 142.50, "current_price": 178.30},
+        {"asset_name": "VTI", "quantity": 50, "cost_basis": 195.00, "current_price": 228.40},
+    ]:
+        await db.investment_holdings.insert_one({
+            "id": new_id(), "vehicle_id": veh_id, "entity_id": eid, "owner_id": uid,
+            **hold, "created_at": n.isoformat(), "updated_at": n.isoformat()
         })
 
-        logger.info("Demo user seeded: demo@blackiefi.com / Demo123!")
+    await db.savings_funds.insert_one({
+        "id": new_id(), "entity_id": eid, "owner_id": uid,
+        "name": "Vacation Fund", "target_amount": 5000.00, "current_amount": 1850.00,
+        "target_date": (n + relativedelta(months=6)).isoformat(),
+        "is_active": True, "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+
+    budget_items = [
+        {"category_id": cat_map.get("Home", ""), "category_name": "Home", "planned_amount": 2200},
+        {"category_id": cat_map.get("Food & Dining", ""), "category_name": "Food & Dining", "planned_amount": 700},
+        {"category_id": cat_map.get("Vehicle", ""), "category_name": "Vehicle", "planned_amount": 650},
+        {"category_id": cat_map.get("Entertainment", ""), "category_name": "Entertainment", "planned_amount": 200},
+        {"category_id": cat_map.get("Utilities", ""), "category_name": "Utilities", "planned_amount": 250},
+        {"category_id": cat_map.get("Savings", ""), "category_name": "Savings", "planned_amount": 500},
+    ]
+    await db.budgets.insert_one({
+        "id": new_id(), "entity_id": eid, "owner_id": uid,
+        "month": n.month, "year": n.year, "items": budget_items,
+        "created_at": n.isoformat(), "updated_at": n.isoformat()
+    })
+
+    logger.info("Demo user seeded: demo@blackiefi.com / Demo123!")
 
 
 # ==================== PASSWORD RESET ROUTES ====================
@@ -1744,21 +1783,8 @@ async def change_password(req: PasswordChangeRequest, user_id: str = Depends(get
 
 
 # ==================== ENHANCED TRANSACTIONS ROUTES ====================
-@transactions_router.get("/search")
-async def search_transactions(
-    q: Optional[str] = Query(None, alias="search"),
-    transaction_type: Optional[str] = None,
-    category_id: Optional[str] = None,
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    min_amount: Optional[float] = None,
-    max_amount: Optional[float] = None,
-    sort_by: str = Query("date", regex="^(date|amount|description)$"),
-    sort_order: str = Query("desc", regex="^(asc|desc)$"),
-    page: int = Query(1, ge=1),
-    page_size: int = Query(25, ge=1, le=100),
-    ctx: dict = Depends(get_entity_access),
-):
+def _build_transaction_filter(ctx, q, transaction_type, category_id, start_date, end_date, min_amount, max_amount):
+    """Build a MongoDB filter dict from search parameters."""
     query = {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"]}
     if transaction_type:
         query["transaction_type"] = transaction_type
@@ -1778,20 +1804,38 @@ async def search_transactions(
             query["amount"]["$lte"] = max_amount
     if q:
         query["description"] = {"$regex": q, "$options": "i"}
+    return query
 
+
+async def _summarize_transactions(query):
+    """Compute income/expense totals for a transaction query."""
+    docs = await db.transactions.find(query, {"_id": 0, "transaction_type": 1, "amount": 1}).to_list(5000)
+    total_income = sum(t.get("amount", 0) for t in docs if t.get("transaction_type") == "income")
+    total_expense = sum(t.get("amount", 0) for t in docs if t.get("transaction_type") != "income")
+    return total_income, total_expense
+
+
+@transactions_router.get("/search")
+async def search_transactions(
+    q: Optional[str] = Query(None, alias="search"),
+    transaction_type: Optional[str] = None,
+    category_id: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    min_amount: Optional[float] = None,
+    max_amount: Optional[float] = None,
+    sort_by: str = Query("date", regex="^(date|amount|description)$"),
+    sort_order: str = Query("desc", regex="^(asc|desc)$"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(25, ge=1, le=100),
+    ctx: dict = Depends(get_entity_access),
+):
+    query = _build_transaction_filter(ctx, q, transaction_type, category_id, start_date, end_date, min_amount, max_amount)
     direction = 1 if sort_order == "asc" else -1
     total = await db.transactions.count_documents(query)
     skip = (page - 1) * page_size
     items = await db.transactions.find(query, {"_id": 0}).sort(sort_by, direction).skip(skip).limit(page_size).to_list(page_size)
-
-    total_income = 0
-    total_expense = 0
-    all_for_summary = await db.transactions.find(query, {"_id": 0, "transaction_type": 1, "amount": 1}).to_list(5000)
-    for t in all_for_summary:
-        if t.get("transaction_type") == "income":
-            total_income += t.get("amount", 0)
-        else:
-            total_expense += t.get("amount", 0)
+    total_income, total_expense = await _summarize_transactions(query)
 
     return {
         "items": items,
@@ -1847,56 +1891,11 @@ async def debt_payoff_estimate(req: DebtPayoffRequest, ctx: dict = Depends(get_e
     else:
         sorted_debts = sorted(results, key=lambda d: d["current_balance"])
 
-    remaining_extra = extra
-    debt_balances = {d["id"]: d["current_balance"] for d in sorted_debts}
-    debt_rates = {d["id"]: d["interest_rate"] / 100 / 12 for d in sorted_debts}
-    debt_minpay = {d["id"]: d["minimum_payment"] for d in sorted_debts}
-    order = [d["id"] for d in sorted_debts]
-
-    max_months = 360
-    month = 0
-    total_interest_accel = 0
-    total_paid_accel = 0
-    per_debt_accel = {did: {"months": 0, "interest": 0, "paid": 0, "schedule": []} for did in order}
-
-    while any(debt_balances[d] > 0.01 for d in order) and month < max_months:
-        month += 1
-        leftover = remaining_extra
-        for did in order:
-            bal = debt_balances[did]
-            if bal <= 0.01:
-                continue
-            rate = debt_rates[did]
-            interest = bal * rate
-            total_interest_accel += interest
-            per_debt_accel[did]["interest"] += interest
-            payment = min(debt_minpay[did], bal + interest)
-            bal_after_interest = bal + interest
-            payment = min(payment + leftover, bal_after_interest)
-            leftover = max(0, (debt_minpay[did] + leftover) - payment) if leftover > 0 else 0
-            new_bal = max(0, bal_after_interest - payment)
-            total_paid_accel += payment
-            per_debt_accel[did]["paid"] += payment
-            debt_balances[did] = new_bal
-            if len(per_debt_accel[did]["schedule"]) < 60:
-                per_debt_accel[did]["schedule"].append({
-                    "month": month,
-                    "payment": round(payment, 2),
-                    "interest": round(interest, 2),
-                    "principal": round(payment - interest, 2),
-                    "balance": round(new_bal, 2),
-                })
-            if new_bal <= 0.01:
-                per_debt_accel[did]["months"] = month
-                leftover += debt_minpay[did]
-
-    for did in order:
-        if per_debt_accel[did]["months"] == 0 and debt_balances[did] <= 0.01:
-            per_debt_accel[did]["months"] = month
+    accel_results = _simulate_accelerated_payoff(sorted_debts, extra)
 
     n = now_dt()
     for r in results:
-        accel = per_debt_accel[r["id"]]
+        accel = accel_results["per_debt"][r["id"]]
         payoff = n + relativedelta(months=accel["months"])
         r["accelerated"] = {
             "months_to_payoff": accel["months"],
@@ -1919,12 +1918,62 @@ async def debt_payoff_estimate(req: DebtPayoffRequest, ctx: dict = Depends(get_e
         "summary": {
             "original_total_interest": round(original_total_interest, 2),
             "original_total_months": original_total_months,
-            "accelerated_total_interest": round(total_interest_accel, 2),
+            "accelerated_total_interest": round(accel_results["total_interest"], 2),
             "accelerated_total_months": accel_total_months,
-            "total_interest_saved": round(original_total_interest - total_interest_accel, 2),
+            "total_interest_saved": round(original_total_interest - accel_results["total_interest"], 2),
             "total_months_saved": original_total_months - accel_total_months,
         },
     }
+
+
+def _simulate_accelerated_payoff(sorted_debts, extra):
+    """Run the month-by-month accelerated debt payoff simulation."""
+    debt_balances = {d["id"]: d["current_balance"] for d in sorted_debts}
+    debt_rates = {d["id"]: d["interest_rate"] / 100 / 12 for d in sorted_debts}
+    debt_minpay = {d["id"]: d["minimum_payment"] for d in sorted_debts}
+    order = [d["id"] for d in sorted_debts]
+
+    month = 0
+    total_interest = 0
+    total_paid = 0
+    per_debt = {did: {"months": 0, "interest": 0, "paid": 0, "schedule": []} for did in order}
+
+    while any(debt_balances[d] > 0.01 for d in order) and month < 360:
+        month += 1
+        leftover = extra
+        for did in order:
+            bal = debt_balances[did]
+            if bal <= 0.01:
+                continue
+            rate = debt_rates[did]
+            interest = bal * rate
+            total_interest += interest
+            per_debt[did]["interest"] += interest
+            payment = min(debt_minpay[did], bal + interest)
+            bal_after_interest = bal + interest
+            payment = min(payment + leftover, bal_after_interest)
+            leftover = max(0, (debt_minpay[did] + leftover) - payment) if leftover > 0 else 0
+            new_bal = max(0, bal_after_interest - payment)
+            total_paid += payment
+            per_debt[did]["paid"] += payment
+            debt_balances[did] = new_bal
+            if len(per_debt[did]["schedule"]) < 60:
+                per_debt[did]["schedule"].append({
+                    "month": month,
+                    "payment": round(payment, 2),
+                    "interest": round(interest, 2),
+                    "principal": round(payment - interest, 2),
+                    "balance": round(new_bal, 2),
+                })
+            if new_bal <= 0.01:
+                per_debt[did]["months"] = month
+                leftover += debt_minpay[did]
+
+    for did in order:
+        if per_debt[did]["months"] == 0 and debt_balances[did] <= 0.01:
+            per_debt[did]["months"] = month
+
+    return {"per_debt": per_debt, "total_interest": total_interest, "total_paid": total_paid}
 
 
 def _amortize(balance, monthly_rate, payment, extra=0):
@@ -1967,76 +2016,8 @@ async def budget_variance_report(
     reports = []
     for i in range(months_back):
         dt = datetime(target_year, target_month, 1, tzinfo=timezone.utc) - relativedelta(months=i)
-        m, y = dt.month, dt.year
-        budget = await db.budgets.find_one(
-            {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"], "month": m, "year": y}, {"_id": 0}
-        )
-        month_start = dt.isoformat()
-        month_end = (dt + relativedelta(months=1) - timedelta(seconds=1)).isoformat()
-        txns = await db.transactions.find(
-            {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"],
-             "date": {"$gte": month_start, "$lte": month_end},
-             "transaction_type": {"$in": ["expense", "debt_payment"]}},
-            {"_id": 0}
-        ).to_list(1000)
-
-        actual_by_cat = {}
-        total_actual = 0
-        for t in txns:
-            cid = t.get("category_id") or "uncategorized"
-            actual_by_cat[cid] = actual_by_cat.get(cid, 0) + t.get("amount", 0)
-            total_actual += t.get("amount", 0)
-
-        income_txns = await db.transactions.find(
-            {"entity_id": ctx["entity_id"], "owner_id": ctx["user_id"],
-             "date": {"$gte": month_start, "$lte": month_end},
-             "transaction_type": "income"},
-            {"_id": 0}
-        ).to_list(1000)
-        total_income = sum(t.get("amount", 0) for t in income_txns)
-
-        categories = []
-        total_planned = 0
-        if budget:
-            for item in budget.get("items", []):
-                cid = item.get("category_id", "")
-                planned = item.get("planned_amount", 0)
-                actual = actual_by_cat.pop(cid, 0)
-                total_planned += planned
-                variance = planned - actual
-                pct = (actual / planned * 100) if planned > 0 else (100 if actual > 0 else 0)
-                categories.append({
-                    "category_id": cid,
-                    "category_name": item.get("category_name", "Other"),
-                    "planned": round(planned, 2),
-                    "actual": round(actual, 2),
-                    "variance": round(variance, 2),
-                    "utilization_pct": round(pct, 1),
-                    "status": "over" if actual > planned else ("warning" if pct > 80 else "on_track"),
-                })
-
-        for cid, actual in actual_by_cat.items():
-            if actual > 0:
-                cat = await db.categories.find_one({"id": cid}, {"_id": 0})
-                categories.append({
-                    "category_id": cid,
-                    "category_name": cat.get("name", "Uncategorized") if cat else "Uncategorized",
-                    "planned": 0, "actual": round(actual, 2),
-                    "variance": round(-actual, 2), "utilization_pct": 100,
-                    "status": "unbudgeted",
-                })
-
-        reports.append({
-            "month": m, "year": y,
-            "month_name": dt.strftime("%B"),
-            "has_budget": budget is not None,
-            "total_planned": round(total_planned, 2),
-            "total_actual": round(total_actual, 2),
-            "total_variance": round(total_planned - total_actual, 2),
-            "total_income": round(total_income, 2),
-            "savings_rate": round(((total_income - total_actual) / total_income * 100) if total_income > 0 else 0, 1),
-            "categories": categories,
-        })
+        report = await _build_single_month_variance(ctx, dt)
+        reports.append(report)
 
     return {
         "reports": reports,
@@ -2047,6 +2028,86 @@ async def budget_variance_report(
             "income": [r["total_income"] for r in reversed(reports)],
         },
     }
+
+
+async def _build_single_month_variance(ctx, dt):
+    """Build the budget variance report for a single month."""
+    m, y = dt.month, dt.year
+    eid, uid = ctx["entity_id"], ctx["user_id"]
+
+    budget = await db.budgets.find_one({"entity_id": eid, "owner_id": uid, "month": m, "year": y}, {"_id": 0})
+    month_start = dt.isoformat()
+    month_end = (dt + relativedelta(months=1) - timedelta(seconds=1)).isoformat()
+    date_filter = {"entity_id": eid, "owner_id": uid, "date": {"$gte": month_start, "$lte": month_end}}
+
+    txns = await db.transactions.find(
+        {**date_filter, "transaction_type": {"$in": ["expense", "debt_payment"]}}, {"_id": 0}
+    ).to_list(1000)
+
+    actual_by_cat = {}
+    total_actual = 0
+    for t in txns:
+        cid = t.get("category_id") or "uncategorized"
+        actual_by_cat[cid] = actual_by_cat.get(cid, 0) + t.get("amount", 0)
+        total_actual += t.get("amount", 0)
+
+    income_txns = await db.transactions.find(
+        {**date_filter, "transaction_type": "income"}, {"_id": 0}
+    ).to_list(1000)
+    total_income = sum(t.get("amount", 0) for t in income_txns)
+
+    categories = await _compute_category_variances(budget, actual_by_cat)
+    total_planned = sum(c["planned"] for c in categories)
+
+    return {
+        "month": m, "year": y,
+        "month_name": dt.strftime("%B"),
+        "has_budget": budget is not None,
+        "total_planned": round(total_planned, 2),
+        "total_actual": round(total_actual, 2),
+        "total_variance": round(total_planned - total_actual, 2),
+        "total_income": round(total_income, 2),
+        "savings_rate": round(((total_income - total_actual) / total_income * 100) if total_income > 0 else 0, 1),
+        "categories": categories,
+    }
+
+
+async def _compute_category_variances(budget, actual_by_cat):
+    """Match budget items against actual spending and compute variances."""
+    categories = []
+    remaining = dict(actual_by_cat)
+    total_planned = 0
+
+    if budget:
+        for item in budget.get("items", []):
+            cid = item.get("category_id", "")
+            planned = item.get("planned_amount", 0)
+            actual = remaining.pop(cid, 0)
+            total_planned += planned
+            variance = planned - actual
+            pct = (actual / planned * 100) if planned > 0 else (100 if actual > 0 else 0)
+            categories.append({
+                "category_id": cid,
+                "category_name": item.get("category_name", "Other"),
+                "planned": round(planned, 2),
+                "actual": round(actual, 2),
+                "variance": round(variance, 2),
+                "utilization_pct": round(pct, 1),
+                "status": "over" if actual > planned else ("warning" if pct > 80 else "on_track"),
+            })
+
+    for cid, actual in remaining.items():
+        if actual > 0:
+            cat = await db.categories.find_one({"id": cid}, {"_id": 0})
+            categories.append({
+                "category_id": cid,
+                "category_name": cat.get("name", "Uncategorized") if cat else "Uncategorized",
+                "planned": 0, "actual": round(actual, 2),
+                "variance": round(-actual, 2), "utilization_pct": 100,
+                "status": "unbudgeted",
+            })
+
+    return categories
 
 
 # ==================== MFA ROUTES ====================
@@ -2461,12 +2522,14 @@ RAG_AVAILABLE = False
 
 async def _check_chroma():
     global RAG_AVAILABLE
+    available = False
     try:
         async with httpx.AsyncClient(timeout=3) as c:
             r = await c.get("http://localhost:8000/api/v1/heartbeat")
-            RAG_AVAILABLE = r.status_code == 200
+            available = r.status_code == 200
     except Exception:
-        RAG_AVAILABLE = False
+        available = False
+    RAG_AVAILABLE = available
     return RAG_AVAILABLE
 
 @rag_router.get("/status")

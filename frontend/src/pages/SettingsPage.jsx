@@ -85,7 +85,7 @@ function AISettingsTab() {
     try {
       await api.put("/ai/settings", { ai_enabled: settings.ai_enabled, ollama_model: model });
       setSettings(prev => ({ ...prev, ai_model: model }));
-    } catch {} finally { setSaving(false); }
+    } catch (e) { console.error("AI model update failed:", e.message); } finally { setSaving(false); }
   };
 
   if (loading) return <div className="page-loading">Loading...</div>;
@@ -242,14 +242,14 @@ function CurrencySettingsTab() {
     try {
       await api.put("/currency/settings", { base_currency: curr, display_currencies: settings.display_currencies });
       setSettings(prev => ({ ...prev, base_currency: curr }));
-    } catch {} finally { setSaving(false); }
+    } catch (e) { console.error("Currency update failed:", e.message); } finally { setSaving(false); }
   };
 
   const convert = async () => {
     try {
       const r = await api.get(`/currency/convert?amount=${convertAmount}&from_currency=${convertFrom}&to_currency=${convertTo}`);
       setConvertResult(r.data);
-    } catch {}
+    } catch (e) { console.error("Currency conversion failed:", e.message); }
   };
 
   if (loading) return <div className="page-loading">Loading...</div>;

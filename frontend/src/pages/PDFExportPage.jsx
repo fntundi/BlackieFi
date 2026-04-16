@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { api, BACKEND_URL } from "@/lib/api";
+import { BACKEND_URL } from "@/lib/api";
+import { tokenStorage } from "@/lib/tokenStorage";
 import { FileDown, FileText, TrendingUp, LayoutDashboard, Download, Loader2 } from "lucide-react";
 
 export default function PDFExportPage() {
@@ -10,8 +11,8 @@ export default function PDFExportPage() {
   const downloadPDF = async (type, filename) => {
     setLoading({ ...loading, [type]: true });
     try {
-      const token = localStorage.getItem("token");
-      const entityId = localStorage.getItem("currentEntityId");
+      const token = tokenStorage.getToken();
+      const entityId = tokenStorage.getEntityId();
       
       let url = `${BACKEND_URL}/api/pdf/${type}`;
       const params = new URLSearchParams();

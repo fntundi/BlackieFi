@@ -166,7 +166,7 @@ export default function PortfolioAnalyticsPage() {
                         labelLine={false}
                       >
                         {allocation.map((entry, index) => (
-                          <Cell key={index} fill={entry.color || COLORS[index % COLORS.length]} />
+                          <Cell key={entry.name} fill={entry.color || COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip
@@ -182,7 +182,7 @@ export default function PortfolioAnalyticsPage() {
               {allocation.length > 0 && (
                 <div className="allocation-legend">
                   {allocation.map((item, i) => (
-                    <div key={i} className="legend-item">
+                    <div key={item.name} className="legend-item">
                       <span className="legend-dot" style={{ backgroundColor: item.color || COLORS[i % COLORS.length] }} />
                       <span>{item.name}: {formatCurrency(item.value)} ({item.percentage}%)</span>
                     </div>

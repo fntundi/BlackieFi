@@ -85,7 +85,7 @@ export default function BudgetVariancePage() {
       {/* Month selector */}
       <div className="variance-month-selector" data-testid="variance-months">
         {reports.map((r, i) => (
-          <button key={i} className={`variance-month-btn ${i === selectedIdx ? 'active' : ''}`}
+          <button key={`${r.month_name}-${r.year}`} className={`variance-month-btn ${i === selectedIdx ? 'active' : ''}`}
                   onClick={() => setSelectedIdx(i)} data-testid={`variance-month-${i}`}>
             <span className="vm-name">{r.month_name?.slice(0, 3)} {r.year}</span>
             {r.has_budget && (
@@ -161,10 +161,10 @@ export default function BudgetVariancePage() {
           <div className="variance-categories" data-testid="variance-categories">
             <h3>Category Breakdown</h3>
             <div className="variance-cat-list">
-              {(current.categories || []).map((cat, i) => {
+              {(current.categories || []).map((cat) => {
                 const st = STATUS_COLORS[cat.status] || STATUS_COLORS.on_track;
                 return (
-                  <div key={i} className="variance-cat-row" data-testid={`cat-row-${i}`}>
+                  <div key={cat.category_name || cat.category_id} className="variance-cat-row" data-testid={`cat-row-${cat.category_name}`}>
                     <div className="vcat-name">
                       <span className="vcat-status-dot" style={{ background: st.text }} />
                       <span>{cat.category_name}</span>
