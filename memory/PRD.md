@@ -63,9 +63,9 @@ All services -> MongoDB (27017) + Redis (6379) + ChromaDB (8000) | Core -> Ollam
 - [x] Gateway routing for all new service endpoints
 
 ## Testing Status
-- Backend: 31/31 API tests pass (iteration_4) + 28/28 new feature tests pass (iteration_5) + 14/14 bill pay & roles tests (iteration_6) = 100%
+- Backend: 31/31 (iter4) + 28/28 (iter5) + 14/14 (iter6) + 19/19 code quality (iter7) = 100%
 - Frontend: All 24 pages verified (100%)
-- Test reports: /app/test_reports/iteration_4.json, /app/test_reports/iteration_5.json, /app/test_reports/iteration_6.json
+- Test reports: /app/test_reports/iteration_4-7.json
 - No regressions in existing features
 
 ## Demo Credentials
@@ -146,6 +146,20 @@ Dashboard, Income, Expenses, Debts, Transactions, Accounts, Investments, Portfol
 - [x] Full environment variable documentation (jenkins/environment.env)
 - [x] Comprehensive DEPLOYMENT.md guide with architecture, prerequisites, quick-start, rollback instructions
 - [x] Zero functional code changes — purely infrastructure
+
+### Code Quality Review Fixes (April 2026) - COMPLETE
+- [x] **Security**: Hardcoded secrets in 4 test files → `os.environ.get()` with safe fallbacks
+- [x] **Security**: localStorage tokens → `sessionStorage` via `tokenStorage.js` abstraction (all 6 files migrated)
+- [x] **Bugs**: Undefined `RAG_AVAILABLE` variable hardened with local init
+- [x] **Bugs**: Empty catch blocks → console.error/warn in App.js, SettingsPage, AIAssistantPage, TransactionsPage
+- [x] **Bugs**: Array-index-as-key → unique data keys in DashboardPage, CalendarPage, PortfolioAnalyticsPage, BudgetVariancePage
+- [x] **Maintainability**: `unified_dashboard()` → 3 helpers (`_get_user_entity_ids`, `_fetch_dashboard_totals`, `_compute_upcoming`)
+- [x] **Maintainability**: `search_transactions()` → 2 helpers (`_build_transaction_filter`, `_summarize_transactions`)
+- [x] **Maintainability**: `debt_payoff_estimate()` → extracted `_simulate_accelerated_payoff()`
+- [x] **Maintainability**: `budget_variance_report()` → 2 helpers (`_build_single_month_variance`, `_compute_category_variances`)
+- [x] **Maintainability**: `startup()` → 4 helpers (`_seed_default_roles`, `_seed_default_categories`, `_seed_demo_user`, `_seed_demo_accounts`)
+- [x] **Maintainability**: BillPayPage → 3 sub-components (BillPayForm, ScheduleCard, PaymentHistoryTable)
+- [x] **Maintainability**: AuditLogPage → 2 sub-components (AuditFilterPanel, AuditLogTable)
 
 ## P0 Backlog
 - Integrate live exchange rate API (optional upgrade from static rates)
