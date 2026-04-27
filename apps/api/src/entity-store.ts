@@ -26,6 +26,42 @@ type RecordRow = {
   updated_at: Date;
 };
 
+function buildRecordData(id: string, payload: Record<string, unknown>, current?: Record<string, unknown>) {
+  const now = new Date().toISOString();
+  return {
+    ...current,
+    ...payload,
+    id,
+    created_date: current?.created_date ?? payload.created_date ?? now,
+    updated_date: payload.updated_date ?? now
+  };
+}
+
+async function insertRawRecord(entityType: string, id: string, data: Record<string, unknown>) {
+  await pool.query(
+    `INSERT INTO records (id, entity_type, data) VALUES ($1, $2, $3::jsonb)`,
+    [id, entityType, JSON.stringify(data)]
+  );
+}
+
+async function writeAuditLog(action: string, entityType: string, id: string, details: Record<string, unknown>, user?: AppUser | null) {
+  if (!user || entityType === "AuditLog") {
+    return;
+  }
+
+  const auditId = uuidv4();
+  const data = buildRecordData(auditId, {
+    action,
+    resource_type: entityType,
+    resource_id: id,
+    user_id: user.id,
+    user_email: user.email,
+    user_name: user.full_name,
+    details
+  });
+  await insertRawRecord("AuditLog", auditId, data);
+}
+
 function isAdmin(user?: AppUser | null) {
   return user?.role === "admin";
 }
@@ -34,7 +70,7 @@ function iso(value: Date) {
   return value.toISOString();
 }
 
-function normalizeRow(row: RecordRow) {
+function normalizeRow(row: RecordRow): Record<string, any> {
   return {
     ...row.data,
     id: row.id,
@@ -101,7 +137,7 @@ async function getAccessibleEntityIds(user: AppUser) {
   return new Set(accessibleIds);
 }
 
-async function applyVisibility(records: Record<string, unknown>[], entityType: string, user?: AppUser | null) {
+async function applyVisibility(records: Record<string, any>[], entityType: string, user?: AppUser | null) {
   if (!user || isAdmin(user)) {
     return records;
   }
@@ -129,7 +165,7 @@ async function applyVisibility(records: Record<string, unknown>[], entityType: s
   });
 }
 
-export async function listRecords(entityType: string, options: ListOptions = {}, user?: AppUser | null) {
+export async function listRecords(entityType: string, options: ListOptions = {}, user?: AppUser | null): Promise<Record<string, any>[]> {
   const result = await pool.query<RecordRow>(
     `SELECT id, data, created_at, updated_at FROM records WHERE entity_type = $1`,
     [entityType]
@@ -155,55 +191,47 @@ export async function listRecords(entityType: string, options: ListOptions = {},
   return records;
 }
 
-export async function getRecord(entityType: string, id: string, user?: AppUser | null) {
+export async function getRecord(entityType: string, id: string, user?: AppUser | null): Promise<Record<string, any> | null> {
   const records = await listRecords(entityType, { filter: { id } }, user);
   return records[0] ?? null;
 }
 
-export async function createRecord(entityType: string, payload: Record<string, unknown>, user?: AppUser | null) {
+export async function createRecord(entityType: string, payload: Record<string, unknown>, user?: AppUser | null): Promise<Record<string, any> | null> {
   const id = String(payload.id ?? uuidv4());
-  const now = new Date().toISOString();
-  const data = {
-    ...payload,
-    id,
-    created_date: payload.created_date ?? now,
-    updated_date: payload.updated_date ?? now
-  };
+  const data = buildRecordData(id, payload);
 
-  await pool.query(
-    `INSERT INTO records (id, entity_type, data) VALUES ($1, $2, $3::jsonb)`,
-    [id, entityType, JSON.stringify(data)]
-  );
+  await insertRawRecord(entityType, id, data);
+  await writeAuditLog("create", entityType, id, data, user);
 
   return getRecord(entityType, id, user);
 }
 
-export async function updateRecord(entityType: string, id: string, patch: Record<string, unknown>, user?: AppUser | null) {
+export async function updateRecord(entityType: string, id: string, patch: Record<string, unknown>, user?: AppUser | null): Promise<Record<string, any> | null> {
   const current = await getRecord(entityType, id, user);
   if (!current) {
     return null;
   }
 
   const next = {
-    ...current,
-    ...patch,
-    id,
-    updated_date: new Date().toISOString()
-  };
+    ...buildRecordData(id, patch, current)
+  } as Record<string, unknown>;
 
   await pool.query(
     `UPDATE records SET data = $3::jsonb, updated_at = NOW() WHERE entity_type = $1 AND id = $2`,
     [entityType, id, JSON.stringify(next)]
   );
+  await writeAuditLog("update", entityType, id, patch, user);
 
   return getRecord(entityType, id, user);
 }
 
-export async function deleteRecord(entityType: string, id: string) {
+export async function deleteRecord(entityType: string, id: string, user?: AppUser | null) {
+  const current = user ? await getRecord(entityType, id, user) : null;
   await pool.query(`DELETE FROM records WHERE entity_type = $1 AND id = $2`, [entityType, id]);
+  await writeAuditLog("delete", entityType, id, current ?? {}, user);
 }
 
-export async function bulkCreateRecords(entityType: string, payloads: Record<string, unknown>[], user?: AppUser | null) {
+export async function bulkCreateRecords(entityType: string, payloads: Record<string, unknown>[], user?: AppUser | null): Promise<Array<Record<string, any> | null>> {
   const created = [];
   for (const payload of payloads) {
     created.push(await createRecord(entityType, payload, user));

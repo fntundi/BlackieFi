@@ -10,6 +10,7 @@ import { attachUser, createSession, ensureBootstrapUser, extractToken, requireUs
 import { config } from "./config.js";
 import { pool, ensureSchema } from "./db.js";
 import { bulkCreateRecords, createRecord, deleteRecord, getRecord, listRecords, updateRecord } from "./entity-store.js";
+import { registerFeatureRoutes } from "./feature-routes.js";
 import { handleFunctionInvocation, processRecurringTransactions } from "./functions.js";
 
 const app = Fastify({ logger: true });
@@ -120,7 +121,7 @@ app.delete("/api/entities/:entity/:id", async (request, reply) => {
     return;
   }
   const params = request.params as { entity: string; id: string };
-  await deleteRecord(params.entity, params.id);
+  await deleteRecord(params.entity, params.id, request.user);
   return reply.send({ success: true });
 });
 
@@ -159,7 +160,7 @@ app.post("/api/integrations/upload", async (request, reply) => {
   const stream = createWriteStream(target);
   await file.file.pipe(stream);
   await new Promise((resolve, reject) => {
-    stream.on("finish", resolve);
+    stream.on("finish", () => resolve(undefined));
     stream.on("error", reject);
   });
   const meta = await stat(target);
@@ -228,6 +229,8 @@ app.post("/api/integrations/extract", async (request, reply) => {
     details: "PDF extraction requires an LLM/document provider configuration."
   });
 });
+
+registerFeatureRoutes(app);
 
 async function start() {
   await ensureSchema();

@@ -20,7 +20,16 @@ import {
   PiggyBank,
   Settings,
   Users,
-  Package
+  Package,
+  Wallet,
+  DollarSign,
+  Receipt,
+  Bell,
+  FileDown,
+  History,
+  Bot,
+  FileQuestion,
+  CalendarClock
 } from 'lucide-react';
 
 export default function Layout({ children, currentPageName }) {
@@ -38,21 +47,36 @@ export default function Layout({ children, currentPageName }) {
 
   const navigation = [
     { name: 'Dashboard', href: createPageUrl('Dashboard'), icon: LayoutDashboard },
+    { name: 'Accounts', href: createPageUrl('Accounts'), icon: Wallet },
+    { name: 'Income', href: createPageUrl('Income'), icon: DollarSign },
+    { name: 'Expenses', href: createPageUrl('Expenses'), icon: Receipt },
     { name: 'Entities', href: createPageUrl('Entities'), icon: Building2 },
+    { name: 'Multi-Entity', href: createPageUrl('CrossEntity'), icon: Building2 },
     { name: 'Transactions', href: createPageUrl('Transactions'), icon: ArrowLeftRight },
     { name: 'Recurring', href: createPageUrl('RecurringTransactions'), icon: Repeat },
+    { name: 'Bill Pay', href: createPageUrl('BillPay'), icon: CalendarClock },
     { name: 'Budgets', href: createPageUrl('Budgets'), icon: PiggyBank },
+    { name: 'Budget Variance', href: createPageUrl('BudgetVariance'), icon: BarChart3 },
     { name: 'Goals', href: createPageUrl('FinancialGoals'), icon: TrendingUp },
     { name: 'Debts', href: createPageUrl('Debts'), icon: CreditCard },
+    { name: 'Debt Payoff', href: createPageUrl('DebtPayoff'), icon: CreditCard },
     { name: 'Investments', href: createPageUrl('Investments'), icon: TrendingUp },
+    { name: 'Portfolio Analytics', href: createPageUrl('PortfolioAnalytics'), icon: BarChart3 },
     { name: 'Inventory', href: createPageUrl('Inventory'), icon: Package },
     { name: 'Assets', href: createPageUrl('Assets'), icon: Building2 },
     { name: 'Tax Planning', href: createPageUrl('TaxPlanning'), icon: BarChart3 },
+    { name: 'AI Assistant', href: createPageUrl('AIAssistant'), icon: Bot },
+    { name: 'Document Q&A', href: createPageUrl('DocumentQA'), icon: FileQuestion },
+    { name: 'Notifications', href: createPageUrl('Notifications'), icon: Bell },
     { name: 'Categories', href: createPageUrl('Categories'), icon: Tag },
     { name: 'Calendar', href: createPageUrl('Calendar'), icon: Calendar },
     { name: 'Import', href: createPageUrl('Import'), icon: Upload },
+    { name: 'Data Management', href: createPageUrl('DataManagement'), icon: Upload },
     { name: 'Reports', href: createPageUrl('Reports'), icon: BarChart3 },
+    { name: 'PDF Export', href: createPageUrl('PDFExport'), icon: FileDown },
+    { name: 'Audit Log', href: createPageUrl('AuditLog'), icon: History },
     ...(user?.role === 'admin' ? [
+      { name: 'Settings Hub', href: createPageUrl('Settings'), icon: Settings },
       { name: 'Settings', href: createPageUrl('FinancialSettings'), icon: Settings },
       { name: 'Groups', href: createPageUrl('Groups'), icon: Users }
     ] : []),

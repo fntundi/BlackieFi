@@ -64,6 +64,22 @@ import Inventory from './pages/Inventory';
 import Assets from './pages/Assets';
 import FinancialGoals from './pages/FinancialGoals';
 import TaxPlanning from './pages/TaxPlanning';
+import Accounts from './pages/Accounts';
+import Income from './pages/Income';
+import Expenses from './pages/Expenses';
+import PortfolioAnalytics from './pages/PortfolioAnalytics';
+import BudgetVariance from './pages/BudgetVariance';
+import DebtPayoff from './pages/DebtPayoff';
+import BillPay from './pages/BillPay';
+import Notifications from './pages/Notifications';
+import DataManagement from './pages/DataManagement';
+import AuditLog from './pages/AuditLog';
+import CrossEntity from './pages/CrossEntity';
+import PDFExport from './pages/PDFExport';
+import AIAssistant from './pages/AIAssistant';
+import DocumentQA from './pages/DocumentQA';
+import Onboarding from './pages/Onboarding';
+import Settings from './pages/Settings';
 import __Layout from './Layout.jsx';
 
 
@@ -85,6 +101,22 @@ export const PAGES = {
     "Assets": Assets,
     "FinancialGoals": FinancialGoals,
     "TaxPlanning": TaxPlanning,
+    "Accounts": Accounts,
+    "Income": Income,
+    "Expenses": Expenses,
+    "PortfolioAnalytics": PortfolioAnalytics,
+    "BudgetVariance": BudgetVariance,
+    "DebtPayoff": DebtPayoff,
+    "BillPay": BillPay,
+    "Notifications": Notifications,
+    "DataManagement": DataManagement,
+    "AuditLog": AuditLog,
+    "CrossEntity": CrossEntity,
+    "PDFExport": PDFExport,
+    "AIAssistant": AIAssistant,
+    "DocumentQA": DocumentQA,
+    "Onboarding": Onboarding,
+    "Settings": Settings,
 }
 
 export const pagesConfig = {
