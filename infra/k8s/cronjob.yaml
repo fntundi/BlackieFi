@@ -1,0 +1,30 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: blackiefi-recurring-transactions
+  namespace: blackiefi
+spec:
+  schedule: "0 5 * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: trigger
+              image: curlimages/curl:8.12.1
+              command:
+                - /bin/sh
+                - -lc
+                - |
+                  curl -fsS -X POST \
+                    -H "x-automation-key: ${AUTOMATION_SHARED_KEY}" \
+                    http://blackiefi-api:3001/api/automation/process-recurring
+              env:
+                - name: AUTOMATION_SHARED_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: blackiefi-secrets
+                      key: automation-key

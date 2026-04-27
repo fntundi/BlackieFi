@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: blackiefi-llm
+  namespace: blackiefi
+spec:
+  selector:
+    app: blackiefi-llm
+  ports:
+    - name: http
+      port: 8001
+      targetPort: 8001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackiefi-llm
+  namespace: blackiefi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blackiefi-llm
+  template:
+    metadata:
+      labels:
+        app: blackiefi-llm
+    spec:
+      containers:
+        - name: llm
+          image: blackiefi-registry.localhost:5001/blackiefi-llm:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8001
+          env:
+            - name: LLM_PROVIDER_TYPE
+              valueFrom:
+                secretKeyRef:
+                  name: blackiefi-secrets
+                  key: llm-provider-type
+            - name: LLM_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: blackiefi-secrets
+                  key: llm-base-url
+            - name: LLM_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: blackiefi-secrets
+                  key: llm-api-key
+            - name: LLM_MODEL
+              valueFrom:
+                secretKeyRef:
+                  name: blackiefi-secrets
+                  key: llm-model
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10

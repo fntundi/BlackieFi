@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: blackiefi-api-data
+  namespace: blackiefi
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blackiefi-api
+  namespace: blackiefi
+spec:
+  selector:
+    app: blackiefi-api
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blackiefi-api
+  namespace: blackiefi
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: blackiefi-api
+  template:
+    metadata:
+      labels:
+        app: blackiefi-api
+    spec:
+      containers:
+        - name: api
+          image: blackiefi-registry.localhost:5001/blackiefi-api:dev
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 3001
+          env:
+            - name: API_HOST
+              value: 0.0.0.0
+            - name: API_PORT
+              value: "3001"
+            - name: APP_SCHEME
+              value: __APP_SCHEME__
+            - name: APP_HOSTNAME
+              value: __APP_HOSTNAME__
+            - name: APP_BASE_URL
+              value: __APP_BASE_URL__
+            - name: CORS_ORIGIN
+              value: __CORS_ORIGIN__
+            - name: POSTGRES_HOST
+              value: blackiefi-postgres
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: blackiefi
+            - name: POSTGRES_USER
+              value: postgres
+            - name: LLM_SERVICE_URL
+              value: http://blackiefi-llm:8001
+            - name: AUTOMATION_SHARED_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: blackiefi-secrets
+                  key: automation-key
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: blackiefi-secrets
+                  key: postgres-password
+          volumeMounts:
+            - name: api-data
+              mountPath: /app/data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: api-data
+          persistentVolumeClaim:
+            claimName: blackiefi-api-data
